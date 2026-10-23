@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 — 2026-10-23
+- **Works out of the box with the built-in macOS voice** — free, offline; picks the most natural installed voice (Premium > Enhanced > Yuna/Samantha). Setup shows how to get a free Premium voice. ElevenLabs stays optional (the demo video's voice)
+- **Cut in over speakers** — no headphones needed: it compares the mic with how loud it is talking, and ignores a video playing in the room (`--echotest` checks your room)
+- **Korean read aloud correctly** — 「3시 16분」→「세 시 십육 분」, 「10월」→「시월」, 「M4」→「엠포」, money, units
+- **Video control:** 「영상 멈춰」, 「유튜브 꺼」, 「다시 틀어」 (⏯, only when something is playing); 「유튜브 창 꺼」 closes those tabs; after a video starts it stops listening so the video isn't taken as commands
+- **Commands:** 「유튜브에 ○○ 검색해서 재생시켜」, lead-ins like 「알았어. 그러면」 dropped, 「쿠팡의/쿠팡이 …」, 「띄워서」, a follow-up search stays on the same shop, 「지금 떠 있는 클로드 창」, misheard wake words (「하이 재비스」)
+- **Recognition:** utterance audio no longer cut by a click after you finish; Whisper's shaky words and repeated made-up tails fall back to the live text; YouTube = 유튜브 when comparing; optional `keepAudio` keeps the last 30 utterances locally for tuning
+- Remembers past conversations (`memory.md` + recent log); shorter spoken answers (one sentence)
+- On-screen orb & card can sit top / bottom-right / bottom-left (Settings → Basics)
+
 ## 0.5.1 — 2026-10-23
 - Fix: the mic could get stuck restarting after audio changes (stopped hearing the wake word) — now restarts only when it really stopped, with a fresh engine and a 3 s debounce; recognizer stall detection
 - Choose microphone and speaker in Settings (`--devices` lists them)
