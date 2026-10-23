@@ -56,6 +56,19 @@ enum AudioDevices {
         if mic == id { return nil }
         return prop(id, kAudioDevicePropertyDeviceIsRunningSomewhere, kAudioObjectPropertyScopeGlobal, UInt32(0)) != 0
     }
+    /// Bundle IDs of apps recording from a microphone right now (macOS 14.2+ Core Audio process list).
+    static func micUsers() -> [String] {
+        var a = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil, &size) == noErr, size > 0 else { return [] }
+        var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil, &size, &ids)
+        return ids.compactMap { id in
+            guard prop(id, kAudioProcessPropertyIsRunningInput, kAudioObjectPropertyScopeGlobal, UInt32(0)) != 0 else { return nil }
+            let b = prop(id, kAudioProcessPropertyBundleID, kAudioObjectPropertyScopeGlobal, "" as CFString) as String
+            return b.isEmpty ? nil : b
+        }
+    }
     static func inputs() -> [AudioDevice] { all().filter(\.input) }
     static func outputs() -> [AudioDevice] { all().filter(\.output) }
     static func device(uid: String) -> AudioDevice? { uid.isEmpty ? nil : all().first { $0.uid == uid } }

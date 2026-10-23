@@ -84,6 +84,7 @@ final class Butler {
         brain.warm()
         router.warm()
         Growth.sweep()
+        if cfg.pauseInCalls { Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.checkCalls() } }
         Timers.onFire = { [weak self] label in self?.timerFired(label) }
         Timers.restore()
         listenForSignals()
@@ -936,6 +937,25 @@ final class Butler {
         hud.show(S.t("⏰ 타이머", "⏰ Timer"), line, heard: "", color: amber, speed: 2)
         guard mode == .idle || mode == .awake else { return }
         speak(line) { [weak self] in self?.goIdle() }
+    }
+    /// Apps that mean "I'm in a call" (or dictating with Handy) when they record from the mic.
+    static let callApps: Set<String> = ["us.zoom.xos", "zoom.us", "com.microsoft.teams", "com.microsoft.teams2", "com.apple.FaceTime",
+        "com.cisco.webexmeetingsapp", "Cisco-Systems.Spark", "com.tinyspeck.slackmacgap", "com.hnc.Discord", "com.kakao.KakaoTalkMac",
+        "com.google.Chrome", "com.apple.Safari", "company.thebrowser.Browser", "com.microsoft.edgemac", "com.pais.handy", "com.apple.VoiceMemos"]
+    var inCall = false
+    /// While a call app records from the mic, stop listening (no commands from the meeting's audio); resume after.
+    func checkCalls() {
+        let busy = AudioDevices.micUsers().contains { Butler.callApps.contains($0) }
+        if busy, !inCall, mode == .idle || mode == .awake {
+            inCall = true; ear.muted = true; mode = .idle
+            log("call/dictation app is using the mic → pausing")
+            hud.show(S.t("🎙 통화 중 · 잠시 쉼", "🎙 In a call · paused"), S.t("끝나면 다시 들어요 (단축키는 그대로 돼요)", "Back when it ends (hotkey still works)"), heard: "", color: amber, speed: 0.3)
+        } else if busy, inCall, mode == .idle, !ear.holding, !ear.muted {
+            ear.muted = true          // after a hotkey command during the call, stop listening again
+        } else if !busy, inCall {
+            inCall = false; ear.muted = false; ear.restart()
+            log("mic free again → listening"); hud.idle()
+        }
     }
     func goIdle() { mode = .idle; hud.idle() }
     func shutdown() { whisper.stop(); brain.stop(); router.stop(); mouth.stop(); control.stop() }
