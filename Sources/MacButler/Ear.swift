@@ -223,10 +223,20 @@ final class Ear {
         if !t.isEmpty { onUtterance(t, audio) }
     }
 
+    /// Ends like a Korean request or question: 해/줘/봐/켜/꺼/틀어/야/요/까/니/?
+    static func soundsFinished(_ t: String) -> Bool {
+        let s = t.trimmingCharacters(in: .whitespaces)
+        if s.hasSuffix("?") || s.hasSuffix(".") { return true }
+        guard let last = s.split(separator: " ").last.map(String.init), last.count >= 1 else { return false }
+        let ends = ["해", "줘", "봐", "켜", "꺼", "어", "아", "야", "요", "다", "까", "니", "래", "자", "워", "려", "와", "라"]
+        return ends.contains(String(last.suffix(1))) && !["그래", "아니야", "자비스야"].contains(last) && s.count >= 3
+    }
     private func tick() {
         if muted || holding { return }
-        let quiet = Date().timeIntervalSince(lastLoud) > 0.7
-        if !lastText.isEmpty, quiet, Date().timeIntervalSince(lastChange) > silenceSec { flush() }
+        // A sentence that clearly ended (「…틀어」「…해 줘」「…야?」) is acted on after 0.9 s, not the full pause.
+        let finished = Ear.soundsFinished(lastText)
+        let quiet = Date().timeIntervalSince(lastLoud) > (finished ? 0.5 : 0.7)
+        if !lastText.isEmpty, quiet, Date().timeIntervalSince(lastChange) > (finished ? min(0.9, silenceSec) : silenceSec) { flush() }
         else if lastText.isEmpty, Date().timeIntervalSince(taskStart) > 50 { restart() }
     }
 }

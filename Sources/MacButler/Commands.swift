@@ -23,6 +23,10 @@ enum Intent: Equatable {
     case cancelTimers                                       // 「타이머 취소」
     case map(String)                                        // 「강남역 가는 길」 → Naver Map
     case multi([String])                                    // 「로파이 틀고 소리 줄이고 화면 꺼」 — each part is a quick command
+    case routine(String)                                    // a routine's name was said → run its steps
+    case makeRoutine(name: String, steps: [String])         // 「앞으로 '작업 시작' 하면 A하고 B해」 (steps = quick commands only)
+    case badRoutine(String)                                 // tried to put something that isn't a quick command in a routine
+    case forgetRoutine(String)                              // 「작업 시작 루틴 지워」
     case openApp(spoken: String, app: String)
     case none
 }
@@ -145,6 +149,20 @@ struct Parser {
         if isHush(s) { return .hush }
         if isBye(s) { return .bye }
         s = Parser.dropLeadIn(s)
+        if let r = Routines.match(s) { return .routine(r) }
+        if let m = Parser.match(s, "^(.+?)\\s*루틴\\s*(지워|삭제|없애)"), let r = Routines.match(m[1]) { return .forgetRoutine(r) }
+        // 「앞으로 작업 시작 하면 클로드 열고 로파이 틀어」「작업 시작이라고 하면 …」
+        if let m = Parser.match(s, "^(?:앞으로\\s+|이제부터\\s+)?[\"'「]?(.+?)[\"'」]?\\s*(?:이?라고\\s*하면|라고\\s*말하면|하면은|하면)\\s*[,]?\\s*(.+)$"),
+           s.hasPrefix("앞으로") || s.hasPrefix("이제부터") || ((s.contains("라고 하면") || s.contains("라고 말하면")) && !s.contains("?") && !s.contains("어떻게")) {
+            let name = m[1].trimmingCharacters(in: .whitespaces)
+            let steps = Parser.splitCommands(m[2]) ?? [m[2]]
+            let ok = steps.allSatisfy { p in
+                let i = parse(p, hasYouTubeList: false)
+                switch i { case .none, .claude, .type, .dictation, .multi, .routine, .makeRoutine, .badRoutine, .forgetRoutine, .remember, .bye, .hush, .greet: return false
+                           default: return true }
+            }
+            return ok && !name.isEmpty ? .makeRoutine(name: name, steps: steps) : .badRoutine(name)
+        }
         // "쿠팡 말고 유튜브 터틀메이커 검색해봐" — the part after 말고 is what you want
         if let r = s.range(of: #"\s말고[,\s]+"#, options: .regularExpression), s[r.upperBound...].count >= 2 { s = String(s[r.upperBound...]) }
         if Parser.isCompound(s), !s.contains("클로드"), !s.lowercased().contains("claude") {
@@ -239,7 +257,7 @@ struct Parser {
             var q = m[2]
             // drop "홈페이지에 들어가서", "사이트에서", "에서", "가서", "접속해서" …
             for lead in ["홈페이지에 들어가서", "홈페이지 들어가서", "홈페이지에서", "홈페이지에", "사이트에 들어가서", "사이트에서", "앱에서",
-                         "에 들어가서", "들어가서", "에 가서", "가서", "접속해서", "띄워서", "열어서", "켜서", "들어가 가지고"] {
+                         "에 들어가서", "들어가서", "에 가서", "가서", "접속해서", "띄워서", "열어서", "켜서", "열면", "켜면", "들어가 가지고"] {
                 if q.hasPrefix(lead) { q = String(q.dropFirst(lead.count)).trimmingCharacters(in: .whitespaces) }
             }
             q = Parser.stripAsk(q)

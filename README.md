@@ -45,6 +45,10 @@ screen, run commands and use the web.
 | “받아써” / “take dictation” … “엔터” … “그만” | continuous dictation with Whisper accuracy | ~1 s per sentence |
 | “클로드코드한테 모든 프로젝트 점검해서 텔레그램으로 보내” / “ask Claude Code to …” | opens a **new Claude Code session** in the Claude app and types the task | ~2 s |
 | “○○ 세션 클로드한테 ‘테스트’라고 전달해” | finds that session in the sidebar and sends the message | ~2 s |
+| “라면 3분”, “5시에 회의 알려 줘” · “3 minute timer” | timers & reminders (they only remind) | instant |
+| “강남역 가는 길”, “몇 시야”, “소리 30” | Naver Map, time/date, volume | instant |
+| “로파이 틀고 소리 줄이고 화면 꺼” | several quick commands in one sentence, in order | instant |
+| “앞으로 ‘작업 시작’ 하면 클로드 열고 로파이 틀어” | your own routine by voice → next time just “작업 시작” | instant |
 | anything else — “지금 화면에 뭐 있어?”, “이 페이지 요약해서 메모에 붙여” | Claude Code works it out (screen, apps, web) and answers out loud | 4–20 s |
 
 While it's talking — or while Claude is still working — just say the next thing: it stops and takes the new command. “됐어” / “that's all” ends the conversation.

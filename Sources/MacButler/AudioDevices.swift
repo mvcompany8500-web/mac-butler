@@ -80,5 +80,6 @@ enum Sound {
         s.play()
     }
     static func named(_ n: String) { play(NSSound(named: NSSound.Name(n))?.copy() as? NSSound) }
+    static func soft(_ n: String) { let s = NSSound(named: NSSound.Name(n))?.copy() as? NSSound; s?.volume = 0.35; play(s) }
     static func file(_ u: URL) { play(NSSound(contentsOf: u, byReference: true)) }
 }

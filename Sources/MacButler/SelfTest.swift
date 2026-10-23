@@ -119,6 +119,8 @@ enum SelfTest {
                              ("3분짜리 영상 찾아 줘", "search("), ("타이머 취소", "cancelTimers"), ("강남역 가는 길", "map(\"강남역\")"), ("지금 어디야", "none"),
                              ("로파이 틀고 소리 줄이고 화면 꺼", "multi([\"로파이 틀어\", \"소리 줄여\", \"화면 꺼\"])"), ("로파이 틀어", "youtube(\"로파이\")"),
                              ("쿠팡 열고 클로드에 버그 고치라고 해", "none"),
+                             ("앞으로 작업 시작 하면 클로드 열고 로파이 틀고 소리 30으로 해", "makeRoutine(name: \"작업 시작\", steps: [\"클로드 열어\", \"로파이 틀어\", \"소리 30으로 해\"])"),
+                             ("작업 시작이라고 하면 카톡에 보내고 결제해", "badRoutine("), ("쿠팡 열면 맥미니 찾아", "web(label: \"쿠팡\", query: \"맥미니\""),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }
@@ -134,6 +136,7 @@ enum SelfTest {
             checkBool("voice is voiced", voice.withUnsafeBufferPointer { DoubleTalk.periodicity($0.baseAddress!, 1600) } > DoubleTalk.voiced)
             checkBool("breath is not voiced", puff.withUnsafeBufferPointer { DoubleTalk.periodicity($0.baseAddress!, 1600) } < DoubleTalk.voiced)
         }
+        checkBool("sentence sounds finished", Ear.soundsFinished("유튜브 로파이 틀어") && Ear.soundsFinished("몇 시야?") && !Ear.soundsFinished("유튜브에서") && !Ear.soundsFinished("그리고"))
         checkBool("brain started a video", Parser.startedMedia("사파리에서 유튜브에 터틀메이커를 검색해 첫 영상을 재생했습니다."))
         checkBool("brain paused a video", !Parser.startedMedia("영상을 일시정지했습니다."))
         checkBool("whisper shaky word → Apple text", !Whisper.shaky([("자비스,", 0.9), ("신별시야.", 0.2)], apple: "자비스 지금 몇 시야").isEmpty)

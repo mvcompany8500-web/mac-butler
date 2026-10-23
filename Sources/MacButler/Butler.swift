@@ -343,6 +343,18 @@ final class Butler {
             let n = Timers.cancelAll(); done(S.t("타이머", "Timer"), S.t("\(n)개 취소", "\(n) cancelled"))
         case .map(let place):
             open("https://map.naver.com/p/search/" + enc(place)); done(S.t("지도", "Map"), place)
+        case .routine(let name):
+            let steps = Routines.all[name] ?? []
+            log("routine \(name): \(steps)")
+            handle(steps.joined(separator: " 그리고 "))       // runs as one multi-command
+            hud.show("◉ " + name, steps.joined(separator: " → "), heard: nil, color: lime, speed: 2)
+        case .makeRoutine(let name, let steps):
+            Routines.save(name, steps)
+            speak(cfg.ko ? "앞으로 「\(name)」 하시면 \(steps.joined(separator: ", ")) 할게요." : "From now on, “\(name)” will \(steps.joined(separator: ", ")).") { [weak self] in self?.converse(keep: true) }
+        case .badRoutine(let name):
+            speak(cfg.ko ? "「\(name)」 루틴에는 바로 할 수 있는 일만 넣을 수 있어요. 열기, 틀기, 소리, 지도, 타이머 같은 거요." : "Routines can only hold quick actions — open, play, volume, maps, timers.") { [weak self] in self?.converse(keep: true) }
+        case .forgetRoutine(let name):
+            Routines.remove(name); done(S.t("루틴 지움", "Routine removed"), name)
         case .multi(let parts):
             log("multi: \(parts)")
             hud.show(S.t("◉ 차례로 하는 중", "◉ Doing them in order"), parts.joined(separator: " → "), heard: nil, color: amber, speed: 3)
@@ -729,6 +741,7 @@ final class Butler {
         brainCommand = cmd; brainByHold = byHold; pendingAction = nil
         let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"
         hud.show(S.thinking, "…", heard: cmd, color: amber, speed: 3)
+        Sound.soft("Purr")      // heard you — thinking (so the wait isn't silent)
         brain.ask(cmd, live: lastLive, frontApp: front, context: screenContext(front), step: { [weak self] label in
             guard let self else { return }
             self.hud.show(self.S.working, label, heard: nil, color: amber, speed: 3)
@@ -736,6 +749,7 @@ final class Butler {
             guard let self else { return }
             log("brain → \(answer)")
             Memory.exchange(user: cmd, reply: answer)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.brain.warm() }   // swap in a fresh brain now if it got heavy, not on the next question
             self.noteOpened(fromBrain: self.brain.lastCommands)
             let correction = ["아니", "그게 아니", "no ", "not "].contains { cmd.lowercased().hasPrefix($0) }
             if !correction, let steps = Learning.replayable(self.brain.lastCommands) {

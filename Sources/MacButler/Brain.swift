@@ -110,7 +110,8 @@ final class Brain {
 
     func warm() { ensure() }
     private func ensure() {
-        if let p = proc, p.isRunning, sent < 12, Usage.lastContext < 120_000, Date().timeIntervalSince(lastUse) < 1800 { return }
+        // Fresh process before the context gets heavy: a turn at ~100k tokens took 32 s, at ~15k about 7 s.
+        if let p = proc, p.isRunning, sent < 8, Usage.lastContext < 60_000, Date().timeIntervalSince(lastUse) < 1800 { return }
         if let p = proc, p.isRunning, done != nil { return }   // never swap while working
         proc?.terminate()
         guard let bin = cfg.claudeBinary else { log("claude not found"); return }
