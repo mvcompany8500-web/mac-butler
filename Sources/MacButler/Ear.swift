@@ -83,10 +83,14 @@ final class Ear {
             log("ear: audio configuration changed → restarting mic"); self.restartEngine()
         }
     }
+    private var retired: [AVAudioEngine] = []
     private func restartEngine() {
         lastRestart = Date()
-        engine.stop()
         engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        // Keep the old engine alive a moment: freeing it while Core Audio is still tearing it down crashed (10/24 00:39).
+        let old = engine; retired.append(old)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.retired.removeAll { $0 === old } }
         engine = AVAudioEngine()          // a fresh engine so the chosen mic is applied cleanly
         observeEngine()
         lock.lock(); lastBuffer = Date(); lock.unlock()
@@ -96,11 +100,14 @@ final class Ear {
     private func startEngine() throws {
         let input = engine.inputNode
         if !inputUID.isEmpty, !AudioDevices.use(inputUID, on: input.audioUnit) { log("ear: chosen mic not found → system default") }
-        let fmt = input.outputFormat(forBus: 0)
-        guard fmt.sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
-        converter = AVAudioConverter(from: fmt, to: target)
-        input.installTap(onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
+        guard input.inputFormat(forBus: 0).sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
+        // format: nil = whatever the device delivers. Asking for a stale format (the mic changed rate after a call app
+        // or a device switch) made AVAudioEngine throw and the app abort; the converter follows the real buffers instead.
+        converter = nil
+        input.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buf, _ in
             guard let self else { return }
+            let fmt = buf.format
+            if self.converter?.inputFormat != fmt { self.converter = AVAudioConverter(from: fmt, to: self.target) }
             self.lock.lock(); self.lastBuffer = Date(); self.lock.unlock()
             var voice: Float = 0
             if let conv = self.converter {
