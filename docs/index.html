@@ -52,6 +52,7 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .hero p.lead{position:relative;font-size:clamp(17px,2vw,20px);color:#334155;max-width:620px;margin:0 auto}
 .cta{position:relative;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:34px 0 14px}
 .lead .ln{display:block;text-wrap:balance}
+.nw{white-space:nowrap}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:600;color:var(--ink)}
 .note{position:relative;font-size:13.5px;color:#475569}
 .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,255,255,.7);padding:3px 8px;border-radius:7px;font-size:13px}
@@ -181,6 +182,7 @@ footer a:hover{color:var(--blue)}
   .note{display:none}
   .window{margin-top:40px}
 }
+@media (max-width:360px){.feats{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
 </head>
@@ -210,7 +212,7 @@ footer a:hover{color:var(--blue)}
   <div class="cloud" style="width:380px;height:160px;right:22%;top:250px;opacity:.7"></div>
   <span class="badge">무료 · 오픈소스 · 맥 전용</span>
   <h1>맥에 말하면,<br>바로 해 주는 AI&nbsp;비서.</h1>
-  <p class="lead"><span class="ln">「자비스」라고 부르고 말하면 맥이 바로&nbsp;합니다.</span><span class="ln">유튜브·쇼핑 같은 쉬운 일부터 코딩까지, 손&nbsp;대신&nbsp;말로.</span></p>
+  <p class="lead"><span class="ln">「자비스」라고 부르고 말하면 맥이 바로&nbsp;합니다.</span><span class="ln">쉬운 일부터 코딩까지, <span class="nw">손&nbsp;대신&nbsp;말로.</span></span></p>
   <div class="cta">
     <a class="btn btn-dark btn-lg" href="https://github.com/mvcompany8500-web/mac-butler/releases/latest">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>macOS용 다운로드
@@ -265,7 +267,7 @@ footer a:hover{color:var(--blue)}
   </div>
   <div class="wake">
     <div class="wk"><div class="say">「자비스」<small>또는 「헤이 자비스」</small></div><p>띵 소리가 나면 말하세요. 말이 끝나면 0.9초 안에 움직입니다.</p></div>
-    <div class="wk"><div class="say"><span class="kbd">오른쪽 ⌥</span> 누른 채 말하기</div><p>핸디처럼 누른 동안만 듣고, 떼면 바로 실행. 시끄러운 곳에서 가장 정확해요.</p></div>
+    <div class="wk"><div class="say"><span class="kbd">오른쪽 ⌥</span> <span class="nw">누른 채 말하기</span></div><p>핸디처럼 누른 동안만 듣고, 떼면 바로 실행. 시끄러운 곳에서 가장 정확해요.</p></div>
     <div class="wk"><div class="say">「됐어」 · 「멈춰」</div><p>대답 중에도 끊을 수 있어요. 스피커로 말하는 중이어도 마이크 가까이에서 말하면 멈춥니다.</p></div>
   </div>
 </section>
