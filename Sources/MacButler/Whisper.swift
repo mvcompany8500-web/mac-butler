@@ -57,9 +57,13 @@ final class Whisper {
         attempt(wav, tries: 30) { [weak self] text, words in
             guard let self else { return }
             var t = Whisper.clean(text ?? "", apple: fallback)
+            // "맥미니 M6 찾아. 고팩! 고팩! 고팩!" — a word repeated at the end that Apple didn't hear is made up.
+            let (trimmed, dropped) = Whisper.dropRepeatedTail(t, apple: fallback)
+            if !dropped.isEmpty { log("whisper: dropped repeated tail \(dropped)"); t = trimmed }
+            let kept = words.filter { w in !dropped.contains(Parser.squash(w.0)) }
             // A word Whisper itself wasn't sure of, that Apple didn't hear either, means the audio was garbled
             // (e.g. "지금 몇 시야" → "신별시야") — then Apple's live text is the safer one.
-            let shaky = Whisper.shaky(words, apple: fallback)
+            let shaky = Whisper.shaky(kept, apple: fallback)
             if !t.isEmpty, !shaky.isEmpty, Parser.squash(fallback).count * 10 >= Parser.squash(t).count * 7 {
                 log("whisper unsure of \(shaky.joined(separator: ", ")) → Apple text: \(t)"); t = ""
             }
@@ -118,15 +122,34 @@ final class Whisper {
     /// Whisper's text should share most of its characters with what Apple heard live; if not, the audio was
     /// probably cut wrong (old speech, our own voice) — better to trust the live text.
     static func related(_ w: String, _ apple: String) -> Bool {
+        let apple = Whisper.hangulize(apple), w = Whisper.hangulize(w)
         let a = apple.filter { $0.isLetter || $0.isNumber }.lowercased(), b = w.filter { $0.isLetter || $0.isNumber }.lowercased()
         guard a.count >= 3 else { return b.count <= max(8, a.count * 4) }
         let bag = Set(b)
         let hit = a.filter { bag.contains($0) }.count
         return Double(hit) / Double(a.count) >= 0.45 && b.count <= a.count * 3 + 10
     }
+    /// Apple writes some words in Latin letters, Whisper in Hangul — compare them as the same.
+    static func hangulize(_ s: String) -> String {
+        var t = s
+        for (en, ko) in [("youtube", "유튜브"), ("mac mini", "맥미니"), ("macbook", "맥북"), ("claude", "클로드"), ("chrome", "크롬"), ("google", "구글"),
+                         ("safari", "사파리"), ("github", "깃허브"), ("iphone", "아이폰"), ("ok", "오케이")] {
+            t = t.replacingOccurrences(of: en, with: ko, options: .caseInsensitive)
+        }
+        return t
+    }
+    /// Removes a word Whisper repeated at the very end ("…, 고팩! 고팩! 고팩!") unless Apple heard it too.
+    static func dropRepeatedTail(_ t: String, apple: String) -> (String, Set<String>) {
+        var parts = t.split(separator: " ").map(String.init)
+        guard parts.count >= 3 else { return (t, []) }
+        let last = Parser.squash(parts.last!)
+        guard !last.isEmpty, Parser.squash(parts[parts.count - 2]) == last, !Parser.squash(apple).contains(last) else { return (t, []) }
+        while let p = parts.last, Parser.squash(p) == last { parts.removeLast() }
+        return (parts.joined(separator: " "), [last])
+    }
     /// Words Whisper gave low probability to and that Apple's live text doesn't contain.
     static func shaky(_ words: [(String, Double)], apple: String) -> [String] {
-        let a = Parser.squash(apple)
+        let a = Parser.squash(Whisper.hangulize(apple))
         return words.filter { w, p in
             let k = Parser.squash(w)
             return p < 0.35 && k.count >= 2 && !a.contains(k)

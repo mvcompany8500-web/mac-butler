@@ -24,6 +24,7 @@ final class Butler {
     var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
     var spokeAt = Date.distantPast        // when it last stopped talking (finished or interrupted)
     var lastMedia: (play: Bool, at: Date)?
+    var lastSite: (label: String, url: String, at: Date)?   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
     /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
     lazy var bargeAny: Bool = {
         if cfg.bargeIn == "any" { return true }
@@ -302,9 +303,16 @@ final class Butler {
         case .youtubeNth(let n):
             guard n >= 1, n <= ytList.count else { ask(cmd); return }
             open("https://www.youtube.com/watch?v=" + ytList[n - 1].id); played("\(S.youtube) #\(n)", ytList[n - 1].title)
+        case .search(let q) where lastSite.map({ Date().timeIntervalSince($0.at) < 120 }) == true:
+            let s = lastSite!; lastSite = (s.label, s.url, Date()); open(s.url + enc(q)); done(s.label, q)
         case .search(let q): open((cfg.ko ? "https://www.google.com/search?hl=ko&q=" : "https://www.google.com/search?q=") + enc(q)); done(S.searched, q)
         case .remember(let note): Memory.note(note); Sound.named("Pop"); done(S.t("기억함", "Remembered"), note)
-        case .web(let label, let q, let url): open(q.isEmpty ? url : url + enc(q)); done(label, q.isEmpty ? url : q)
+        case .web(let label, let q, let url):
+            if !q.isEmpty { lastSite = (label, url, Date()) }
+            open(q.isEmpty ? url : url + enc(q)); done(label, q.isEmpty ? url : q)
+        case .closeTabs(let label, let host):
+            let n = closeTabs(host)
+            if n > 0 { done(S.t("창 닫음", "Closed"), "\(label) ×\(n)") } else { done(S.t("닫을 창 없음", "Nothing to close"), label) }
         case .openApp(let spoken, let app):
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
@@ -325,6 +333,38 @@ final class Butler {
         }
     }
 
+    /// Closes the browser tabs on that site — the front window first; if none there, any window.
+    /// (YouTube Studio and the like are left alone. Only browsers already running are touched.)
+    func closeTabs(_ host: String) -> Int {
+        var total = 0
+        for (bundle, app) in [("com.google.Chrome", "Google Chrome"), ("com.apple.Safari", "Safari")]
+        where !NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty {
+            for scope in ["{front window}", "windows"] {
+                let src = """
+                tell application "\(app)"
+                  set n to 0
+                  repeat with w in \(scope)
+                    repeat with i from (count of tabs of w) to 1 by -1
+                      set u to URL of tab i of w
+                      if u contains "\(host)" and u does not contain "studio." then
+                        close tab i of w
+                        set n to n + 1
+                      end if
+                    end repeat
+                  end repeat
+                  return n
+                end tell
+                """
+                var err: NSDictionary?
+                let n = Int(NSAppleScript(source: src)?.executeAndReturnError(&err).int32Value ?? 0)
+                if let err { log("close tabs (\(app)): \(err[NSAppleScript.errorMessage] ?? err)") }
+                total += n
+                if n > 0 { break }
+            }
+        }
+        log("closed \(total) \(host) tab(s)")
+        return total
+    }
     /// Pause / resume the video or music that's playing (the ⏯ key, so it works whichever window is in front).
     func media(play: Bool) {
         // ⏯ toggles — press it only when it changes something. Can't tell (headset)? Assume it's needed,

@@ -128,7 +128,8 @@ final class Ear {
                         self.floor = rms < self.floor ? rms : self.floor * 0.998 + rms * 0.002
                         if rms > max(self.floor * 3.5, 0.003) {
                             // Voice after a real pause = a new utterance starts here (keep 0.4 s of lead-in).
-                            if Date().timeIntervalSince(self.lastLoud) > self.silenceSec {
+                            // Not once words are already in: a click or chime after you finished must not cut you off.
+                            if Date().timeIntervalSince(self.lastLoud) > self.silenceSec, self.lastText.isEmpty {
                                 self.lock.lock(); self.speechOnset = max(self.ringEnd - 6400, self.ringBase); self.lock.unlock()
                             }
                             self.lastLoud = Date()

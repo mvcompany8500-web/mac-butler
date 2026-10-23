@@ -76,9 +76,15 @@ enum SelfTest {
         for (said, want) in [("쿠팡의 맥미니 서치해봐", "web(label: \"쿠팡\", query: \"맥미니\""), ("알았어. 그러면 유튜브에 터틀메이커 검색해서 재생시켜봐", "youtube(\"터틀메이커\")"),
                              ("유튜브 로파이 틀어", "youtube(\"로파이\")"), ("멈춰, 영상", "media(play: false)"), ("YouTube 영상 멈춰", "media(play: false)"),
                              ("지금 틀어져 있는 영상들 다 꺼", "media(play: false)"), ("영상 다시 틀어", "media(play: true)"), ("멈춰", "hush"),
+                             ("쿠팡 띄워서 Mac mini 찾아봐", "web(label: \"쿠팡\", query: \"Mac mini\""), ("쿠팡이 나에게 맞는 컴퓨터 찾아줘", "web(label: \"쿠팡\", query: \"나에게 맞는 컴퓨터\""),
+                             ("쿠팡 에어팟 찾아 줘", "web(label: \"쿠팡\", query: \"에어팟\""), ("쿠팡 의자 찾아 줘", "web(label: \"쿠팡\", query: \"의자\""),
+                             ("지금 켜져 있는 유튜브 창 꺼", "closeTabs(label: \"유튜브\""), ("YouTube 창 꺼 종료시켜", "closeTabs(label: \"유튜브\""),
+                             ("자비스, 자비스, 클로드 창에다가 지금 버그 체크해서 다시 고쳐놓으라 그래", "claude(target: \"\""),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }
+        checkBool("whisper repeated tail dropped", Whisper.dropRepeatedTail("맥미니 M6 찾아. 고팩! 고팩! 고팩!", apple: "Mac mini MS 찾아").0 == "맥미니 M6 찾아.")
+        checkBool("whisper YouTube = 유튜브", Whisper.related("지금 켜져 있는 유튜브 창 꺼.", "자비스 지금 켜져 있는 YouTube 창 꺼"))
         checkBool("brain started a video", Parser.startedMedia("사파리에서 유튜브에 터틀메이커를 검색해 첫 영상을 재생했습니다."))
         checkBool("brain paused a video", !Parser.startedMedia("영상을 일시정지했습니다."))
         checkBool("whisper shaky word → Apple text", !Whisper.shaky([("자비스,", 0.9), ("신별시야.", 0.2)], apple: "자비스 지금 몇 시야").isEmpty)

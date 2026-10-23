@@ -12,6 +12,7 @@ enum Intent: Equatable {
     case web(label: String, query: String, url: String)   // shopping / site search
     case remember(String)                                   // 「기억해: …」 — a long-term note
     case media(play: Bool)                                  // pause / resume whatever video or music is playing
+    case closeTabs(label: String, host: String)             // 「유튜브 창 꺼」 — close those browser tabs
     case openApp(spoken: String, app: String)
     case none
 }
@@ -56,12 +57,14 @@ struct Parser {
         }
         return nil
     }
-    /// Removes a leading wake word ("자비스, …", "hey jarvis …").
+    /// Removes a leading wake word ("자비스, …", "hey jarvis …", "자비스, 자비스, …").
     func stripWake(_ t: String) -> String {
-        if let r = wakeRange(t), t.distance(from: t.startIndex, to: r.lowerBound) < 8 {
+        var t = t
+        for _ in 0..<3 {
+            guard let r = wakeRange(t), t.distance(from: t.startIndex, to: r.lowerBound) < 8 else { break }
             var rest = String(t[r.upperBound...])
             if rest.hasPrefix("야") { rest.removeFirst() }
-            return Parser.clean(rest)
+            t = Parser.clean(rest)
         }
         return Parser.clean(t)
     }
@@ -121,6 +124,7 @@ struct Parser {
         if isHush(s) { return .hush }
         if isBye(s) { return .bye }
         s = Parser.dropLeadIn(s)
+        if let c = Parser.closeTabs(s) { return .closeTabs(label: c.0, host: c.1) }
         if let play = Parser.mediaControl(s) { return .media(play: play) }
 
         let tail = "\\s*(해 줘|해줘|해 주세요|해|줘|좀|봐|봐 줘|봐줘|주세요)?$"
@@ -179,11 +183,12 @@ struct Parser {
             ("구글", "Google", "https://www.google.com/search?q=", "https://www.google.com/"),
             ("아마존|amazon", "Amazon", "https://www.amazon.com/s?k=", "https://www.amazon.com/")]
         for (pat, label, url, home) in sites {
-            guard let m = Parser.match(s, "^(" + pat + ")\\s*(.*)$") else { continue }
+            // "쿠팡에/쿠팡의/쿠팡이 …" — a particle only when glued to the name ("쿠팡 에어팟" keeps 에어팟)
+            guard let m = Parser.match(s, "^(" + pat + ")(?:(?:에서|에|의|이|가|은|는|으로|로)(?=\\s|$))?\\s*(.*)$") else { continue }
             var q = m[2]
             // drop "홈페이지에 들어가서", "사이트에서", "에서", "가서", "접속해서" …
             for lead in ["홈페이지에 들어가서", "홈페이지 들어가서", "홈페이지에서", "홈페이지에", "사이트에 들어가서", "사이트에서", "앱에서",
-                         "에 들어가서", "들어가서", "에 가서", "가서", "접속해서", "에서", "에", "의", "으로", "로"] {
+                         "에 들어가서", "들어가서", "에 가서", "가서", "접속해서", "띄워서", "열어서", "켜서", "들어가 가지고"] {
                 if q.hasPrefix(lead) { q = String(q.dropFirst(lead.count)).trimmingCharacters(in: .whitespaces) }
             }
             q = Parser.stripAsk(q)
@@ -220,6 +225,17 @@ struct Parser {
             }
         }
         return t
+    }
+    /// "지금 켜져 있는 유튜브 창 꺼", "쿠팡 탭 닫아" → close those tabs (not just pause).
+    static func closeTabs(_ s: String) -> (String, String)? {
+        let q = squash(s)
+        guard ["창", "탭", "페이지", "window", "tab"].contains(where: q.contains),
+              ["꺼", "닫아", "닫어", "종료", "없애", "close"].contains(where: q.contains) else { return nil }
+        let sites = [("유튜브", "youtube.com"), ("youtube", "youtube.com"), ("쿠팡", "coupang.com"), ("네이버", "naver.com"), ("구글", "google.com"), ("아마존", "amazon.com")]
+        // "구글이나 이런 거 탭들 다 꺼" — more than one site, vaguely → Claude decides.
+        if ["이나", "같은거", "이런거", "같은것", "등등"].contains(where: q.contains) { return nil }
+        guard let (word, host) = sites.first(where: { q.contains($0.0) }) else { return nil }
+        return (word == "youtube" ? "유튜브" : word, host)
     }
     /// "영상 멈춰", "유튜브 꺼", "노래 정지", "틀어져 있는 영상들 다 꺼" → pause · "다시 틀어", "이어서 재생" → play.
     static func mediaControl(_ s: String) -> Bool? {
