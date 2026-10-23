@@ -45,6 +45,7 @@ final class Butler {
         S = Strings(ko: cfg.ko, name: cfg.assistantName)
         parser = Parser(cfg: cfg)
         Sound.outputUID = cfg.outputDevice
+        hud.position = cfg.hudPosition
         ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + cfg.customWords + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"])).prefix(100)), inputUID: cfg.inputDevice)
         mouth = Mouth(cfg: cfg)
         brain = Brain(cfg: cfg)
@@ -55,7 +56,11 @@ final class Butler {
     func start() {
         hud.showIdleOrb = cfg.showIdleOrb
         ear.silenceSec = cfg.silenceSec
-        ear.onLevel = { [weak self] v in self?.hud.orb.level(v) }
+        ear.onLevel = { [weak self] v in
+            guard let self else { return }
+            self.hud.orb.level(v)
+            if self.mode == .speaking, !self.bargeAny, self.cfg.bargeIn != "wake", self.mouth.echo.isUser(v) { self.bargeInByVoice() }
+        }
         ear.onPartial = { [weak self] t in self?.partial(t) }
         ear.onUtterance = { [weak self] t, a in self?.utterance(t, audio: a) }
         brain.warm()
@@ -538,6 +543,19 @@ final class Butler {
         awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
         whisper.warm()
         hud.show(S.conversing, t, heard: "")
+    }
+    /// You started talking over its voice through the speakers (louder than its echo): stop and take what you say next.
+    func bargeInByVoice() {
+        guard !bargedIn else { return }
+        bargedIn = true
+        log("barge-in: your voice over the speaker")
+        mouth.stop()
+        speakingText = ""
+        ear.restart(); ear.markSegmentNow(back: 1.0)     // Whisper gets the start of what you said too
+        mode = .awake; awakeStarted = Date()
+        awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
+        whisper.warm()
+        hud.show(S.conversing, S.speakNow, heard: "")
     }
     /// Don't mistake our own voice (from speakers) for the user.
     func isEcho(_ t: String) -> Bool {

@@ -142,6 +142,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ n: Notification) { butler?.shutdown() }
 }
 
+// `MacButler --echotest <file> <report>` checks that its own voice through the speakers isn't taken for yours.
+if let i = CommandLine.arguments.firstIndex(of: "--echotest"), CommandLine.arguments.count > i + 2 {
+    try? EchoTest.run(CommandLine.arguments[i + 1]).write(toFile: CommandLine.arguments[i + 2], atomically: true, encoding: .utf8); exit(0)
+}
 // `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).

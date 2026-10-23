@@ -200,7 +200,7 @@ final class Ear {
     }
     func cancelHold() { holding = false }
     /// Count only audio from ~0.4 s ago as the current utterance (used when the user interrupts).
-    func markSegmentNow() { lock.lock(); segStart = max(ringEnd - 6400, ringBase); lock.unlock() }
+    func markSegmentNow(back sec: Double = 0.4) { lock.lock(); segStart = max(ringEnd - Int(sec * 16000), ringBase); lock.unlock() }
 
     private func flush() {
         let t = lastText.trimmingCharacters(in: .whitespacesAndNewlines)

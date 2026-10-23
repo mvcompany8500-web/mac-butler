@@ -56,6 +56,7 @@ struct Config: Codable {
     var maxUtteranceSec = 25.0
     var chime = "Tink"
     var showIdleOrb = true
+    var hudPosition = "top"             // where the orb & card sit: "top" · "bottomRight" · "bottomLeft"
     var hotkey = "rightOption"          // tap to wake without speaking: "rightOption", "rightCommand", "none"
 
     init() {}
@@ -74,7 +75,7 @@ struct Config: Codable {
         browserApp = v(.browserApp, z.browserApp); apps = v(.apps, z.apps)
         customWords = v(.customWords, z.customWords); fillerWords = v(.fillerWords, z.fillerWords)
         silenceSec = v(.silenceSec, z.silenceSec); followUpSec = v(.followUpSec, z.followUpSec); maxUtteranceSec = v(.maxUtteranceSec, z.maxUtteranceSec)
-        chime = v(.chime, z.chime); showIdleOrb = v(.showIdleOrb, z.showIdleOrb); hotkey = v(.hotkey, z.hotkey)
+        chime = v(.chime, z.chime); showIdleOrb = v(.showIdleOrb, z.showIdleOrb); hudPosition = v(.hudPosition, z.hudPosition); hotkey = v(.hotkey, z.hotkey)
     }
 
     // MARK: resolved values

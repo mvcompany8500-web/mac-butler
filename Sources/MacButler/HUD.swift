@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 
-// The face: a glowing orb + a card at the top of the screen. Click-through, on every Space.
+// The face: a glowing orb + a card at the top of the screen (or a bottom corner — config hudPosition). Click-through, on every Space.
 
 let cyan = NSColor(calibratedRed: 0.30, green: 0.85, blue: 1.0, alpha: 1)
 let amber = NSColor(calibratedRed: 1.0, green: 0.72, blue: 0.25, alpha: 1)
@@ -63,6 +63,7 @@ final class HUD {
     let heard = NSTextField(labelWithString: "")
     let text = NSTextField(wrappingLabelWithString: "")
     var showIdleOrb = true
+    var position = "top" { didSet { layout() } }
     let w: CGFloat = 980          // card width
     let m: CGFloat = 28           // room for the glow
     private var tone = cyan
@@ -100,7 +101,7 @@ final class HUD {
         idle()
     }
 
-    // Grow with the text, top edge fixed.
+    // Grow with the text: at the top the top edge stays put, in a bottom corner the bottom edge does.
     private func layout() {
         let tw = w - 190
         let th = min(ceil((text.stringValue as NSString).boundingRect(with: NSSize(width: tw, height: 3000),
@@ -108,14 +109,18 @@ final class HUD {
         let hasHeard = !heard.stringValue.isEmpty
         let ch = max(152, 20 + 26 + (hasHeard ? 30 : 0) + 8 + th + 22)
         let scr = NSScreen.main!.visibleFrame
-        panel.setFrame(NSRect(x: scr.midX - (w + 2 * m) / 2, y: scr.maxY - ch - 2 * m + 14, width: w + 2 * m, height: ch + 2 * m), display: true)
+        let bottom = position.hasPrefix("bottom"), right = position == "bottomRight"
+        let x = !bottom ? scr.midX - (w + 2 * m) / 2 : right ? scr.maxX - w - 2 * m + 10 : scr.minX - 10
+        panel.setFrame(NSRect(x: x, y: bottom ? scr.minY - 10 : scr.maxY - ch - 2 * m + 14, width: w + 2 * m, height: ch + 2 * m), display: true)
         panel.contentView?.frame = NSRect(x: 0, y: 0, width: w + 2 * m, height: ch + 2 * m)
         card.frame = NSRect(x: m, y: m, width: w, height: ch)
         let top = m + ch
-        orb.frame.origin = NSPoint(x: m + 14, y: top - 12 - 128)
-        status.frame = NSRect(x: m + 170, y: top - 20 - 26, width: tw, height: 26)
-        heard.frame = NSRect(x: m + 170, y: top - 20 - 26 - 30, width: tw, height: 28)
-        text.frame = NSRect(x: m + 170, y: m + 20, width: tw, height: th)
+        // Orb sits in the corner nearest the screen edge; text on the other side.
+        let tx = right ? m + 22 : m + 170
+        orb.frame.origin = NSPoint(x: right ? m + w - 14 - 128 : m + 14, y: bottom ? m + 12 : top - 12 - 128)
+        status.frame = NSRect(x: tx, y: top - 20 - 26, width: tw, height: 26)
+        heard.frame = NSRect(x: tx, y: top - 20 - 26 - 30, width: tw, height: 28)
+        text.frame = NSRect(x: tx, y: m + 20, width: tw, height: th)
     }
     var orbCenterOnScreen: CGPoint { CGPoint(x: panel.frame.minX + orb.frame.midX, y: panel.frame.minY + orb.frame.midY) }
 

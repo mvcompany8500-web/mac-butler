@@ -9,6 +9,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
     private var task: URLSessionDataTask?
     private var finish: (() -> Void)?
     private var token = 0
+    let echo = DoubleTalk()             // knows how loud we're playing → tells your voice from ours
     private lazy var elevenKey: String? = {
         let e = cfg.elevenLabs
         if !e.apiKey.isEmpty { return e.apiKey }
@@ -65,7 +66,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
                 guard let self, my == self.token else { return }
                 let ok = (resp as? HTTPURLResponse)?.statusCode == 200
                 guard ok, let data else { log("elevenlabs failed → say"); self.say(text, my: my); return }
-                if !self.cfg.outputDevice.isEmpty, self.playOnDevice(data, my: my) { return }
+                if self.playOnDevice(data, my: my) { return }
                 guard let p = try? AVAudioPlayer(data: data) else { self.say(text, my: my); return }
                 p.delegate = self
                 self.player = p
@@ -75,21 +76,35 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         task?.resume()
     }
 
-    /// Plays through the chosen speaker with a dedicated engine (AVAudioPlayer can't pick a device).
+    /// Plays through the chosen speaker with a dedicated engine (AVAudioPlayer can't pick a device),
+    /// measuring the level as it goes so a voice over the top of it can be told apart from our echo.
     private var outEngine: AVAudioEngine?
     private func playOnDevice(_ data: Data, my: Int) -> Bool {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mb-say-\(my).mp3")
         guard (try? data.write(to: tmp)) != nil, let file = try? AVAudioFile(forReading: tmp) else { return false }
         let e = AVAudioEngine(), node = AVAudioPlayerNode()
-        AudioDevices.use(cfg.outputDevice, on: e.outputNode.audioUnit)
+        if !cfg.outputDevice.isEmpty { AudioDevices.use(cfg.outputDevice, on: e.outputNode.audioUnit) }
         e.attach(node); e.connect(node, to: e.mainMixerNode, format: file.processingFormat)
+        let echo = self.echo
+        e.mainMixerNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { buf, _ in echo.played(Mouth.rms(buf)) }
         do { try e.start() } catch { return false }
         outEngine = e
+        echo.begin()
         node.scheduleFile(file, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-            DispatchQueue.main.async { try? FileManager.default.removeItem(at: tmp); self?.outEngine?.stop(); self?.complete(my) }
+            DispatchQueue.main.async {
+                try? FileManager.default.removeItem(at: tmp)
+                guard let self, my == self.token else { return }
+                self.echo.end(interrupted: false); self.outEngine?.stop(); self.complete(my)
+            }
         }
         node.play()
         return true
+    }
+    static func rms(_ buf: AVAudioPCMBuffer) -> Float {
+        guard let ch = buf.floatChannelData?[0], buf.frameLength > 0 else { return 0 }
+        var s: Float = 0
+        for i in 0..<Int(buf.frameLength) { s += ch[i] * ch[i] }
+        return sqrt(s / Float(buf.frameLength))
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) { complete(token) }
@@ -100,7 +115,8 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         finish = nil
         task?.cancel(); task = nil
         player?.stop(); player = nil
-        outEngine?.stop(); outEngine = nil
+        echo.end(interrupted: true)
+        outEngine?.mainMixerNode.removeTap(onBus: 0); outEngine?.stop(); outEngine = nil
         if let p = proc, p.isRunning { p.terminate() }
         proc = nil
     }

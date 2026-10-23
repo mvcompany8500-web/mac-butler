@@ -18,6 +18,7 @@ final class SettingsModel: ObservableObject {
     @Published var inputDevice: String
     @Published var bargeIn: String
     @Published var outputDevice: String
+    @Published var hudPosition: String
     let inputs = AudioDevices.inputs(), outputs = AudioDevices.outputs()
     private var cfg: Config
 
@@ -27,7 +28,7 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
-        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition
     }
 
     /// Writes only the keys this window manages; everything else in config.json is kept as is.
@@ -37,7 +38,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition
         var el = obj["elevenLabs"] as? [String: Any] ?? [:]
         el["voiceId"] = elevenVoiceId; el["apiKeyFile"] = elevenKeyFile
         obj["elevenLabs"] = el
@@ -78,6 +79,9 @@ struct SettingsView: View {
                 TextField(S.t("인사말", "Greeting"), text: $m.greetingText, prompt: Text(S.t("어서 오십시오, {user}", "Welcome home, {user}.")))
                 Picker(S.t("단축키로 부르기", "Wake hotkey"), selection: $m.hotkey) {
                     Text(S.t("오른쪽 ⌥ (톡=부르기, 누르고 말하기)", "Right ⌥ (tap = wake, hold = talk)")).tag("rightOption"); Text(S.t("오른쪽 ⌘", "Right ⌘")).tag("rightCommand"); Text(S.t("끔", "Off")).tag("none")
+                }
+                Picker(S.t("화면 위치", "On-screen position"), selection: $m.hudPosition) {
+                    Text(S.t("위 가운데", "Top center")).tag("top"); Text(S.t("오른쪽 아래", "Bottom right")).tag("bottomRight"); Text(S.t("왼쪽 아래", "Bottom left")).tag("bottomLeft")
                 }
             }
             Section(S.t("마이크·스피커", "Microphone & speaker")) {
