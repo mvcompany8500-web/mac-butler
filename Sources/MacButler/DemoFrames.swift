@@ -4,16 +4,16 @@
 import AppKit
 
 enum DemoFrames {
-    struct Scene { let said: String; let state: String; let body: String; let color: NSColor; let window: String; var lead = "🎙  말하면"; var quoted = true }
+    struct Scene { let said: String; let state: String; let body: String; let color: NSColor; let window: String; var lead = "말하면"; var quoted = true }
     static let scenes: [Scene] = [
         Scene(said: "자비스, 유튜브 로파이 틀어", state: "▶ 유튜브 재생", body: "lofi hip hop radio 📚 beats to relax/study to", color: lime, window: "▶︎  YouTube"),
-        Scene(said: "소리 30으로 해", state: "✓ 소리", body: "30", color: lime, window: "🔊  30"),
-        Scene(said: "라면 3분", state: "✓ 타이머", body: "라면 · 3분 뒤에 알려 드릴게요", color: lime, window: "⏱  3:00"),
+        Scene(said: "소리 30으로 해", state: "✓ 소리", body: "30", color: lime, window: "소리 30"),
+        Scene(said: "라면 3분", state: "✓ 타이머", body: "라면 · 3분 뒤에 알려 드릴게요", color: lime, window: "3:00"),
         Scene(said: "이거 존댓말로 바꿔", state: "✓ 바꿈 (⌘Z 되돌리기)", body: "내일 미팅은 취소하겠습니다. 죄송합니다.", color: lime, window: "낼 미팅 취소할게 미안\n→ 내일 미팅은 취소하겠습니다. 죄송합니다."),
-        Scene(said: "로파이 틀고 소리 줄이고 화면 꺼", state: "◉ 차례로 하는 중", body: "로파이 틀어 → 소리 줄여 → 화면 꺼", color: amber, window: "▶︎  🔉  🌙"),
+        Scene(said: "로파이 틀고 소리 줄이고 화면 꺼", state: "◉ 차례로 하는 중", body: "로파이 틀어 → 소리 줄여 → 화면 꺼", color: amber, window: "재생 → 소리 ↓ → 화면 끔"),
         Scene(said: "클로드한테 로그인 버그 고치라고 해", state: "✓ 클로드에 보냄", body: "로그인 버그 고치라고 해", color: lime, window: "Claude Code\n> 로그인 버그 고치라고 해"),
         Scene(said: "자비스는 알아서 잠깐 쉬어요", state: "🎙 통화 중 · 잠시 쉼", body: "끝나면 다시 들어요 (단축키는 그대로 돼요)", color: amber,
-              window: "🎙  Handy · Zoom · FaceTime", lead: "🎙  핸디나 줌이 마이크를 쓰면", quoted: false),
+              window: "Handy · Zoom · FaceTime", lead: "핸디나 줌이 마이크를 쓰면", quoted: false),
     ]
 
     static func run(_ dir: String) {
@@ -22,7 +22,7 @@ enum DemoFrames {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let hud = HUD(); hud.position = "bottomRight"
         var n = 0
-        func frame(_ caption: String, _ window: String = "", lead: String = "🎙  말하면", quoted: Bool = true) {
+        func frame(_ caption: String, _ window: String = "", lead: String = "말하면", quoted: Bool = true) {
             RunLoop.main.run(until: Date().addingTimeInterval(0.35))   // let the card settle
             guard let img = compose(hud: hud, caption: caption, window: window, lead: lead, quoted: quoted) else { return }
             let url = URL(fileURLWithPath: dir).appendingPathComponent(String(format: "f%03d.png", n)); n += 1
@@ -38,7 +38,7 @@ enum DemoFrames {
     }
 
     /// 1280×720: a quiet desktop, the spoken sentence on top, the real HUD in the bottom-right corner.
-    static func compose(hud: HUD, caption: String, window: String = "", lead: String = "🎙  말하면", quoted: Bool = true) -> NSImage? {
+    static func compose(hud: HUD, caption: String, window: String = "", lead: String = "말하면", quoted: Bool = true) -> NSImage? {
         guard let root = hud.root else { return nil }
         let W: CGFloat = 1280, H: CGFloat = 720
         // HUD views → bitmap (layer tree, including text)

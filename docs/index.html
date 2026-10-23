@@ -20,6 +20,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+h1,h2,h3,.lead,.sub,.prose p,.t,.wk p,.step p,.r p,.cap,.feat p{text-wrap:balance}
 body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--ink);background:#fff;
   font-feature-settings:"ss06";letter-spacing:-.01em;line-height:1.6;word-break:keep-all;overflow-wrap:break-word}
 a{color:inherit;text-decoration:none}
@@ -50,6 +51,8 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .hero h1{position:relative;font-size:clamp(38px,6.4vw,74px);line-height:1.12;font-weight:700;letter-spacing:-.035em;margin:26px auto 18px;max-width:900px}
 .hero p.lead{position:relative;font-size:clamp(17px,2vw,20px);color:#334155;max-width:620px;margin:0 auto}
 .cta{position:relative;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:34px 0 14px}
+.lead .ln{display:block;text-wrap:balance}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:600;color:var(--ink)}
 .note{position:relative;font-size:13.5px;color:#475569}
 .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,255,255,.7);padding:3px 8px;border-radius:7px;font-size:13px}
 .window{position:relative;max-width:1080px;margin:56px auto 0;border-radius:16px 16px 0 0;background:#0e1424;border:1px solid rgba(15,23,42,.12);border-bottom:0;
@@ -60,10 +63,9 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .window img{display:block;width:100%;height:auto}
 /* sections */
 section{border-top:1px solid var(--line)}
-.sec{padding:110px 0}
+.sec{padding:92px 0}
 .grid2{display:grid;grid-template-columns:320px 1fr;gap:40px;padding:0 var(--pad)}
-.label{color:var(--blue);font-weight:600;font-size:17px;display:inline-flex;align-items:center;gap:6px}
-.label:after{content:"›";font-size:20px;line-height:1}
+.label{color:var(--blue);font-weight:600;font-size:15px;letter-spacing:.01em;display:inline-block}
 .prose p{font-size:clamp(18px,2vw,22px);line-height:1.6;color:var(--sub);margin-bottom:22px;max-width:680px}
 .prose b{color:var(--ink);font-weight:600}
 .center{text-align:center;padding:0 var(--pad)}
@@ -77,11 +79,17 @@ section{border-top:1px solid var(--line)}
 .wk .say small{font-size:15px;color:var(--mute);font-weight:500;margin-left:6px}
 .wk p{color:var(--sub);font-size:15.5px;margin-top:8px}
 .kbd{display:inline-block;border:1px solid #d6dae1;border-bottom-width:2px;border-radius:8px;padding:2px 9px;font-size:18px;font-weight:600;background:#fff}
-/* say chips */
-.chips{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:1000px;margin:46px auto 0;padding:0 var(--pad)}
-.chip{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-size:16px;font-weight:500;display:flex;align-items:center;gap:10px;box-shadow:0 1px 0 rgba(15,23,42,.03)}
-.chip em{font-style:normal;font-size:12.5px;color:var(--green);font-weight:700;background:#ecfdf3;padding:2px 8px;border-radius:999px}
-.chip em.c{color:#7c3aed;background:#f3efff}
+/* feature cards */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1040px;margin:50px auto 0;padding:0 var(--pad)}
+.feat{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 24px 24px;min-height:196px}
+.feat .ic{width:44px;height:44px;border-radius:12px;background:#eef4ff;color:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.feat .ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.feat h3{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.feat p{color:var(--sub);font-size:15.5px;line-height:1.65}
+.tag{position:absolute;top:24px;right:22px;font-size:12px;font-weight:700;color:var(--green);background:#ecfdf3;padding:3px 10px;border-radius:999px}
+.tag.c{color:#7c3aed;background:#f3efff}
+.more{text-align:center;color:var(--sub);font-size:15.5px;line-height:1.7;margin:30px auto 0;padding:0 var(--pad);max-width:640px;text-wrap:balance}
+.more.m2{margin-top:8px}
 /* speed bars */
 .bars{max-width:900px;margin:50px auto 0;padding:0 var(--pad)}
 .row{display:grid;grid-template-columns:230px 1fr 90px;align-items:center;gap:18px;padding:16px 0;border-top:1px solid var(--line)}
@@ -131,7 +139,7 @@ section{border-top:1px solid var(--line)}
 .split .l h2 span{color:var(--mute);font-weight:600}
 .split ul{list-style:none;margin-top:34px;display:grid;gap:20px}
 .split li b{display:block;font-weight:600;font-size:16.5px}
-.split li{color:var(--sub);font-size:15.5px}
+.split li{color:var(--sub);font-size:15.5px;text-wrap:balance}
 .split .r2{background:radial-gradient(120% 90% at 70% 30%,#13304a 0%,#0b1220 60%,#070b14 100%);display:flex;align-items:center;justify-content:center;padding:50px}
 .orb{width:200px;height:200px;position:relative}
 .orb .ring{position:absolute;inset:0;border-radius:50%;border:2px dashed rgba(74,222,128,.75);animation:spin 18s linear infinite}
@@ -154,12 +162,24 @@ footer a:hover{color:var(--blue)}
   .links{display:none}
   .grid2{grid-template-columns:1fr;gap:18px}
   .wake,.cards,.res{grid-template-columns:1fr}
+  .feats{grid-template-columns:1fr 1fr;gap:12px}
+  .feat{padding:20px 16px;min-height:0}
+  .feat .ic{width:38px;height:38px;margin-bottom:12px}
+  .feat h3{font-size:16px}
+  .feat p{font-size:14px}
+  .tag{top:18px;right:14px;font-size:11px;padding:2px 8px}
   .split{grid-template-columns:1fr}
   .split .l{padding:70px var(--pad)}
-  .row{grid-template-columns:110px 1fr 64px;gap:10px}
+  .row{grid-template-columns:1fr 56px;gap:8px 12px}
+  .row .n{grid-column:1/-1}
   .row .n{font-size:14.5px}
-  .sec{padding:80px 0}
+  .sec{padding:68px 0}
   .hero{padding-top:64px;border-radius:22px}
+  .cta{gap:10px;margin:28px 0 0}
+  .cta .btn-lg{padding:13px 20px;font-size:16px}
+  .cta .btn-ghost{display:none}
+  .note{display:none}
+  .window{margin-top:40px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
@@ -188,9 +208,9 @@ footer a:hover{color:var(--blue)}
   <div class="cloud" style="width:520px;height:220px;left:-120px;top:70px"></div>
   <div class="cloud" style="width:460px;height:200px;right:-80px;top:30px"></div>
   <div class="cloud" style="width:380px;height:160px;right:22%;top:250px;opacity:.7"></div>
-  <span class="badge">무료 · 오픈소스 · 맥 전용 ›</span>
-  <h1>맥에 말하면,<br>바로 해 주는 AI 비서.</h1>
-  <p class="lead">「자비스」라고 부르고 말하세요. 유튜브·쇼핑·타이머 같은 쉬운 일은 맥이 바로 하고, 코딩 같은 큰일은 클로드 코드에 말로 맡깁니다.</p>
+  <span class="badge">무료 · 오픈소스 · 맥 전용</span>
+  <h1>맥에 말하면,<br>바로 해 주는 AI&nbsp;비서.</h1>
+  <p class="lead"><span class="ln">「자비스」라고 부르고 말하면 맥이 바로&nbsp;합니다.</span><span class="ln">유튜브·쇼핑 같은 쉬운 일부터 코딩까지, 손&nbsp;대신&nbsp;말로.</span></p>
   <div class="cta">
     <a class="btn btn-dark btn-lg" href="https://github.com/mvcompany8500-web/mac-butler/releases/latest">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>macOS용 다운로드
@@ -223,23 +243,18 @@ footer a:hover{color:var(--blue)}
   <div class="center">
     <span class="label">할 수 있는 것</span>
     <h2>쉬운 일부터 코딩까지,<br>말로 하세요.</h2>
-    <p class="sub">이렇게 말하면 됩니다. 초록은 맥이 바로, 보라는 클로드 코드가 처리해요.</p>
+    <p class="sub">초록은 맥이 1초 안에, 보라는 클로드 코드가 화면을 보고 처리해요.</p>
   </div>
-  <div class="chips">
-    <span class="chip">「유튜브 로파이 틀어」<em>바로</em></span>
-    <span class="chip">「쿠팡에서 무선 이어폰 찾아 줘」<em>바로</em></span>
-    <span class="chip">「라면 3분」<em>바로</em></span>
-    <span class="chip">「5시에 회의 알려 줘」<em>바로</em></span>
-    <span class="chip">「강남역 가는 길」<em>바로</em></span>
-    <span class="chip">「소리 30으로 해」<em>바로</em></span>
-    <span class="chip">「다음 영상」<em>바로</em></span>
-    <span class="chip">「창 다 꺼」<em>바로</em></span>
-    <span class="chip">「이거 존댓말로 바꿔」<em>바로</em></span>
-    <span class="chip">「로파이 틀고 소리 줄이고 화면 꺼」<em>바로</em></span>
-    <span class="chip">「앞으로 '작업 시작' 하면 클로드 열고 로파이 틀어」<em>내 루틴</em></span>
-    <span class="chip">「지금 화면에 뭐 있어?」<em class="c">클로드</em></span>
-    <span class="chip">「클로드한테 로그인 버그 고치라고 해」<em class="c">클로드</em></span>
+  <div class="feats">
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg></div><h3>유튜브·음악</h3><p>「유튜브 로파이 틀어」<br>「다음 영상」</p><span class="tag">바로</span></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h11.2L21 7H6.2"/><circle cx="9.5" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg></div><h3>쇼핑·검색</h3><p>「쿠팡에서 무선 이어폰 찾아&nbsp;줘」<br>「에어팟 최저가」</p><span class="tag">바로</span></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg></div><h3>타이머·알림</h3><p>「라면 3분」<br>「5시에 회의 알려&nbsp;줘」</p><span class="tag">바로</span></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></div><h3>지도·시간·소리</h3><p>「강남역 가는 길」<br>「소리 30으로 해」</p><span class="tag">바로</span></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></div><h3>글 다듬기</h3><p>글을 선택하고<br>「이거 존댓말로 바꿔」</p><span class="tag">바로</span></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg></div><h3>코딩·화면 일</h3><p>「클로드한테 로그인 버그 고치라고&nbsp;해」</p><span class="tag c">클로드</span></div>
   </div>
+  <p class="more">한 번에 여러 개도 「로파이 틀고 소리 줄이고 화면&nbsp;꺼」</p>
+  <p class="more m2">내 루틴도 「'작업 시작' 하면 클로드 열고 로파이&nbsp;틀어」</p>
 </section>
 
 <section class="sec reveal" id="wake">
@@ -262,7 +277,7 @@ footer a:hover{color:var(--blue)}
     <p class="sub">말이 끝난 뒤 움직이기까지 걸리는 시간(대표 맥에서 잰 값).</p>
   </div>
   <div class="bars" id="bars">
-    <div class="row"><div class="n">바로 하는 명령<small>유튜브·소리·타이머·지도</small></div><div class="track"><div class="fill hot" data-w="9"></div></div><div class="v">~1초</div></div>
+    <div class="row"><div class="n">바로 하는 명령<small>유튜브·소리·타이머</small></div><div class="track"><div class="fill hot" data-w="9"></div></div><div class="v">~1초</div></div>
     <div class="row"><div class="n">한 번 배운 말<small>다음부터 그대로 바로</small></div><div class="track"><div class="fill hot" data-w="9"></div></div><div class="v">~1초</div></div>
     <div class="row"><div class="n">선택한 글 바꾸기<small>존댓말·영어·맞춤법</small></div><div class="track"><div class="fill" data-w="34"></div></div><div class="v">~4초</div></div>
     <div class="row"><div class="n">클로드 코드에 묻기<small>화면 보고 판단</small></div><div class="track"><div class="fill" data-w="62"></div></div><div class="v">~7초</div></div>
@@ -274,15 +289,15 @@ footer a:hover{color:var(--blue)}
   <div class="grid2">
     <div><span class="label">안전</span></div>
     <div class="prose">
-      <p><b>영상 속 목소리가 내 맥을 움직이면 안 되니까.</b> 되돌릴 수 없는 일은 꼭 물어보고, 목소리는 맥 밖으로 나가지 않습니다.</p>
+      <p><b>영상 속 목소리가 내 맥을 움직이면 안&nbsp;되니까.</b> 되돌릴 수 없는 일은 꼭 물어보고, 목소리는 맥 밖으로 나가지 않습니다.</p>
     </div>
   </div>
   <div class="cards">
     <div class="card"><div class="art a2"><div class="pillui"><b>Mac Butler</b>「보내기」를 누를까요?<br><span class="yes">응</span><span class="no">아니</span></div></div>
       <div class="t"><b>보내기·결제·삭제는 꼭 물어요.</b> 바로 실행 모드에서도 되돌릴 수 없는 일은 「응」을 들어야 누릅니다.</div></div>
-    <div class="card"><div class="art a1"><div class="pillui"><b>🎙 맥 안에서만</b>깨우는 말 · 받아쓰기<br><span style="color:#16a34a;font-weight:600">외부 전송 없음</span></div></div>
+    <div class="card"><div class="art a1"><div class="pillui"><b>맥 안에서만</b>깨우는 말 · 받아쓰기<br><span style="color:#16a34a;font-weight:600">외부 전송 없음</span></div></div>
       <div class="t"><b>목소리는 맥 밖으로 안 나가요.</b> 듣기와 받아쓰기는 맥 안에서 하고, 클로드에게 넘기는 글자만 나갑니다.</div></div>
-    <div class="card"><div class="art a3"><div class="pillui"><b>🎙 통화 중 · 잠시 쉼</b>줌 · 페이스타임 · 핸디가 마이크를 쓰는 동안</div></div>
+    <div class="card"><div class="art a3"><div class="pillui"><b>통화 중 · 잠시 쉼</b>줌 · 페이스타임 · 핸디가 마이크를 쓰는 동안</div></div>
       <div class="t"><b>통화 중엔 알아서 쉬어요.</b> 회의 소리를 명령으로 듣지 않게, 다른 앱이 마이크를 쓰면 멈췄다가 다시 듣습니다.</div></div>
   </div>
 </section>
@@ -291,9 +306,9 @@ footer a:hover{color:var(--blue)}
   <div class="l">
     <h2>클로드 코드와 함께.<br><span>입코딩의 끝.</span></h2>
     <ul>
-      <li><b>쓰시는 클로드 요금제 그대로</b>API 열쇠가 필요 없어요. 클로드 코드에 한 번 로그인하면 끝.</li>
-      <li><b>정해진 도구만 쓰는 안전 모드</b>파일 삭제·아무 명령 실행·터미널 조작은 막혀 있어요.</li>
-      <li><b>다른 AI도 연결 가능</b>OpenAI·Gemini·맥 안에서 도는 무료 모델도 같은 안전장치로.</li>
+      <li><b>쓰시는 클로드 요금제 그대로</b>API 열쇠 없이, 클로드 코드에 한&nbsp;번 로그인하면&nbsp;끝.</li>
+      <li><b>정해진 도구만 쓰는 안전 모드</b>파일 삭제·아무 명령 실행·터미널 조작은 막혀&nbsp;있어요.</li>
+      <li><b>다른 AI도 연결 가능</b>OpenAI·Gemini, 맥 안에서 도는 무료 모델도 같은&nbsp;안전장치로.</li>
     </ul>
   </div>
   <div class="r2"><div><div class="orb"><div class="ring"></div><div class="ring r2"></div><div class="core"></div></div>
@@ -307,7 +322,7 @@ footer a:hover{color:var(--blue)}
     <p class="sub">애플 실리콘 맥(M1 이상) · macOS 14 이상 · 클로드 유료 요금제(Pro·Max·Team)</p>
   </div>
   <div class="steps">
-    <div class="step"><div class="num">1</div><div><h3>클로드 코드 설치·로그인</h3><p>설치 안내대로 깔고, 터미널에서 <code>claude</code>를 한 번 실행해 로그인합니다.</p></div></div>
+    <div class="step"><div class="num">1</div><div><h3>클로드 코드 설치·로그인</h3><p>설치 안내대로 깔고, 터미널에서 <span class="mono">claude</span>를 한&nbsp;번 실행해 로그인합니다.</p></div></div>
     <div class="step"><div class="num">2</div><div><h3>Mac Butler 설치</h3><p>터미널에 한 줄 — 또는 위의 「macOS용 다운로드」(애플 공증 완료).</p>
       <div class="code"><span id="brew">brew install --cask mvcompany8500-web/tap/mac-butler</span><button type="button" onclick="copyBrew(this)">복사</button></div></div></div>
     <div class="step"><div class="num">3</div><div><h3>처음 뜨는 준비 화면에서 빨간 칸만</h3><p>마이크·음성 인식·손쉬운 사용 허용, 정확한 받아쓰기 모델 「받기」. 메뉴 막대에 ◉ 가 보이면 끝 — 「자비스」라고 불러 보세요.</p></div></div>

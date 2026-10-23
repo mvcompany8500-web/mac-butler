@@ -9,7 +9,7 @@
 
 <img src="docs/demo.gif" width="760" alt="실제 화면: 말하면 오른쪽 아래 구슬과 카드가 알아듣고 바로 실행, 통화·핸디 중엔 알아서 쉼">
 
-[English](README.md) · 무료 · 오픈소스(MIT)
+**[소개 페이지](https://mvcompany8500-web.github.io/mac-butler/)** · [English](README.md) · 무료 · 오픈소스(MIT)
 
 </div>
 

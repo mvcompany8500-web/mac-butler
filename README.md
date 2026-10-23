@@ -11,6 +11,8 @@ Small chores happen on your Mac in a second; real coding goes to Claude Code. Vo
 
 **No API key — uses your Claude plan** · **Audio never leaves your Mac** · **Asks before deleting, sending or paying**
 
+**[Project page →](https://mvcompany8500-web.github.io/mac-butler/)** (Korean)
+
 [![Latest release](https://img.shields.io/github/v/release/mvcompany8500-web/mac-butler)](../../releases/latest)
 [![CI](https://github.com/mvcompany8500-web/mac-butler/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/mvcompany8500-web/mac-butler?style=social)](../../stargazers)
