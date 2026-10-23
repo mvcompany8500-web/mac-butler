@@ -13,6 +13,7 @@ final class Router {
     private var buffer = Data()
     private var waiting: ((String?) -> Void)?
     private var turns = 0
+    private var skip = 0             // answers still coming for questions we already gave up on
     var enabled: Bool { cfg.router != "off" && cfg.claudeBinary != nil }
 
     init(cfg: Config) { self.cfg = cfg }
@@ -61,7 +62,7 @@ final class Router {
         }
         p.terminationHandler = { [weak self] dead in DispatchQueue.main.async { if self?.proc === dead { self?.proc = nil; self?.reply(nil) } } }
         do { try p.run() } catch { log("router failed to start: \(error)"); return }
-        proc = p; stdin = inPipe.fileHandleForWriting; turns = 0; buffer = Data()
+        proc = p; stdin = inPipe.fileHandleForWriting; turns = 0; skip = 0; buffer = Data()
         log("router warm")
     }
     private func feed(_ d: Data) {
@@ -70,6 +71,7 @@ final class Router {
             let line = buffer.subdata(in: buffer.startIndex..<nl)
             buffer.removeSubrange(buffer.startIndex...nl)
             guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any], obj["type"] as? String == "result" else { continue }
+            if skip > 0 { skip -= 1; continue }
             reply((obj["result"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
@@ -93,7 +95,7 @@ final class Router {
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
             guard let self, self.waiting != nil else { return }
             log("router too slow → brain"); self.reply(nil)
-            self.proc?.terminate(); self.proc = nil      // its late answer must not land on the next question
+            self.skip += 1                               // its late answer must not land on the next question
         }
     }
     func stop() { proc?.terminate(); proc = nil }

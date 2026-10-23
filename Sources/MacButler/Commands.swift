@@ -234,7 +234,7 @@ struct Parser {
         }
         if let m = Parser.match(s, "^play\\s+(.+?)\\s+on\\s+youtube$") ?? Parser.match(s, "^youtube\\s+([^가-힣]+)$") { return .youtube(m[1]) }
         if hasYouTubeList {
-            if let m = Parser.match(s, "^(.+?)\\s*(번째|번)\\s*(거|것|영상|꺼)?\\s*(틀어|켜|재생|열어|보여)" + tail), let n = Parser.ordinal(m[1]) { return .youtubeNth(n) }
+            if let m = Parser.match(s, "^(.+?)\\s*(번째|번)\\s*(거|것|영상|꺼|걸로)?\\s*(틀어|켜|재생|열어|보여|눌러|클릭|찍어|들어가)" + tail), let n = Parser.ordinal(m[1]) { return .youtubeNth(n) }
             if let m = Parser.match(s, "^play\\s+(the\\s+)?(number\\s+)?(\\w+)(\\s+one)?$"), let n = Parser.ordinal(m[3]) { return .youtubeNth(n) }
         }
 

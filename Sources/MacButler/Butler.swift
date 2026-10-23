@@ -282,6 +282,14 @@ final class Butler {
         // Whisper's text didn't match a quick command but the live text does → trust the live text for this one.
         if parser.parse(cmd, hasYouTubeList: !ytList.isEmpty) == .none, !lastLive.isEmpty,
            parser.parse(lastLive, hasYouTubeList: !ytList.isEmpty) != .none { log("using live text for quick command: \(lastLive)"); cmd = lastLive }
+        // Whisper was set aside as "unsure" (「자비스, 아파트」 vs Apple's 「버드」): if ITS version is something known —
+        // a quick command, a learned or remembered sentence — it was right; otherwise Claude sees both versions.
+        let alt = parser.stripWake(whisper.lastSetAside)
+        if !alt.isEmpty, Parser.squash(alt) != Parser.squash(cmd), parser.parse(cmd, hasYouTubeList: !ytList.isEmpty) == .none {
+            if parser.parse(alt, hasYouTubeList: !ytList.isEmpty) != .none || Learning.lookup(alt) != nil || Aliases.lookup(alt) != nil {
+                log("using Whisper's version after all (it's a known command): \(alt)"); cmd = alt
+            } else { lastLive = alt }          // the brain gets both and picks by context
+        }
         if cmd.isEmpty { converse(chime: true) } else { handle(cmd) }
     }
 

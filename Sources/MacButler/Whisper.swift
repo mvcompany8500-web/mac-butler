@@ -44,7 +44,10 @@ final class Whisper {
     func stop() { proc?.terminate(); proc = nil }
 
     /// One at a time so dictation stays in order. Falls back to Apple's text on any failure.
+    /// What Whisper heard when its text was set aside for Apple's (unsure / unrelated) — the other candidate.
+    private(set) var lastSetAside = ""
     func transcribe(_ audio: [Float], fallback: String, done: @escaping (String) -> Void) {
+        lastSetAside = ""
         guard available, audio.count > 8000 else { done(fallback); return }
         queue.append((audio, fallback, done)); next()
     }
@@ -57,6 +60,7 @@ final class Whisper {
         attempt(wav, tries: 30) { [weak self] text, words in
             guard let self else { return }
             var t = Whisper.clean(text ?? "", apple: fallback)
+            let heard = t
             // "맥미니 M6 찾아. 고팩! 고팩! 고팩!" — a word repeated at the end that Apple didn't hear is made up.
             let (trimmed, dropped) = Whisper.dropRepeatedTail(t, apple: fallback)
             if !dropped.isEmpty { log("whisper: dropped repeated tail \(dropped)"); t = trimmed }
@@ -76,6 +80,7 @@ final class Whisper {
             }
             if !t.isEmpty, !fallback.isEmpty, !Whisper.related(t, fallback) { log("whisper ignored (unrelated to what was heard): \(t)"); t = "" }
             if self.language == "ko", !t.isEmpty, Whisper.hangulRatio(fallback) > 0.5, Whisper.hangulRatio(t) < 0.5 { t = "" }
+            if t.isEmpty, !heard.isEmpty, !heard.contains(" - "), Parser.squash(heard).count <= Parser.squash(fallback).count * 3 + 10 { self.lastSetAside = heard }
             log("whisper: \(t.isEmpty ? "(using Apple text)" : t)")
             done(t.isEmpty ? fallback : t)
             self.running = false; self.next()
