@@ -1,0 +1,4 @@
+#!/bin/zsh
+# Type text into the focused field, visibly, character by character (Hangul OK).
+"${0:a:h}/jarvis-ping" type "$*"
+n=${#${*}}; sleep $(( n * 0.03 + 0.3 ))
