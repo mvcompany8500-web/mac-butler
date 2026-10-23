@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.5 — 2026-10-23 · security
+- **Hand-offs Claude proposes always wait for your spoken yes** (in every mode). Your own 「클로드한테 …」 still goes straight through
+- **Send / pay / post / delete** buttons, Enter in messengers and web forms, ⌘/⌃+Enter are held until you say yes (or say it holding the hotkey); brain-typed line breaks become spaces; never types into password fields
+- Fix: a crafted page address could inject AppleScript through 「다 꺼」 — only plain host names are remembered now
+- Memory and past conversation are given to the brain as facts, not instructions; every press/type/open is logged (logs/actions.log)
+- **Any brain, any voice:** the hands are an MCP tool server (`butler-mcp`) so every brain gets the same guarded tools — Claude Code (default) or API brains (Anthropic, OpenAI, Gemini, OpenRouter, Groq, Ollama, LM Studio, OpenAI-compatible); voices: macOS, ElevenLabs, OpenAI, Azure, your own server. Keys live in the Keychain
+- `MacButler --ask "…"` runs one request without the mic
+
 ## 0.6.4 — 2026-10-23
 - **Timers & reminders:** 「라면 3분」, 「10분 뒤에 알려 줘」, 「5시에 회의 알려 줘」, 「타이머 취소」 — chime + spoken reminder, kept across restarts; reminders never act on their own
 - **Naver Map:** 「강남역 가는 길」, 「서울역 어떻게 가」, 「○○ 어디야」
