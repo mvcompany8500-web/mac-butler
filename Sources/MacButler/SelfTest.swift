@@ -41,7 +41,7 @@ enum SelfTest {
         check(pk, "영상 멈추고 쿠팡에서 맥미니 찾아 줘", .none)
         checkBool("영상 멈춰 is not hush", !pk.isHush("이거 영상 멈춰"))
         check(pk, "클로드한테 얘기해. 애플 인증서 받는 게 좋은지", .claude(target: "", message: "애플 인증서 받는 게 좋은지", newSession: true))
-        check(pk, "그래 다 꺼", .none)
+        check(pk, "그래 다 꺼", .closeOpened)   // 10/23: 「다 꺼」 = close what it opened
         check(pk, "너 꺼", .bye)
         check(pk, "기억해: 내 유튜브 채널은 거북이버프야", .remember("내 유튜브 채널은 거북이버프야"))
         check(pk, "됐어", .bye)
@@ -87,6 +87,8 @@ enum SelfTest {
                              ("켜져있는 클로드에게 지금 버그 지금까지 된거 한번 더 체크해서 고치라고 해", "claude(target: \"\", message: \"지금 버그 지금까지 된거 한번 더 체크해서 고치라고 해\", newSession: false)"),
                              ("자비스야, 쿠팡 말고 유튜브 터틀메이커 검색해봐.", "youtube(\"터틀메이커\")"), ("아니, 유튜브에다가 터틀메이커 검색해줘.", "youtube(\"터틀메이커\")"),
                              ("지금 켜져 있는 창들 다 꺼줘.", "closeOpened"), ("창 다 꺼", "closeOpened"), ("아니 취소", "hush"),
+                             ("지금 켜져 있는 유튜브 뒤로 가기 누르라고", "browser(\"back\")"), ("소리 키워", "volume(set: nil, delta: 15"), ("볼륨 30으로 해", "volume(set: Optional(30)"),
+                             ("몇 시야", "clock(date: false)"), ("오늘 며칠이야", "clock(date: true)"), ("다 끄라고", "closeOpened"),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }

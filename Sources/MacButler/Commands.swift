@@ -16,6 +16,9 @@ enum Intent: Equatable {
     case mediaNext                                          // 「다음 영상」 — skip to the next video / track
     case displayOff                                         // 「화면 꺼」 — turn the display off (sleep)
     case closeOpened                                        // 「창 다 꺼」 — close what it opened for you (pages, apps)
+    case browser(String)                                    // 「뒤로 가」「앞으로」「새로고침」 in the browser in front: back / forward / reload
+    case volume(set: Int?, delta: Int, mute: Bool)          // 「소리 키워」「볼륨 30」「음소거」
+    case clock(date: Bool)                                  // 「몇 시야」「오늘 며칠이야」 — answered on the Mac, no Claude
     case openApp(spoken: String, app: String)
     case none
 }
@@ -111,7 +114,7 @@ struct Parser {
         if hushWords.contains(s) { return true }
         // only with a short lead-in: "알았어 조용히 해", "야 멈춰", "okay stop" — but "영상 멈춰" is an action, not hush
         let leads = ["", "알았어", "알겠어", "야", "아니", "됐고", "그래", "오케이", "자비스", "ok", "okay", "hey"]
-        for h in ["조용히해", "조용", "멈춰", "그만해", "시끄러워", "쉿", "stop", "quiet"] where s.hasSuffix(h) {
+        for h in ["조용히해", "조용", "멈춰", "그만해", "시끄러워", "시끄러", "쉿", "stop", "quiet"] where s.hasSuffix(h) {
             if leads.contains(String(s.dropLast(h.count))) { return true }
         }
         return false
@@ -141,6 +144,9 @@ struct Parser {
         if let r = s.range(of: #"\s말고[,\s]+"#, options: .regularExpression), s[r.upperBound...].count >= 2 { s = String(s[r.upperBound...]) }
         if let c = Parser.closeTabs(s) { return .closeTabs(label: c.0, host: c.1) }
         if Parser.isCloseOpened(s) { return .closeOpened }
+        if let b = Parser.browserNav(s) { return .browser(b) }
+        if let v = Parser.volume(s) { return .volume(set: v.0, delta: v.1, mute: v.2) }
+        if let d = Parser.clock(s) { return .clock(date: d) }
         if Parser.isDisplayOff(s) { return .displayOff }
         if Parser.isNext(s) { return .mediaNext }
         if let play = Parser.mediaControl(s) { return .media(play: play) }
@@ -275,12 +281,41 @@ struct Parser {
     /// "창 다 꺼", "지금 켜져 있는 창들 다 꺼줘", "켜 놨던 거 다 닫아" — no particular site → what it opened.
     static func isCloseOpened(_ s: String) -> Bool {
         let q = squash(s)
+        if ["다꺼", "다꺼줘", "다끄라고", "다꺼라", "다꺼버려", "전부꺼", "싹다꺼", "다닫아", "다닫아줘", "전부닫아"].contains(q) { return true }
         guard q.count <= 30, ["꺼", "닫아", "닫어", "종료", "없애", "close"].contains(where: q.contains) else { return false }
         let what = ["창", "탭", "켜놨던", "켜놓은", "켜둔", "열어놓은", "열어둔", "열어놨던", "띄운", "띄워놓은", "띄워둔", "windows", "tabs"]
         let all = ["다", "전부", "모두", "싹", "all"]
         // "썸네일 이미지들 다 꺼", "폴더 창 다 닫아" — something specific it didn't open → Claude
         if ["이미지", "사진", "썸네일", "폴더", "파일", "문서", "미리보기", "finder", "image", "folder"].contains(where: q.contains) { return false }
         return what.contains(where: q.contains) && all.contains(where: q.contains)
+    }
+    /// 「뒤로 가기 눌러」「뒤로 가」「앞으로 가」「새로고침」 (short sentences only — longer ones go to Claude)
+    static func browserNav(_ s: String) -> String? {
+        let q = squash(s)
+        guard q.count <= 18 else { return nil }
+        if ["뒤로가", "뒤로가기", "이전페이지", "goback"].contains(where: q.contains), !q.contains("채널") { return "back" }
+        if ["앞으로가", "다음페이지", "goforward"].contains(where: q.contains) { return "forward" }
+        if ["새로고침", "새로고쳐", "refresh", "reload"].contains(where: q.contains) { return "reload" }
+        return nil
+    }
+    /// 「소리 키워」「볼륨 좀 줄여」「소리 30으로」「음소거」 → (set, delta, mute)
+    static func volume(_ s: String) -> (Int?, Int, Bool)? {
+        let q = squash(s)
+        guard q.count <= 16, ["소리", "볼륨", "음량", "volume", "음소거", "mute"].contains(where: q.contains) else { return nil }
+        if q.contains("음소거") && !q.contains("해제") || q.contains("mute") && !q.contains("unmute") { return (nil, 0, true) }
+        if let n = Int(q.filter(\.isNumber)), (0...100).contains(n) { return (n, 0, false) }
+        if ["키워", "크게", "올려", "높여", "up", "louder"].contains(where: q.contains) { return (nil, 15, false) }
+        if ["줄여", "작게", "낮춰", "내려", "down", "quieter"].contains(where: q.contains) { return (nil, -15, false) }
+        if q.contains("해제") || q.contains("unmute") { return (nil, 0, false) }
+        return nil
+    }
+    /// 「몇 시야」「지금 몇 시」 → false · 「오늘 며칠이야」「무슨 요일」 → true
+    static func clock(_ s: String) -> Bool? {
+        let q = squash(s)
+        guard q.count <= 14 else { return nil }
+        if ["몇시", "whattime", "시간알려"].contains(where: q.contains) { return false }
+        if ["며칠", "몇일", "무슨요일", "오늘날짜", "whatday", "date"].contains(where: q.contains) { return true }
+        return nil
     }
     /// "다음 영상으로 넘겨", "다음 곡", "next video"
     static func isNext(_ s: String) -> Bool {

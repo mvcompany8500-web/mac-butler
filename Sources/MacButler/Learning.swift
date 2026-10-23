@@ -178,6 +178,25 @@ enum Growth {
         save()
         return learned
     }
+    /// Every sentence the quick rules couldn't handle (it went to Claude) → logs/misses.jsonl.
+    /// `MacButler --misses` groups them by their last word (the verb) — the list of rules worth adding next.
+    static func miss(_ text: String, front: String) {
+        let url = Paths.home.appendingPathComponent("logs/misses.jsonl")
+        let row: [String: Any] = ["t": ISO8601DateFormatter().string(from: Date()), "text": text, "front": front]
+        guard let d = try? JSONSerialization.data(withJSONObject: row), var line = String(data: d, encoding: .utf8) else { return }
+        line += "\n"
+        if let h = FileHandle(forWritingAtPath: url.path) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() }
+        else { FileManager.default.createFile(atPath: url.path, contents: Data(line.utf8), attributes: [.posixPermissions: 0o600]) }
+    }
+    static func missReport() -> String {
+        let url = Paths.home.appendingPathComponent("logs/misses.jsonl")
+        let rows = ((try? String(contentsOf: url, encoding: .utf8)) ?? "").split(separator: "\n")
+            .compactMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }.compactMap { $0["text"] as? String }
+        var groups: [String: [String]] = [:]
+        for r in rows { groups[String(r.split(separator: " ").last ?? ""), default: []].append(r) }
+        return groups.sorted { $0.value.count > $1.value.count }.prefix(25)
+            .map { "\($0.value.count)× …\($0.key)\n    " + $0.value.suffix(3).joined(separator: "\n    ") }.joined(separator: "\n")
+    }
     static func fastHit() { state.fastHits += 1; save() }
 
     /// Housekeeping at launch: forget learned commands unused for 30 days, delete temp files older than a day.

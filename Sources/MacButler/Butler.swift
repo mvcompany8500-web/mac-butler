@@ -55,7 +55,11 @@ final class Butler {
         Sound.outputUID = cfg.outputDevice
         hud.position = cfg.hudPosition
         Utterances.enabled = cfg.keepAudio
-        ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + cfg.customWords + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"])).prefix(100)), inputUID: cfg.inputDevice)
+                // Command words help Apple's recognizer get them right from the first partial (Jarhead does the same).
+        let commandWords = cfg.ko ? ["클로드", "엔터", "받아써", "그만", "유튜브", "쿠팡", "네이버", "구글", "검색해", "틀어", "재생", "멈춰", "다음 영상",
+                                     "창 다 꺼", "닫아", "뒤로 가", "화면 꺼", "다시 틀어", "최저가", "맥미니"]
+                                  : ["Claude", "enter", "stop", "YouTube", "search", "play", "pause", "next video", "close", "go back"]
+        ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + commandWords + cfg.customWords).prefix(100)), inputUID: cfg.inputDevice)
         mouth = Mouth(cfg: cfg)
         brain = Brain(cfg: cfg)
         whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.lang,
@@ -302,8 +306,30 @@ final class Butler {
         case .mediaNext:
             Hands.mediaKey(17)            // ⏭ — YouTube skips to the next video
             played(S.t("다음 영상", "Next"), "⏭")
+        case .browser(let what):
+            let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
+            guard ["Safari", "Google Chrome", "Arc", "Microsoft Edge", "Firefox", "Whale", "Naver Whale"].contains(front) else { ask(cmd); return }
+            switch what {
+            case "back": Hands.key(33, .maskCommand)        // ⌘[
+            case "forward": Hands.key(30, .maskCommand)     // ⌘]
+            default: Hands.key(15, .maskCommand)            // ⌘R
+            }
+            done(front, what == "back" ? S.t("뒤로", "Back") : what == "forward" ? S.t("앞으로", "Forward") : S.t("새로고침", "Reloaded"))
+        case .volume(let set, let delta, let mute):
+            let script = mute ? "set volume output muted true"
+                : set.map { "set volume output volume \($0) without output muted" }
+                ?? "set volume output volume ((output volume of (get volume settings)) + \(delta)) without output muted"
+            var err: NSDictionary?; NSAppleScript(source: script)?.executeAndReturnError(&err)
+            let now = NSAppleScript(source: "output volume of (get volume settings)")?.executeAndReturnError(&err).int32Value ?? 0
+            done(S.t("소리", "Volume"), mute ? S.t("음소거", "Muted") : "\(now)")
+        case .clock(let date):
+            let f = DateFormatter(); f.locale = Locale(identifier: cfg.locale)
+            f.dateFormat = date ? (cfg.ko ? "M월 d일 EEEE" : "EEEE, MMMM d") : (cfg.ko ? "a h시 m분" : "h:mm a")
+            let line = cfg.ko ? "\(cfg.user.isEmpty ? "" : cfg.user + ", ")\(date ? "오늘은 " : "지금은 ")\(f.string(from: Date()))입니다." : (date ? "Today is " : "It's ") + f.string(from: Date()) + "."
+            speak(line) { [weak self] in self?.converse(keep: true) }
         case .closeOpened:
             let n = closeOpened()
+            if n == 0, AudioDevices.outputBusy(cfg.outputDevice, micUID: cfg.inputDevice) == true { media(play: false); return }   // nothing of ours open, but something's playing
             if n > 0 { done(S.t("닫음", "Closed"), S.t("열어 둔 것 \(n)개", "\(n) things it opened")) } else { done(S.t("닫을 게 없음", "Nothing to close"), S.t("이번에 연 창이 없어요", "Nothing opened this time")) }
         case .displayOff:
             done(S.t("화면 끔", "Display off"), "🌙")
@@ -336,6 +362,7 @@ final class Butler {
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
         case .none:
+            Growth.miss(cmd, front: NSWorkspace.shared.frontmostApplication?.localizedName ?? "")
             if let steps = Learning.lookup(cmd) {      // learned before → instant, no Claude call
                 hud.show(S.t("◌ 기억한 대로 하는 중", "◌ Doing it the way I learned"), cmd, heard: nil, color: amber, speed: 3)
                 DispatchQueue.global().async { [weak self] in

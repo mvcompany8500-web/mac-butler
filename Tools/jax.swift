@@ -73,6 +73,24 @@ let clickable: Set<String> = ["AXButton", "AXLink", "AXMenuItem", "AXTab", "AXRa
 let fields: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
 
 guard let front = NSWorkspace.shared.frontmostApplication else { print("no frontmost app"); exit(1) }
+/// After an action: what's in front now — so the brain sees the result without a screenshot.
+/// e.g. "now: Safari — \"터틀메이커 - YouTube\" (was Safari — \"YouTube\")"
+func nowLine(was: String) -> String {
+    usleep(450_000)
+    guard let fa = NSWorkspace.shared.frontmostApplication else { return "" }
+    let ax = AXUIElementCreateApplication(fa.processIdentifier)
+    var w: CFTypeRef?; AXUIElementCopyAttributeValue(ax, "AXFocusedWindow" as CFString, &w)
+    var t: CFTypeRef?; if let w { AXUIElementCopyAttributeValue(w as! AXUIElement, "AXTitle" as CFString, &t) }
+    let now = "\(fa.localizedName ?? "?") — \"\(((t as? String) ?? "").prefix(80))\""
+    return now == was ? "\nnow: unchanged (\(now))" : "\nnow: \(now) (was \(was))"
+}
+func frontNow() -> String {
+    guard let fa = NSWorkspace.shared.frontmostApplication else { return "" }
+    let ax = AXUIElementCreateApplication(fa.processIdentifier)
+    var w: CFTypeRef?; AXUIElementCopyAttributeValue(ax, "AXFocusedWindow" as CFString, &w)
+    var t: CFTypeRef?; if let w { AXUIElementCopyAttributeValue(w as! AXUIElement, "AXTitle" as CFString, &t) }
+    return "\(fa.localizedName ?? "?") — \"\(((t as? String) ?? "").prefix(80))\""
+}
 
 // Commands that don't need the element tree
 let args0 = Array(CommandLine.arguments.dropFirst())
@@ -135,9 +153,10 @@ if args0.first == "key", args0.count >= 2 {
         }
     }
     guard let code else { print("unknown key: \(args0[1])"); exit(2) }
+    let was = frontNow()
     let src = CGEventSource(stateID: .hidSystemState)
     for down in [true, false] { let e = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: down); e?.flags = flags; e?.post(tap: .cghidEventTap) }
-    print("pressed \(args0[1])"); exit(0)
+    print("pressed \(args0[1])" + nowLine(was: was)); exit(0)
 }
 if args0.first == "volume", args0.count >= 2, let v = Int(args0[1]), (0...100).contains(v) {
     let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript"); p.arguments = ["-e", "set volume output volume \(v)"]
@@ -192,8 +211,9 @@ case "tap":
     guard a.count >= 2 else { print("jax tap \"name\" [n]"); exit(1) }
     let pool = items.filter { clickable.contains($0.1) }
     guard let hit = pick(a[1], a.count >= 3 ? Int(a[2]) ?? 1 : 1, pool) else { print("not found: \(a[1]) (\(pool.count) candidates — try jax list)"); exit(2) }
+    let was = frontNow()
     _ = press(hit.0, hit.3)
-    print("pressed: \(hit.1) \"\(hit.2.prefix(60))\"")
+    print("pressed: \(hit.1) \"\(hit.2.prefix(60))\"" + nowLine(was: was))
 case "field":
     guardApp(front.bundleIdentifier, front.localizedName)
     guard a.count >= 3 else { print("jax field \"field name\" \"text\""); exit(1) }

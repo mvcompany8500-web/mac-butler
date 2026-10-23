@@ -156,6 +156,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--say"), CommandLine.arguments.
     while !done, Date().timeIntervalSince(t0) < 30 { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
     print(String(format: "spoke: %@ in %.1f s", done ? "yes" : "NO", Date().timeIntervalSince(t0))); exit(done ? 0 : 1)
 }
+// `MacButler --misses` — sentences that went to Claude, grouped by verb (which quick rules to add next).
+if CommandLine.arguments.contains("--misses") { print(Growth.missReport()); exit(0) }
 // `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).
