@@ -70,7 +70,7 @@ mic ──► Apple on-device speech ──► wake word / live text on the HUD
 ## Install
 
 ```bash
-git clone https://github.com/turtle-buff/my-jarvis.git
+git clone https://github.com/mvcompany8500-web/my-jarvis.git
 cd my-jarvis
 ./scripts/install.sh            # deps → Whisper model → build → ~/Applications → start at login
 ```
@@ -173,7 +173,7 @@ inspired by [Handy](https://github.com/cjpais/Handy) and, of course, J.A.R.V.I.S
 「클로드코드한테 ○○ 해서 보내」라고 하면 클로드 앱에 새 세션을 열어 일을 통째로 맡깁니다.
 
 ```bash
-git clone https://github.com/turtle-buff/my-jarvis.git && cd my-jarvis && ./scripts/install.sh
+git clone https://github.com/mvcompany8500-web/my-jarvis.git && cd my-jarvis && ./scripts/install.sh
 ```
 
 * 메뉴 막대 **◉J** → 상태 점검에서 ✗ 를 누르면 해당 권한 설정이 열립니다.
