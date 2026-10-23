@@ -50,8 +50,18 @@ struct Parser {
 
     // MARK: wake word / greeting
 
-    func wakeRange(_ t: String) -> Range<String.Index>? {
+    /// How Whisper / Apple often mishear the wake word: "재비스", "하이 자비스".
+    var wakeVariants: [String] {
+        var out = cfg.wakes
         for w in cfg.wakes {
+            if w.contains("자비스") { out.append(w.replacingOccurrences(of: "자비스", with: "재비스")) }
+            if w.hasPrefix("헤이 ") { out.append("하이 " + w.dropFirst(3)) }
+        }
+        out += cfg.wakes.filter { $0.hasPrefix("헤이 ") && $0.contains("자비스") }.map { "하이 " + $0.dropFirst(3).replacingOccurrences(of: "자비스", with: "재비스") }
+        return out.sorted { $0.count > $1.count }          // longest first: "헤이 자비스" before "자비스"
+    }
+    func wakeRange(_ t: String) -> Range<String.Index>? {
+        for w in wakeVariants {
             let pat = w.replacingOccurrences(of: " ", with: "").map { NSRegularExpression.escapedPattern(for: String($0)) }.joined(separator: "\\s*")
             if let r = t.range(of: pat, options: [.regularExpression, .caseInsensitive]) { return r }
         }
@@ -160,7 +170,7 @@ struct Parser {
 
         // YouTube: play the first result right away
         if let m = Parser.match(s, "^(유튜브|youtube)\\s*(에서(?=\\s)|로(?=\\s)|에(?=\\s))?\\s*(.*?)\\s*(?:검색해서|검색해 가지고|찾아서)?\\s*(틀어|재생\\s*시켜|재생해|재생|켜|보여|찾아|검색|열어)" + tail) {
-            let filler: Set<String> = ["아무거나", "영상", "하나", "동영상", "거", "좀", "한", "개", "아무"]
+            let filler: Set<String> = ["아무거나", "영상", "하나", "동영상", "거", "좀", "한", "개", "아무", "창", "화면", "페이지", "사이트", "홈", "앱", "참"]   // 참 = 창 misheard
             return .youtube(m[3].split(separator: " ").map(String.init).filter { !filler.contains($0) }.joined(separator: " "))
         }
         if let m = Parser.match(s, "^play\\s+(.+?)\\s+on\\s+youtube$") ?? Parser.match(s, "^youtube\\s+([^가-힣]+)$") { return .youtube(m[1]) }

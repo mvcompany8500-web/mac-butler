@@ -342,6 +342,7 @@ final class Butler {
             for scope in ["{front window}", "windows"] {
                 let src = """
                 tell application "\(app)"
+                  if (count of windows) is 0 then return 0
                   set n to 0
                   repeat with w in \(scope)
                     repeat with i from (count of tabs of w) to 1 by -1

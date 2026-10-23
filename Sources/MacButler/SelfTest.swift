@@ -80,6 +80,8 @@ enum SelfTest {
                              ("쿠팡 에어팟 찾아 줘", "web(label: \"쿠팡\", query: \"에어팟\""), ("쿠팡 의자 찾아 줘", "web(label: \"쿠팡\", query: \"의자\""),
                              ("지금 켜져 있는 유튜브 창 꺼", "closeTabs(label: \"유튜브\""), ("YouTube 창 꺼 종료시켜", "closeTabs(label: \"유튜브\""),
                              ("자비스, 자비스, 클로드 창에다가 지금 버그 체크해서 다시 고쳐놓으라 그래", "claude(target: \"\""),
+                             ("하이재비스 유튜브 참 켜", "youtube(\"\")"), ("YouTube창 켜", "youtube(\"\")"), ("유튜브 창 켜 봐", "youtube(\"\")"),
+                             ("하이 재비스 쿠팡 열어", "web(label: \"쿠팡\", query: \"\""),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }
