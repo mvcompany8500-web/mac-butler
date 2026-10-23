@@ -111,7 +111,9 @@ final class HUD {
         let scr = NSScreen.main!.visibleFrame
         let bottom = position.hasPrefix("bottom"), right = position == "bottomRight"
         let x = !bottom ? scr.midX - (w + 2 * m) / 2 : right ? scr.maxX - w - 2 * m + 10 : scr.minX - 10
-        panel.setFrame(NSRect(x: x, y: bottom ? scr.minY - 10 : scr.maxY - ch - 2 * m + 14, width: w + 2 * m, height: ch + 2 * m), display: true)
+        // Bottom corners sit at the very bottom of the screen (beside the Dock), below where windows end.
+        let floorY = (NSScreen.main?.frame.minY ?? scr.minY) - 10
+        panel.setFrame(NSRect(x: x, y: bottom ? floorY : scr.maxY - ch - 2 * m + 14, width: w + 2 * m, height: ch + 2 * m), display: true)
         panel.contentView?.frame = NSRect(x: 0, y: 0, width: w + 2 * m, height: ch + 2 * m)
         card.frame = NSRect(x: m, y: m, width: w, height: ch)
         let top = m + ch
