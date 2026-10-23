@@ -49,7 +49,8 @@ final class Ear {
     private var engineObserver: NSObjectProtocol?
 
     func start() throws {
-        try startEngine()
+        // If the mic can't start now, don't stay deaf: the watchdog below retries every few seconds (10/24 01:34).
+        do { try startEngine() } catch { log("ear: mic start failed (\(error)) → will retry") }
         restart()
         Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
         // The mic stops when another app (e.g. a dictation app) or a device change reconfigures audio.
@@ -100,11 +101,16 @@ final class Ear {
     private func startEngine() throws {
         let input = engine.inputNode
         if !inputUID.isEmpty, !AudioDevices.use(inputUID, on: input.audioUnit) { log("ear: chosen mic not found → system default") }
-        guard input.inputFormat(forBus: 0).sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
-        // format: nil = whatever the device delivers. Asking for a stale format (the mic changed rate after a call app
-        // or a device switch) made AVAudioEngine throw and the app abort; the converter follows the real buffers instead.
+        // The node's format, as before (this worked for hours). But if it no longer matches what the mic hardware
+        // delivers (after a call app or a device switch), installing a tap aborts the whole app (10/24 01:33) — so
+        // refuse instead; the watchdog retries a few seconds later with a fresh engine, which picks up the new format.
+        let fmt0 = input.outputFormat(forBus: 0), hw = input.inputFormat(forBus: 0)
+        guard fmt0.sampleRate > 0, hw.sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
+        guard fmt0.sampleRate == hw.sampleRate else {
+            throw NSError(domain: "Ear", code: 2, userInfo: [NSLocalizedDescriptionKey: "mic format changed (\(Int(hw.sampleRate)) Hz) — retrying with a fresh engine"])
+        }
         converter = nil
-        input.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buf, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: fmt0) { [weak self] buf, _ in
             guard let self else { return }
             let fmt = buf.format
             if self.converter?.inputFormat != fmt { self.converter = AVAudioConverter(from: fmt, to: self.target) }
