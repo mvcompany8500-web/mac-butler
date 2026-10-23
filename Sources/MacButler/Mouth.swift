@@ -1,4 +1,6 @@
-// Speech output: ElevenLabs (if configured) or macOS `say`. stop() cuts it off instantly (barge-in).
+// Speech output. Out of the box: the best macOS voice installed for your language (free, offline) — a Premium /
+// Enhanced voice if you've downloaded one in System Settings. Optional: ElevenLabs (your own API key).
+// Both play through one measured engine so you can cut in over the speakers. stop() cuts it off instantly.
 import AppKit
 import AVFoundation
 
@@ -38,11 +40,49 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         f()
     }
 
+    /// The best macOS voice for the language: Premium > Enhanced > the standard one ("Yuna", "Samantha").
+    /// Novelty and "Eloquence" voices are skipped. `chosen` = a voice picked in Settings (identifier or name).
+    static func bestVoice(locale: String, chosen: String = "") -> AVSpeechSynthesisVoice? {
+        let all = AVSpeechSynthesisVoice.speechVoices()
+        if !chosen.isEmpty, let v = all.first(where: { $0.identifier == chosen || $0.name == chosen }) { return v }
+        let lang = locale.replacingOccurrences(of: "_", with: "-")
+        var mine = all.filter { $0.language == lang }
+        if mine.isEmpty { mine = all.filter { $0.language.hasPrefix(String(lang.prefix(2))) } }
+        func rank(_ v: AVSpeechSynthesisVoice) -> Int { v.quality.rawValue * 10 + (v.identifier.hasPrefix("com.apple.voice.") ? 1 : 0) }
+        let natural = mine.filter { $0.identifier.hasPrefix("com.apple.voice.") || $0.quality != .default }
+        return natural.max { rank($0) < rank($1) } ?? mine.first
+    }
+
+    private let synth = AVSpeechSynthesizer()
+    /// macOS voice → rendered to a file (≈0.5 s) → played like any other voice, so barge-in works the same.
     private func say(_ text: String, my: Int) {
+        guard let voice = Mouth.bestVoice(locale: cfg.locale, chosen: cfg.sayVoice) else { sayCommand(text, my: my); return }
+        let u = AVSpeechUtterance(string: text)
+        u.voice = voice
+        u.rate = min(max(Float(cfg.sayRate) / 190 * 0.52, 0.3), 0.7)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mb-say-\(my).caf")
+        var file: AVAudioFile?, wrote = false, ended = false
+        synth.write(u) { [weak self] buf in
+            guard let pcm = buf as? AVAudioPCMBuffer, !ended else { return }
+            if pcm.frameLength == 0 {
+                ended = true; file = nil         // closes the file
+                DispatchQueue.main.async {
+                    guard let self, my == self.token else { return }
+                    if !(wrote && self.playFile(tmp, my: my)) { self.sayCommand(text, my: my) }
+                }
+                return
+            }
+            if file == nil { file = try? AVAudioFile(forWriting: tmp, settings: pcm.format.settings, commonFormat: pcm.format.commonFormat, interleaved: pcm.format.isInterleaved) }
+            if (try? file?.write(from: pcm)) != nil { wrote = true }
+        }
+    }
+
+    /// Last resort: the `say` command (no barge-in level tracking).
+    private func sayCommand(_ text: String, my: Int) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/say")
         var args: [String] = []
-        if !cfg.sayVoice.isEmpty { args += ["-v", cfg.sayVoice] }
+        if !cfg.sayVoice.isEmpty { args += ["-v", AVSpeechSynthesisVoice(identifier: cfg.sayVoice)?.name ?? cfg.sayVoice] }
         if let d = AudioDevices.device(uid: cfg.outputDevice) { args += ["-a", String(d.id)] }
         args += ["-r", String(cfg.sayRate), text]
         p.arguments = args
@@ -65,7 +105,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
             DispatchQueue.main.async {
                 guard let self, my == self.token else { return }
                 let ok = (resp as? HTTPURLResponse)?.statusCode == 200
-                guard ok, let data else { log("elevenlabs failed → say"); self.say(text, my: my); return }
+                guard ok, let data else { log("elevenlabs failed → macOS voice"); self.say(text, my: my); return }
                 if self.playOnDevice(data, my: my) { return }
                 guard let p = try? AVAudioPlayer(data: data) else { self.say(text, my: my); return }
                 p.delegate = self
@@ -81,7 +121,11 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
     private var outEngine: AVAudioEngine?
     private func playOnDevice(_ data: Data, my: Int) -> Bool {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mb-say-\(my).mp3")
-        guard (try? data.write(to: tmp)) != nil, let file = try? AVAudioFile(forReading: tmp) else { return false }
+        guard (try? data.write(to: tmp)) != nil else { return false }
+        return playFile(tmp, my: my)
+    }
+    private func playFile(_ tmp: URL, my: Int) -> Bool {
+        guard let file = try? AVAudioFile(forReading: tmp) else { return false }
         let e = AVAudioEngine(), node = AVAudioPlayerNode()
         if !cfg.outputDevice.isEmpty { AudioDevices.use(cfg.outputDevice, on: e.outputNode.audioUnit) }
         e.attach(node); e.connect(node, to: e.mainMixerNode, format: file.processingFormat)
@@ -117,6 +161,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         player?.stop(); player = nil
         echo.end(interrupted: true)
         outEngine?.mainMixerNode.removeTap(onBus: 0); outEngine?.stop(); outEngine = nil
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         if let p = proc, p.isRunning { p.terminate() }
         proc = nil
     }

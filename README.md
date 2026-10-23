@@ -67,7 +67,7 @@ mic ──► Apple on-device speech ──► wake word / live text on the HUD
                           claude -p  (one warm Claude Code process, stream-json) ◄──┘
                                 │  Bash · jax (Accessibility) · screencapture · WebSearch
                                 ▼
-                     your Mac  +  spoken answer (macOS say or ElevenLabs)
+                     your Mac  +  spoken answer (built-in macOS voice, or ElevenLabs)
 ```
 
 * **No mouse movement.** Buttons, links and text fields are found by name through the Accessibility API (`jax`, ~0.1 s) and pressed directly.
@@ -81,6 +81,14 @@ mic ──► Apple on-device speech ──► wake word / live text on the HUD
 * [Homebrew](https://brew.sh) — the installer adds `whisper-cpp` and `cliclick`
 * ~1 GB disk for the Whisper model (optional but strongly recommended for Korean)
 * Optional: an [ElevenLabs](https://elevenlabs.io) API key for a nicer voice
+
+## Voice: works out of the box
+
+It talks with **the built-in macOS voice** — free, offline, no sign-up. It picks the most natural one installed for your language
+(Korean: Yuna, English: Samantha). Two optional upgrades:
+
+* **Free:** System Settings → Accessibility → Spoken Content → System voice → Manage Voices… → download a **Premium** voice. It's used automatically.
+* **Paid:** the voice in the demo video is [ElevenLabs](https://elevenlabs.io). Put your own API key in Settings → Voice. If the key runs out, it falls back to the macOS voice.
 
 ## Install
 
@@ -143,8 +151,8 @@ Everything lives in `~/.macbutler/`:
   "outputDevice": "",              // speaker UID for the voice and sounds
   "hotkey": "rightOption",         // tap = wake, hold = push-to-talk: rightOption | rightCommand | none
   "customWords": ["Claude", "GitHub"], // names you say often (imported from Handy automatically)
-  "tts": "elevenlabs",             // or "say"
-  "sayVoice": "Reed",
+  "tts": "say",                    // "say" = built-in macOS voice (default) · "elevenlabs" = your key
+  "sayVoice": "",                  // "" = most natural installed voice · or an identifier from Settings → Voice
   "elevenLabs": { "apiKeyFile": "~/.secrets/.env", "voiceId": "…", "model": "eleven_flash_v2_5" },
   "claudeModel": "sonnet",
   "whisperModel": "",              // default ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
@@ -166,7 +174,7 @@ Everything lives in `~/.macbutler/`:
 ## Known limitations
 
 * Bluetooth headsets switch to low-quality mic mode while it listens — use a USB/built-in mic.
-* With speakers (not headphones) its own voice can leak into the mic; echo filtering is basic.
+* With speakers (not headphones) you can still cut in — it compares the mic with how loud it is talking — but speak close to the mic; a loud room or very loud speakers make it harder.
 * The Claude hand-off relies on the Claude desktop app's sidebar and prompt box labels; a UI update may break it.
 * Quick commands are Korean and English only. Everything else depends on Claude.
 

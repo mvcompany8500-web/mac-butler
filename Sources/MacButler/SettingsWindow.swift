@@ -1,6 +1,7 @@
 // Settings window (menu → Settings…). Edits ~/.macbutler/config.json and restarts the app.
 import AppKit
 import SwiftUI
+import AVFoundation
 
 final class SettingsModel: ObservableObject {
     @Published var language: String
@@ -48,16 +49,16 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    static func sayVoices(lang: String) -> [String] {
-        let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/say"); p.arguments = ["-v", "?"]
-        let out = Pipe(); p.standardOutput = out
-        try? p.run(); p.waitUntilExit()
-        let text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let want = (Config.languages.first { $0.code == lang }?.locale ?? "en-US").replacingOccurrences(of: "-", with: "_").prefix(3)
-        return text.split(separator: "\n").compactMap { line in
-            guard line.contains(String(want)), let r = line.range(of: #"\s{2,}[a-z]{2}_[A-Z]{2}"#, options: .regularExpression) else { return nil }
-            return String(line[..<r.lowerBound]).trimmingCharacters(in: .whitespaces)
-        }
+    /// macOS voices for the language, best first: (identifier, "Yuna · Premium").
+    static func sayVoices(lang: String) -> [(id: String, label: String)] {
+        let want = String((Config.languages.first { $0.code == lang }?.locale ?? "en-US").prefix(2))
+        return AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix(want) && ($0.identifier.hasPrefix("com.apple.voice.") || $0.quality != .default || $0.identifier.contains("eloquence")) }
+            .sorted { ($0.quality.rawValue, $0.name) > ($1.quality.rawValue, $1.name) }
+            .map { v in
+                let q = v.quality == .premium ? " · Premium" : v.quality == .enhanced ? " · Enhanced" : v.identifier.contains("eloquence") ? " · robot" : ""
+                return (v.identifier, v.name + q)
+            }
     }
 }
 
@@ -100,12 +101,15 @@ struct SettingsView: View {
                 }
             }
             Section(S.t("목소리", "Voice")) {
-                Picker(S.t("읽어 주는 엔진", "Speech engine"), selection: $m.tts) { Text("macOS say").tag("say"); Text("ElevenLabs").tag("elevenlabs") }
+                Picker(S.t("읽어 주는 엔진", "Speech engine"), selection: $m.tts) { Text(S.t("맥 목소리 (무료·기본)", "macOS voice (free, default)")).tag("say"); Text(S.t("ElevenLabs (유료·내 열쇠)", "ElevenLabs (paid, your key)")).tag("elevenlabs") }
                 if m.tts == "say" {
                     Picker(S.t("맥 목소리", "macOS voice"), selection: $m.sayVoice) {
-                        Text(S.t("시스템 기본", "System default")).tag("")
-                        ForEach(SettingsModel.sayVoices(lang: m.language), id: \.self) { Text($0).tag($0) }
+                        Text(S.t("자동 (설치된 것 중 가장 자연스러운 목소리)", "Automatic (the most natural voice installed)")).tag("")
+                        ForEach(SettingsModel.sayVoices(lang: m.language), id: \.id) { Text($0.label).tag($0.id) }
                     }
+                    Text(S.t("더 자연스러운 목소리(무료): 시스템 설정 → 손쉬운 사용 → 읽기 및 말하기 → 시스템 목소리 → 목소리 관리… → Premium 받기",
+                             "More natural voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices… → download a Premium voice"))
+                        .font(.caption).foregroundStyle(.secondary)
                 } else {
                     TextField("ElevenLabs voice ID", text: $m.elevenVoiceId)
                     TextField(S.t("API 열쇠가 든 .env 파일 경로", "Path to a .env with ELEVENLABS_API_KEY"), text: $m.elevenKeyFile)

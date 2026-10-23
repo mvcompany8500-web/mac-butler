@@ -15,6 +15,8 @@ final class SetupModel: NSObject, ObservableObject, URLSessionDownloadDelegate {
     @Published var claude = false
     @Published var whisperBin = false
     @Published var model = false
+    @Published var voice = ""                  // the macOS voice it will speak with, e.g. "Yuna · Premium"
+    @Published var naturalVoice = false        // a Premium / Enhanced voice (or ElevenLabs) is in use
     @Published var progress: Double = -1          // -1 = not downloading
     @Published var downloadError = ""
     private var timer: Timer?
@@ -38,6 +40,9 @@ final class SetupModel: NSObject, ObservableObject, URLSessionDownloadDelegate {
         claude = cfg.claudeBinary != nil
         whisperBin = cfg.whisperBinary != nil
         model = FileManager.default.fileExists(atPath: cfg.whisperModelPath)
+        let v = Mouth.bestVoice(locale: cfg.locale, chosen: cfg.sayVoice)
+        voice = cfg.tts == "elevenlabs" ? "ElevenLabs" : (v.map { $0.name + ($0.quality == .premium ? " · Premium" : $0.quality == .enhanced ? " · Enhanced" : "") } ?? "—")
+        naturalVoice = cfg.tts == "elevenlabs" || (v?.quality ?? .default) != .default
     }
     func openPane(_ pane: String) {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?" + pane)!)
@@ -117,6 +122,12 @@ struct SetupView: View {
                     }
                     row(m.whisperBin, "whisper.cpp", S.t("정확한 받아쓰기 엔진: 터미널에서 `brew install whisper-cpp`", "Accurate transcription engine: `brew install whisper-cpp` in Terminal"), required: false) {
                         Button(S.t("명령 복사", "Copy command")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("brew install whisper-cpp cliclick", forType: .string) }
+                    }
+                    row(m.naturalVoice, S.t("자연스러운 목소리 (선택, 무료)", "Natural voice (optional, free)"),
+                        S.t("지금: \(m.voice). 맥 기본 목소리로 바로 됩니다. 더 사람 같은 목소리는 시스템 설정 → 손쉬운 사용 → 읽기 및 말하기 → 시스템 목소리 → 목소리 관리…에서 「Premium」을 받으면 자동으로 씁니다. (시연 영상 목소리는 유료 ElevenLabs — 설정에서 내 열쇠를 넣으면 됩니다.)",
+                            "Now: \(m.voice). Works as is. For a more human voice, download a “Premium” one in System Settings → Accessibility → Spoken Content → System voice → Manage Voices… — it's used automatically. (The demo video uses paid ElevenLabs — add your own key in Settings.)"),
+                        required: false) {
+                        Button(S.t("설정 열기", "Open Settings")) { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Accessibility-Settings.extension")!) }
                     }
                     row(m.model, S.t("Whisper 모델 (874 MB)", "Whisper model (874 MB)"), m.downloadError.isEmpty ? S.t("없으면 맥 기본 인식만 씁니다(덜 정확).", "Without it, Apple's live recognition is used (less accurate).") : "⚠︎ " + m.downloadError, required: false) {
                         if m.progress >= 0 { ProgressView(value: m.progress).frame(width: 140) }

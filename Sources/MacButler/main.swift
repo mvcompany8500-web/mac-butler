@@ -146,6 +146,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 if let i = CommandLine.arguments.firstIndex(of: "--echotest"), CommandLine.arguments.count > i + 2 {
     try? EchoTest.run(CommandLine.arguments[i + 1]).write(toFile: CommandLine.arguments[i + 2], atomically: true, encoding: .utf8); exit(0)
 }
+// `MacButler --say "text"` speaks with a fresh default config — what someone who just downloaded it hears.
+if let i = CommandLine.arguments.firstIndex(of: "--say"), CommandLine.arguments.count > i + 1 {
+    var c = Config(); c.language = ProcessInfo.processInfo.environment["MB_LANG"] ?? "ko"
+    let v = Mouth.bestVoice(locale: c.locale)
+    print("voice: \(v?.name ?? "none") · \(v?.identifier ?? "") · quality \(v?.quality.rawValue ?? 0)")
+    let m = Mouth(cfg: c); var done = false; let t0 = Date()
+    m.speak(CommandLine.arguments[i + 1]) { done = true }
+    while !done, Date().timeIntervalSince(t0) < 30 { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+    print(String(format: "spoke: %@ in %.1f s", done ? "yes" : "NO", Date().timeIntervalSince(t0))); exit(done ? 0 : 1)
+}
 // `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).
