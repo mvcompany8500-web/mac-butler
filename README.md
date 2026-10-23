@@ -83,7 +83,7 @@ cd mac-butler
 ./scripts/install.sh            # deps → Whisper model → build → ~/Applications → start at login
 ```
 
-Or with Homebrew (prebuilt, ad-hoc signed):
+Or with Homebrew (signed & notarized by Apple):
 
 ```bash
 brew install --cask mvcompany8500-web/tap/mac-butler
@@ -102,8 +102,8 @@ Open the **◉J** menu → *Status*. Each ✗ opens the right System Settings pa
 | Accessibility | type, press keys and buttons | it can talk but not act |
 | Screen Recording | Claude can look at the screen when asked | “what's on my screen?” fails |
 
-> **Rebuilding?** An ad-hoc signed build gets a new signature each time, and macOS forgets the permissions. Build with a fixed
-> certificate to keep them: put `SIGN_ID="Apple Development: …"` (or a self-signed code-signing certificate) in `local.env`.
+> Releases are signed with Developer ID and notarized by Apple. **Building it yourself?** An ad-hoc signed build gets a new
+> signature each time and macOS forgets the permissions — set `SIGN_ID` to a fixed certificate in `local.env` to keep them.
 
 ## Configuration
 
