@@ -18,8 +18,9 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
 
     init(cfg: Config) { self.cfg = cfg }
 
-    func speak(_ text: String, done: @escaping () -> Void) {
+    func speak(_ raw: String, done: @escaping () -> Void) {
         stop()
+        let text = cfg.ko ? KoreanReader.read(raw) : raw      // numbers & model names the way a Korean reads them
         token += 1
         let my = token
         finish = done
@@ -57,7 +58,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         var body: [String: Any] = ["text": text, "model_id": e.model,
                                    "voice_settings": ["stability": 0.45, "similarity_boost": 0.8, "style": 0.3, "speed": e.speed]]
-        if cfg.ko { body["language_code"] = "ko" }
+        if cfg.ko, e.model.contains("v2_5") { body["language_code"] = "ko" }   // only Flash/Turbo v2.5 accept it
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         task = URLSession.shared.dataTask(with: req) { [weak self] data, resp, _ in
             DispatchQueue.main.async {

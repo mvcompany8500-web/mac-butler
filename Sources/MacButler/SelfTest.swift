@@ -85,6 +85,13 @@ enum SelfTest {
         checkBool("study ignores verbs", !Growth.words("크롬 열어 줘").contains("열어") || Growth.study(whisper: "열어", live: "x", known: []).isEmpty)
         checkBool("words latin", Growth.words("open ComfyUI now").contains("ComfyUI"))
 
+        // Korean reading for TTS
+        let kr: [(String, String)] = [
+            ("오후 3시 16분입니다", "오후 세 시 십육 분입니다"), ("1,399,900원", "백삼십구만 구천구백 원"), ("사과 2개", "사과 두 개"),
+            ("10월 23일", "시월 이십삼 일"), ("M4 맥미니", "엠포 맥미니"), ("24GB", "이십사 기가"), ("30%", "삼십 퍼센트"),
+            ("2026년", "이천이십육 년"), ("17분 10초", "십칠 분 십 초"), ("20명", "스무 명"), ("1.5배", "일 점 오 배"), ("10000원", "만 원")]
+        for (a, b) in kr { checkBool("read \(a) → \(KoreanReader.read(a))", KoreanReader.read(a) == b) }
+
         // YouTube parser
         let html = #""videoRenderer":{"videoId":"abcdefghijk","thumbnail":{},"title":{"runs":[{"text":"First video"}]}"#
         checkBool("youtube parse", Butler.parseYouTube(html).first?.id == "abcdefghijk")
