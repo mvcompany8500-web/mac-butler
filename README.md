@@ -12,7 +12,7 @@ and hands bigger jobs to a new Claude Code session. Korean-first, English suppor
 
 [Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](#한국어) · [Made by turtle buff ai](#made-by)
 
-<img src="docs/boot.png" width="820" alt="My Jarvis boot screen: arc-reactor rings, boot log and clock">
+<img src="docs/demo.gif" width="820" alt="My Jarvis wake-up animation: boot log types out, arc-reactor rings spin, “Welcome home, sir.”, then it flies into the HUD orb">
 
 </div>
 
@@ -146,6 +146,17 @@ Everything lives in `~/.myjarvis/` (menu → *Open settings folder*):
 * **Grammar self-test** — `~/Applications/MyJarvis.app/Contents/MacOS/MyJarvis --selftest`
 </details>
 
+## Roadmap
+
+- [ ] Signed & notarized release + Homebrew tap (`brew install --cask my-jarvis`)
+- [ ] Settings window (no JSON editing) and a first-run setup wizard
+- [ ] Push-to-talk mode (hold the hotkey) for open offices
+- [ ] Quick-command grammars for Japanese, Spanish, …
+- [ ] Custom wake-word engine (no Apple speech needed for the wake word)
+- [ ] Plug-in commands: drop a small script in `~/.myjarvis/commands/`
+
+Have an idea? [Open an issue](../../issues/new/choose).
+
 ## Development
 
 ```bash
@@ -157,7 +168,7 @@ build/MyJarvis.app/Contents/MacOS/MyJarvis --selftest
 `Sources/MyJarvis/` — `Ear` (mic + Apple speech), `Whisper`, `Brain` (Claude Code), `Commands` (quick-command grammar),
 `Jarvis` (state machine), `Hands` (keyboard + Accessibility), `HUD`, `BootScene`, `Mouth` (TTS). `Tools/` — `jax`, `jarvis-ping`, `jclick`, `jtype`.
 
-Issues and pull requests are welcome — especially quick-command grammars for more languages.
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Quick-command grammars for more languages are especially wanted.
 
 ## Credits
 

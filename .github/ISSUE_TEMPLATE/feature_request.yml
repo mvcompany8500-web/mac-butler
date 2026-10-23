@@ -1,0 +1,9 @@
+name: Feature / command idea
+description: Something you'd like to say to Jarvis
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes: { label: What would you say?, placeholder: "“Jarvis, summarize this page into Notes”" }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: What should happen? }
