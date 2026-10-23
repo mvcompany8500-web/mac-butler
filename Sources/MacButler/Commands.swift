@@ -10,6 +10,7 @@ enum Intent: Equatable {
     case youtubeNth(Int)
     case search(String)
     case web(label: String, query: String, url: String)   // shopping / site search
+    case remember(String)                                   // 「기억해: …」 — a long-term note
     case openApp(spoken: String, app: String)
     case none
 }
@@ -83,9 +84,9 @@ struct Parser {
     func isBye(_ c: String) -> Bool {
         let s = Parser.squash(c)
         if byeWords.contains(s) { return true }
-        if s.count <= 6, ["됐어", "그만", "됐다"].contains(where: s.hasPrefix) { return true }
-        // "너 꺼", "자비스 꺼" — but not "크롬 꺼"
-        if s.count <= 8, s.hasSuffix("꺼") || s.hasSuffix("꺼져"), !apps.keys.contains(where: { s.contains(Parser.squash($0)) }) { return true }
+        if s.count <= 6, ["됐어", "됐다"].contains(where: s.hasPrefix) { return true }
+        // only "너 꺼", "자비스 꺼", "너 이제 꺼" — "다 꺼", "그래 꺼", "크롬 꺼" are actions for Claude
+        if ["너꺼", "자비스꺼", "너이제꺼", "이제꺼져", "너꺼져", "자비스꺼져", "그만꺼"].contains(s) { return true }
         return false
     }
     func isHush(_ c: String) -> Bool {
@@ -162,6 +163,8 @@ struct Parser {
         }
 
         // Two things in one breath ("영상 멈추고 쿠팡에서 …", "X 하고 Y") → Claude does them in order.
+        if let m = Parser.match(s, "^(기억해|기억해 둬|기억해둬|메모해|remember(?: that)?)\\s*[:,]?\\s*(.+)$") { return .remember(m[2]) }
+        if let m = Parser.match(s, "^(.+?)\\s*(이?라고|라는 거|라는 걸)?\\s*(기억해 둬|기억해둬|기억해)$"), m[1].count >= 2 { return .remember(m[1]) }
         if Parser.isCompound(s) { return .none }
 
         // Shopping & site search — the site can be named anywhere: "쿠팡 홈페이지에 들어가서 맥미니 가격",

@@ -58,8 +58,8 @@ final class Ear {
             self.lock.lock(); let last = self.lastBuffer; self.lock.unlock()
             if Date().timeIntervalSince(last) > 3 { log("ear: no audio for 3 s → restarting mic"); self.restartEngine() }
             // Voice is coming in but the recognizer has produced nothing for 10 s → it's stuck; start a fresh task.
-            if !self.muted, Date().timeIntervalSince(self.lastLoud) < 2, Date().timeIntervalSince(self.lastChange) > 10,
-               Date().timeIntervalSince(self.taskStart) > 10 { log("ear: speech but no text for 10 s → restarting recognizer"); self.restart() }
+            if !self.muted, !self.holding, Date().timeIntervalSince(self.lastLoud) < 2, Date().timeIntervalSince(self.lastChange) > 20,
+               Date().timeIntervalSince(self.taskStart) > 20 { log("ear: speech but no text for 20 s → restarting recognizer"); self.restart() }
         }
         // Heartbeat for troubleshooting: loudest level heard in the last minute.
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in

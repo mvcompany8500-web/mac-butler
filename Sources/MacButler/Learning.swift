@@ -79,7 +79,42 @@ enum Learning {
     }
 }
 
+/// Remembers across restarts: a short rolling log of the conversation and long-term notes (「기억해」).
+/// Both go into Claude's system prompt, so a fresh (fast) Claude process still knows what you talked about.
+enum Memory {
+    static var notesURL: URL { Paths.home.appendingPathComponent("memory.md") }
+    static var logURL: URL { Paths.home.appendingPathComponent("conversation.log") }
+    static func note(_ s: String) {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        append(notesURL, "- \(s) (\(f.string(from: Date())))\n")
+        log("remembered: \(s)")
+    }
+    static func exchange(user: String, reply: String) {
+        let f = DateFormatter(); f.dateFormat = "MM-dd HH:mm"
+        let r = reply.count > 160 ? String(reply.prefix(160)) + "…" : reply
+        append(logURL, "[\(f.string(from: Date()))] 사용자: \(user)\n  → \(r)\n")
+        // keep the file small
+        if let s = try? String(contentsOf: logURL, encoding: .utf8), s.count > 40_000 {
+            try? String(s.suffix(20_000)).write(to: logURL, atomically: true, encoding: .utf8)
+        }
+    }
+    static func promptBlock(ko: Bool) -> String {
+        let notes = (try? String(contentsOf: notesURL, encoding: .utf8)) ?? ""
+        let convo = ((try? String(contentsOf: logURL, encoding: .utf8)) ?? "").split(separator: "\n").suffix(40).joined(separator: "\n")
+        var out = ""
+        if !notes.isEmpty { out += (ko ? "\n\n## 오래 기억할 것 (사용자가 「기억해」라고 한 것)\n" : "\n\n## Long-term notes (things the user asked you to remember)\n") + notes }
+        if !convo.isEmpty { out += (ko ? "\n\n## 최근 대화 (앱을 다시 켜도 이어서 기억)\n" : "\n\n## Recent conversation (carried over restarts)\n") + convo }
+        return out
+    }
+    private static func append(_ url: URL, _ s: String) {
+        let d = s.data(using: .utf8)!
+        if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(d); try? h.close() }
+        else { FileManager.default.createFile(atPath: url.path, contents: d, attributes: [.posixPermissions: 0o600]) }
+    }
+}
+
 enum Usage {
+    static var lastContext = 0       // tokens Claude had to read on the last turn (input + cache)
     static var url: URL { Paths.home.appendingPathComponent("usage.json") }
     /// Adds one Claude turn (from the stream-json "result" event) to today's tally.
     static func record(_ result: [String: Any]) {
@@ -88,6 +123,7 @@ enum Usage {
         let cr = u["cache_read_input_tokens"] as? Int ?? 0, cw = u["cache_creation_input_tokens"] as? Int ?? 0
         let ms = result["duration_ms"] as? Int ?? 0
         log("brain usage: in \(i) + cache read \(cr) + cache write \(cw), out \(o), \(ms) ms")
+        lastContext = i + cr + cw
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let day = f.string(from: Date())
         var all = ((try? JSONSerialization.jsonObject(with: Data(contentsOf: url))) as? [String: [String: Int]]) ?? [:]
