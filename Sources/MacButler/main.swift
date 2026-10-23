@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var item: NSStatusItem!
     var cfg = Config()
     var statusItems: [NSMenuItem] = []
+    var usageItem: NSMenuItem?
     func applicationDidFinishLaunching(_ n: Notification) {
         cfg = Config.load()
         let cfg = self.cfg
@@ -32,6 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let hk = NSMenuItem(title: S.hotkeyHint(cfg.hotkey == "rightCommand" ? "오른쪽 ⌘ / right ⌘" : "오른쪽 ⌥ / right ⌥"), action: nil, keyEquivalent: ""); hk.isEnabled = false
             menu.addItem(hk)
         }
+        menu.addItem(.separator())
+        let ui = NSMenuItem(title: "", action: nil, keyEquivalent: ""); ui.isEnabled = false; menu.addItem(ui); usageItem = ui
+        menu.addItem(withTitle: S.t("배운 명령 모두 지우기", "Forget learned commands"), action: #selector(forgetLearned), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: S.menuQuit(), action: #selector(quit), keyEquivalent: "q")
         for i in menu.items where i.action != nil { i.target = self }
@@ -67,6 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             FileManager.default.fileExists(atPath: cfg.whisperModelPath) && cfg.whisperBinary != nil]
         let names = [S.permMic, S.permSpeech, S.permAX, S.permScreen, S.depClaude, S.depWhisper]
         for (i, it) in statusItems.enumerated() { it.title = (ok[i] ? "✓  " : "✗  ") + names[i] }
+        let u = Usage.today()
+        usageItem?.title = S.t("오늘 클로드 \(u["calls"] ?? 0)번 · 토큰 \(((u["input"] ?? 0) + (u["cacheRead"] ?? 0) + (u["cacheWrite"] ?? 0) + (u["output"] ?? 0)) / 1000)천 · 배운 명령 \(Learning.store.count)개",
+                               "Today: \(u["calls"] ?? 0) Claude calls · \(((u["input"] ?? 0) + (u["cacheRead"] ?? 0) + (u["cacheWrite"] ?? 0) + (u["output"] ?? 0)) / 1000)k tokens · \(Learning.store.count) learned")
     }
     @objc func fixPermission(_ sender: NSMenuItem) {
         let c = AppDelegate.checks[sender.tag]
@@ -80,18 +87,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Tap the right Option (or right Command) key alone to wake — for noisy rooms and meetings.
-    var hotkeyDown = false
+    /// Right ⌥ (or ⌘): tap = wake (like saying the name) · hold = push-to-talk like Handy (release runs it).
+    var hotkeyDown: Date?
+    var holdTimer: Timer?
+    var holding = false
     func installHotkey() {
         let code: UInt16 = cfg.hotkey == "rightCommand" ? 54 : 61
         guard cfg.hotkey != "none" else { return }
         let handler: (NSEvent) -> Void = { [weak self] e in
             guard let self, e.keyCode == code else { return }
             let flag: NSEvent.ModifierFlags = code == 54 ? .command : .option
-            if e.modifierFlags.contains(flag) { self.hotkeyDown = true }
-            else if self.hotkeyDown { self.hotkeyDown = false; DispatchQueue.main.async { self.butler?.manualWake() } }
+            DispatchQueue.main.async {
+                if e.modifierFlags.contains(flag) {
+                    self.hotkeyDown = Date()
+                    self.holdTimer?.invalidate()
+                    self.holdTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { _ in
+                        guard self.hotkeyDown != nil else { return }
+                        self.holding = true; self.butler?.holdBegan()
+                    }
+                } else if self.hotkeyDown != nil {
+                    self.hotkeyDown = nil; self.holdTimer?.invalidate()
+                    if self.holding { self.holding = false; self.butler?.holdEnded() } else { self.butler?.manualWake() }
+                }
+            }
         }
         NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged, handler: handler)
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in self?.hotkeyDown = false }   // ⌥+key combos don't count
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in   // ⌥+key combos don't count
+            DispatchQueue.main.async {
+                guard let self, self.hotkeyDown != nil else { return }
+                self.hotkeyDown = nil; self.holdTimer?.invalidate()
+                if self.holding { self.holding = false; self.butler?.holdCancelled() }
+            }
+        }
     }
 
     @objc func toggle() {
@@ -101,6 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !j.enabled { j.goIdle() }
     }
     @objc func greet() { butler?.greet() }
+    @objc func forgetLearned() { Learning.store = [:]; Learning.save(); log("learned commands cleared") }
     @objc func openSettings() { SettingsWindow.show(cfg: cfg) }
     @objc func openFolder() { NSWorkspace.shared.open(Paths.home) }
     @objc func quit() { NSApp.terminate(nil) }

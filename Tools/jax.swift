@@ -208,7 +208,7 @@ case "field":
     print("typed \(text.count) chars into \"\(hit.2.prefix(40))\"")
 default:
     let f = a.count >= 2 ? norm(a[1]) : ""
-    let shown = items.filter { f.isEmpty || norm($0.2).contains(f) }.prefix(150)
+    let shown = items.filter { f.isEmpty || norm($0.2).contains(f) }.prefix(f.isEmpty ? 80 : 150)
     print("\(front.localizedName ?? "") · \(items.count) elements (showing \(shown.count))")
     for (i, it) in shown.enumerated() { print("\(i + 1). \(it.1.replacingOccurrences(of: "AX", with: "")) | \(it.2.prefix(70))") }
 }

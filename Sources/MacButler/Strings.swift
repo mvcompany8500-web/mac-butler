@@ -46,7 +46,7 @@ struct Strings {
     var depClaude: String { t("Claude Code (두뇌)", "Claude Code (brain)") }
     var depWhisper: String { t("Whisper 모델 (정확한 받아쓰기)", "Whisper model (accurate text)") }
     var menuStatus: String { t("상태 점검", "Status") }
-    func hotkeyHint(_ k: String) -> String { t("단축키: \(k) 누르면 부르기", "Hotkey: tap \(k) to wake") }
+    func hotkeyHint(_ k: String) -> String { t("단축키: \(k) 톡 = 부르기 · 누르고 말하기 = 바로 실행", "Hotkey: tap \(k) = wake · hold & talk = run on release") }
 
     var toolNames: [String: String] {
         ko ? ["Read": "화면·파일 살펴보는 중", "Bash": "맥 조작 중", "WebSearch": "인터넷 검색 중", "WebFetch": "페이지 읽는 중", "Glob": "파일 찾는 중", "Grep": "내용 찾는 중"]

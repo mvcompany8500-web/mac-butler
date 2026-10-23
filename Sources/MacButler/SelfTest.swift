@@ -33,6 +33,8 @@ enum SelfTest {
         check(pk, "네이버에서 오늘 날씨 검색해", .web(label: "네이버", query: "오늘 날씨", url: "https://search.naver.com/search.naver?query="))
         check(pk, "지금 켜진 클로드 창에 로그인 버그 고쳐 줘", .claude(target: "", message: "로그인 버그 고쳐 줘", newSession: false))
         check(pk, "지금 켜진 클로드 창에 로그인 버그 고치고, 아니, 취소", .hush)
+        check(pk, "지금 켜진 클로드 창에다가 버그 고치라고 해", .claude(target: "", message: "버그 고치라고 해", newSession: false))
+        checkBool("알았어 조용히 해 = hush", pk.isHush("알았어 조용히 해"))
         check(pk, "됐어", .bye)
         check(pk, "너 꺼", .bye)
         check(pk, "시끄러워", .hush)
@@ -62,6 +64,13 @@ enum SelfTest {
         checkBool("whisper drops subtitle line", Whisper.clean("한글자막 by 한효정\n 헤이 자비스 지금 몇 시야?", apple: "헤이 자비스 지금 몇 시야") == "헤이 자비스 지금 몇 시야?")
         checkBool("whisper unrelated rejected", !Whisper.related("자비스, 이거 지금, 고맙습니다.", "됐어"))
         checkBool("whisper related kept", Whisper.related("한글 인식 자체가 생각보다 많이 안 돼.", "한글 이진식 자체가 생각보다 많이 안 돼"))
+
+        // Learning: only safe action steps are replayable
+        checkBool("learn jax key", Learning.replayable(["jax front", "jax key space"])?.count == 1)
+        checkBool("learn rejects shell", Learning.replayable(["jax key space; rm -rf ~"]) == nil)
+        checkBool("learn rejects delegate", Learning.replayable(["butler delegate \"|x\""]) == nil)
+        checkBool("learn rejects click", Learning.replayable(["jax click 10 10"]) == nil)
+        checkBool("tokens quoted", Learning.tokens("jax tap \"Save as\" 2") == ["jax", "tap", "Save as", "2"])
 
         // YouTube parser
         let html = #""videoRenderer":{"videoId":"abcdefghijk","thumbnail":{},"title":{"runs":[{"text":"First video"}]}"#

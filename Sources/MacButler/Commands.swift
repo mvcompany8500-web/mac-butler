@@ -88,7 +88,12 @@ struct Parser {
         if s.count <= 8, s.hasSuffix("꺼") || s.hasSuffix("꺼져"), !apps.keys.contains(where: { s.contains(Parser.squash($0)) }) { return true }
         return false
     }
-    func isHush(_ c: String) -> Bool { hushWords.contains(Parser.squash(c)) }
+    func isHush(_ c: String) -> Bool {
+        let s = Parser.squash(c)
+        if hushWords.contains(s) { return true }
+        // short lead-ins: "알았어 조용히 해", "야 멈춰", "okay stop"
+        return s.count <= 10 && ["조용히해", "조용", "멈춰", "그만해", "시끄러워", "쉿", "stop", "quiet"].contains { s.hasSuffix($0) }
+    }
 
     /// True when Apple's live text is good enough to act on right away.
     func instant(_ c: String) -> Bool {
@@ -117,15 +122,18 @@ struct Parser {
         if let m = Parser.match(s, "^(type|write)\\s+(.+)$") { return .type(m[2]) }
 
         // Claude: 「(세션) 클로드한테 ○○ 라고 전달해」 → relay just that; 「클로드코드한테 ○○ 해서 보내」 → whole task.
-        if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|에다가|에다|창에|에|님|보고)\\s*[,，]?\\s*(.+)$") {
+        if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|창에다가|창에다|창에|에다가|에다|에|님|보고)\\s*[,，]?\\s*(.+)$") {
             var target = m[1]
-            let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는"].contains { target.contains($0) || m[3] == "창에" && target.isEmpty }
+            let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는"].contains { target.contains($0) } || (m[3].hasPrefix("창에") && target.isEmpty)
             for w in ["프로젝트", "세션", "창", "에 있는", "있는", "지금", "켜져 있는", "켜진", "열린", "현재", "여기", "보고"] { target = target.replacingOccurrences(of: w, with: "") }
             target = target.trimmingCharacters(in: .whitespaces)
             var rest = m[4]
+            for p in ["다가 ", "다 "] where rest.hasPrefix(p) { rest = String(rest.dropFirst(p.count)) }
             for p in ["시켜서 ", "시켜 ", "얘기해서 ", "말해서 "] where rest.hasPrefix(p) { rest = String(rest.dropFirst(p.count)) }
             if let q = Parser.match(rest, "^(.+?)\\s*(이?라고)\\s*(전달|보내|말|입력|써|적어|넣어|해|얘기)" + tail) {
-                return .claude(target: target, message: q[1], newSession: false)
+                // 「테스트라고 전달해」 quotes a word; 「버그 고치라고 해」 is an order — keep the whole order.
+                let verbStem = "하치기리지가보내주우추르꾸들켜꺼써봐줘라".contains(q[1].last ?? " ")
+                return .claude(target: target, message: verbStem ? rest : q[1], newSession: target.isEmpty && !here)
             }
             return .claude(target: target, message: rest, newSession: target.isEmpty && !here)
         }

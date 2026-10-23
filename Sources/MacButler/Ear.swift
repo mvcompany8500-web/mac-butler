@@ -160,6 +160,20 @@ final class Ear {
     }
 
     func forceFlush() { if !lastText.isEmpty { flush() } }
+
+    // Push-to-talk (hold the hotkey): exact start/stop like Handy — no guessing where speech begins or ends.
+    private(set) var holding = false
+    private var holdStart = 0
+    func beginHold() { lock.lock(); holdStart = max(ringEnd - 3200, ringBase); lock.unlock(); holding = true; restart() }
+    /// Returns what Apple heard live and the exact audio between press and release.
+    func endHold() -> (String, [Float]) {
+        holding = false
+        lock.lock(); let a = max(holdStart - ringBase, 0); let audio = a < ring.count ? Array(ring[a...]) : []; lock.unlock()
+        let t = lastText.trimmingCharacters(in: .whitespacesAndNewlines)
+        restart()
+        return (t, audio)
+    }
+    func cancelHold() { holding = false }
     /// Count only audio from ~0.4 s ago as the current utterance (used when the user interrupts).
     func markSegmentNow() { lock.lock(); segStart = max(ringEnd - 6400, ringBase); lock.unlock() }
 
@@ -171,7 +185,7 @@ final class Ear {
     }
 
     private func tick() {
-        if muted { return }
+        if muted || holding { return }
         let quiet = Date().timeIntervalSince(lastLoud) > 0.7
         if !lastText.isEmpty, quiet, Date().timeIntervalSince(lastChange) > silenceSec { flush() }
         else if lastText.isEmpty, Date().timeIntervalSince(taskStart) > 50 { restart() }

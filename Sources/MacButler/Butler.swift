@@ -19,7 +19,8 @@ final class Butler {
     var speakingText = ""
     var bargedIn = false
     var ytList: [(id: String, title: String)] = []
-    var cancelSend = false      // set when you say “취소/멈춰” while a Claude message is about to be sent
+    var cancelSend = false
+    var learnCandidate: (phrase: String, steps: [[String]])?      // set when you say “취소/멈춰” while a Claude message is about to be sent
     static let claudeBundle = "com.anthropic.claudefordesktop"
 
     init(cfg: Config) {
@@ -71,7 +72,10 @@ final class Butler {
         case "delegate":   // from the brain: it asks the question in its own answer, we just hold the task
             let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2, !parts[1].isEmpty else { return }
-            askToDelegate(target: parts[0], message: parts[1], newSession: parts[0].isEmpty, speakQuestion: false)
+            let here = parts[0] == "." || parts[0] == "지금" || parts[0].lowercased() == "here"
+            askToDelegate(target: here ? "" : parts[0], message: parts[1], newSession: parts[0].isEmpty, speakQuestion: false)
+        case "session":   // switch the Claude app to a session by name — navigation only, nothing typed
+            openClaudeSession(text)
         case "settings": if text == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: cfg) }
         case "say":   // text instead of voice — for testing and screen recordings
             log("text command: \(text)")
@@ -83,6 +87,32 @@ final class Butler {
     }
 
     // MARK: listening
+
+    /// Hold the hotkey and talk; release to run it right away (exact audio, no waiting for silence).
+    func holdBegan() {
+        guard enabled else { return }
+        if mode == .speaking { mouth.stop(); speakingText = ""; bargedIn = true }
+        if brain.busy { brain.cancel(silently: true) }
+        whisper.warm()
+        ear.muted = false
+        ear.beginHold()
+        mode = .awake; awakeStarted = nil; awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
+        NSSound(named: NSSound.Name(cfg.chime))?.play()
+        hud.show(S.t("● 듣는 중 · 손을 떼면 실행", "● Listening · release to run"), S.speakNow, heard: "")
+    }
+    func holdEnded() {
+        let (t, audio) = ear.endHold()
+        log("hold: \(audio.count / 16) ms, live text: \(t)")
+        guard audio.count > 4800 else { converse(); return }
+        hud.show(S.transcribing, t.isEmpty ? "…" : t, speed: 2)
+        whisper.transcribe(audio, fallback: t) { [weak self] full in
+            guard let self else { return }
+            let cmd = self.parser.stripWake(full)
+            if cmd.isEmpty { self.converse(); return }
+            if self.mode == .dictation { self.dictate(full) } else { self.handle(cmd) }
+        }
+    }
+    func holdCancelled() { ear.cancelHold() }
 
     /// Same as saying the wake word (hotkey). While speaking it interrupts; while awake it ends the conversation.
     func manualWake() {
@@ -125,7 +155,7 @@ final class Butler {
     }
 
     func utterance(_ t: String, audio: [Float]) {
-        guard enabled else { return }
+        guard enabled, !ear.holding else { return }   // push-to-talk delivers its own utterance on release
         log("heard[\(mode)]: \(t)")
         switch mode {
         case .idle:
@@ -168,7 +198,13 @@ final class Butler {
     /// Apple's text is shown instantly; the command itself uses Whisper's more accurate text.
     func refine(_ audio: [Float], _ apple: String, then: @escaping (String) -> Void) {
         if !audio.isEmpty && whisper.available { hud.show(S.transcribing, apple, speed: 2) }
-        whisper.transcribe(audio, fallback: apple, done: then)
+        whisper.transcribe(audio, fallback: apple) { [weak self] full in
+            guard let self else { return }
+            var t = full
+            // If you said the wake word, nothing before it belongs to this command.
+            if self.parser.wakeRange(apple) != nil, let r = self.parser.wakeRange(t), r.lowerBound > t.startIndex { t = String(t[r.lowerBound...]) }
+            then(t)
+        }
     }
     func command(_ full: String) {
         guard mode != .busy, mode != .speaking else { return }
@@ -189,6 +225,10 @@ final class Butler {
 
     func handle(_ cmd: String) {
         if pendingDelegate != nil, answerPending(cmd) { return }
+        let q = Parser.squash(cmd)
+        if learnCandidate != nil, ["아니", "틀렸", "그게아니", "안됐", "잘못", "no", "wrong"].contains(where: { q.hasPrefix($0) }) {
+            log("not learning: \(learnCandidate!.phrase)"); learnCandidate = nil
+        }
         let intent = parser.parse(cmd, hasYouTubeList: !ytList.isEmpty)
         log("intent: \(intent)")
         switch intent {
@@ -214,7 +254,20 @@ final class Butler {
         case .openApp(let spoken, let app):
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
-        case .none: ask(cmd)
+        case .none:
+            if let steps = Learning.lookup(cmd) {      // learned before → instant, no Claude call
+                hud.show(S.t("◌ 기억한 대로 하는 중", "◌ Doing it the way I learned"), cmd, heard: nil, color: amber, speed: 3)
+                DispatchQueue.global().async { [weak self] in
+                    let ok = Learning.replay(steps)
+                    DispatchQueue.main.async {
+                        guard let self else { return }
+                        if ok { Learning.used(cmd); NSSound(named: "Pop")?.play(); self.done(self.S.t("기억한 대로", "Done (learned)"), cmd) }
+                        else { Learning.forget(cmd); self.ask(cmd) }   // screen changed — ask Claude and relearn
+                    }
+                }
+                return
+            }
+            ask(cmd)
         }
     }
 
@@ -285,10 +338,10 @@ final class Butler {
             DispatchQueue.main.async { self.cancelSend = false; self.hud.show(self.S.claudeTyping, message, heard: nil, color: amber, speed: 3) }
             AX.focus(box)
             Thread.sleep(forTimeInterval: 0.15)
-            Hands.typeVisible(message)
-            // Last chance: 1.5 s to say “취소 / stop” before Enter.
+            DispatchQueue.main.sync { Hands.paste(message) }   // instant (typing 30 chars/s was the slow part)
+            // Last chance: 0.8 s to say “취소 / stop” before Enter.
             DispatchQueue.main.async { self.hud.show(self.S.t("◌ 곧 보냄 · 「취소」 하면 멈춤", "◌ Sending… say “stop” to cancel"), message, heard: nil, color: amber, speed: 3) }
-            Thread.sleep(forTimeInterval: 1.5)
+            Thread.sleep(forTimeInterval: 0.8)
             var cancelled = false
             DispatchQueue.main.sync { cancelled = self.cancelSend; self.cancelSend = false }
             if cancelled {
@@ -332,10 +385,24 @@ final class Butler {
         let yes = ["응", "네", "예", "맡겨", "그래", "좋아", "해", "보내", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay"]
         let no = ["아니", "아니야", "취소", "하지마", "됐어", "no", "nope", "cancel", "stop"]
         pendingDelegate = nil
-        if yes.contains(where: { s == $0 || s.hasPrefix($0) && s.count <= 4 }) { claudeMacro(target: p.target, message: p.message, newSession: p.newSession); return true }
-        if no.contains(where: { s.hasPrefix($0) }) { NSSound(named: "Pop")?.play(); log("delegate cancelled"); converse(keep: true); return true }
+        if no.contains(where: { s.hasPrefix($0) }) || s.contains("말고") || s.contains("하지마") { NSSound(named: "Pop")?.play(); log("delegate cancelled"); converse(keep: true); return true }
+        if yes.contains(where: { s.hasPrefix($0) }) { claudeMacro(target: p.target, message: p.message, newSession: p.newSession); return true }
         log("delegate dropped (no clear yes)")
         return false
+    }
+
+    func openClaudeSession(_ name: String) {
+        NSRunningApplication.runningApplications(withBundleIdentifier: Butler.claudeBundle).first?.activate()
+        DispatchQueue.global().async { [weak self] in
+            guard let self else { return }
+            Thread.sleep(forTimeInterval: 0.3)
+            guard let app = AX.app(Butler.claudeBundle) else { return }
+            if let (w, item, _) = AX.windows(app).compactMap({ w in AX.session(w, name).map { (w, $0.0, $0.1) } }).max(by: { $0.2 < $1.2 }) {
+                AXUIElementPerformAction(w, kAXRaiseAction as CFString); AX.press(item)
+                let title = (AX.attr(item, "AXTitle") as? String) ?? name
+                DispatchQueue.main.async { self.done(self.S.t("세션 열기", "Opened"), title) }
+            } else { DispatchQueue.main.async { self.fail(self.S.t("그 세션을 못 찾았습니다.", "Couldn't find that session.")) } }
+        }
     }
 
     func fail(_ why: String) { speak(why) { [weak self] in self?.converse(keep: true) } }
@@ -363,6 +430,13 @@ final class Butler {
         }, done: { [weak self] answer in
             guard let self else { return }
             log("brain → \(answer)")
+            if let steps = Learning.replayable(self.brain.lastCommands) {
+                self.learnCandidate = (cmd, steps)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in   // no “아니” within 12 s → keep it
+                    guard let self, let c = self.learnCandidate, c.phrase == cmd else { return }
+                    Learning.remember(c.phrase, c.steps); self.learnCandidate = nil
+                }
+            }
             let spoken = answer.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
             self.speak(spoken) {
                 self.converse(keep: true)   // leave the answer on screen

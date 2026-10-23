@@ -3,6 +3,7 @@
 //   type      "hello"                  — type into the focused field, character by character
 //   delegate  "session name|task"      — hand a task to Claude (empty session name = new session)
 //   settings  [close]                  — open (or close) the settings window
+//   session   "name"                   — switch the Claude app to that session (no typing)
 // Uses a private Unix socket (owner-only); other users and sandboxed apps can't send commands.
 import Foundation
 
@@ -27,6 +28,6 @@ func butlerSend(_ cmd: String, _ text: String) -> Bool {
 }
 
 let a = CommandLine.arguments
-guard a.count >= 2, ["say", "type", "delegate", "settings"].contains(a[1]) else { print("usage: butler <say|type|delegate|settings> [text]"); exit(1) }
+guard a.count >= 2, ["say", "type", "delegate", "settings", "session"].contains(a[1]) else { print("usage: butler <say|type|delegate|settings|session> [text]"); exit(1) }
 if !butlerSend(a[1], a.dropFirst(2).joined(separator: " ")) { print("Mac Butler is not running"); exit(2) }
 if a[1] == "delegate" { print("pending — Mac Butler holds the task until the user says yes. In your answer, ASK whether to hand it over; do not say it was done.") }

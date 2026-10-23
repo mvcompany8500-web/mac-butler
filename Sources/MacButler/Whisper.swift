@@ -58,7 +58,7 @@ final class Whisper {
             guard let self else { return }
             var t = Whisper.clean(text ?? "", apple: fallback)
             if Whisper.isHallucination(t, apple: fallback) { t = "" }
-            if !t.isEmpty, !Whisper.related(t, fallback) { log("whisper ignored (unrelated to what was heard): \(t)"); t = "" }
+            if !t.isEmpty, !fallback.isEmpty, !Whisper.related(t, fallback) { log("whisper ignored (unrelated to what was heard): \(t)"); t = "" }
             if self.language == "ko", !t.isEmpty, Whisper.hangulRatio(fallback) > 0.5, Whisper.hangulRatio(t) < 0.5 { t = "" }
             log("whisper: \(t.isEmpty ? "(using Apple text)" : t)")
             done(t.isEmpty ? fallback : t)

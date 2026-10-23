@@ -14,6 +14,8 @@ final class Brain {
     private var pendingText: String?
     private var sent = 0, received = 0
     private var lastUse = Date()
+    private(set) var lastCommands: [String] = []     // Bash commands of the last finished turn (for learning)
+    private var turnCommands: [String] = []
     init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.assistantName) }
     var busy: Bool { done != nil }
     var installed: Bool { cfg.claudeBinary != nil }
@@ -36,7 +38,7 @@ final class Brain {
         if access == "full" {
             return ["--allowedTools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
         }
-        let allow = ["Bash(jax:*)", "Bash(jtype:*)", "Bash(butler delegate:*)", "Bash(date)",
+        let allow = ["Bash(jax:*)", "Bash(jtype:*)", "Bash(butler delegate:*)", "Bash(butler session:*)", "Bash(date)",
                      "Read(//tmp/macbutler/**)", "Read(//private/tmp/macbutler/**)", "WebSearch"]
         let deny = ["WebFetch", "Write", "Edit", "NotebookEdit", "SendMessage", "ToolSearch", "Task", "Agent", "Glob", "Grep"]
         return ["--setting-sources", "project", "--strict-mcp-config", "--permission-mode", "default",
@@ -88,6 +90,7 @@ final class Brain {
     private func handle(_ obj: [String: Any]) {
         let type = obj["type"] as? String
         if type == "result" {
+            Usage.record(obj)
             received += 1
             if received == sent, done != nil { finish((obj["result"] as? String) ?? pendingText ?? "") }
             return
@@ -100,6 +103,7 @@ final class Brain {
             finalTimer?.cancel(); pendingText = nil
             for c in tools {
                 let inp = c["input"] as? [String: Any]
+                if c["name"] as? String == "Bash", let cmd = inp?["command"] as? String { turnCommands.append(cmd) }
                 step?((inp?["description"] as? String) ?? strings.toolNames[c["name"] as? String ?? ""] ?? strings.working)
             }
         } else if !text.isEmpty {
@@ -116,6 +120,7 @@ final class Brain {
         finalTimer?.cancel(); finalTimer = nil; pendingText = nil
         guard let d = done else { return }
         done = nil; step = nil; lastUse = Date()
+        lastCommands = turnCommands; turnCommands = []
         let t = r.trimmingCharacters(in: .whitespacesAndNewlines)
         d(t.isEmpty ? strings.failed : t)
     }
@@ -130,7 +135,7 @@ final class Brain {
         let msg: [String: Any] = ["type": "user", "message": ["role": "user", "content": input]]
         guard var data = try? JSONSerialization.data(withJSONObject: msg) else { return }
         data.append(0x0A)
-        self.step = step; self.done = done; sent += 1
+        self.step = step; self.done = done; sent += 1; turnCommands = []
         stdin.write(data)
         log("brain ← \(command)")
     }

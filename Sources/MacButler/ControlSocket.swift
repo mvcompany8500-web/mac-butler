@@ -49,7 +49,7 @@ final class ControlSocket {
                 guard let s = String(data: data, encoding: .utf8) else { continue }
                 let parts = s.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
                 let cmd = String(parts.first ?? ""), text = parts.count > 1 ? String(parts[1]) : ""
-                guard ["say", "type", "delegate", "settings"].contains(cmd) else { continue }
+                guard ["say", "type", "delegate", "settings", "session"].contains(cmd) else { continue }
                 DispatchQueue.main.async { self.handler(cmd, text) }
             }
         }
