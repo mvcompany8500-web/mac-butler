@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4 — 2026-10-23
+- **Timers & reminders:** 「라면 3분」, 「10분 뒤에 알려 줘」, 「5시에 회의 알려 줘」, 「타이머 취소」 — chime + spoken reminder, kept across restarts; reminders never act on their own
+- **Naver Map:** 「강남역 가는 길」, 「서울역 어떻게 가」, 「○○ 어디야」
+- **Several commands in one sentence:** 「로파이 틀고 소리 줄이고 화면 꺼」 runs each right away, in order (anything it can't do alone → Claude takes the whole sentence)
+- Quick: 「뒤로 가」/「앞으로」/「새로고침」, 「소리 키워/줄여」, 「볼륨 30」, 「음소거」, 「몇 시야」, 「오늘 며칠이야」, 「다 꺼」, 「로파이 틀어」 (= YouTube)
+- After each press, Claude sees what's in front now (no extra screenshot); sentences it couldn't do alone are logged so new quick rules can be added (`MacButler --misses`)
+
 ## 0.6.3 — 2026-10-23
 - **Acts right away by default** (like a car assistant): no "shall I?" questions; it does the most likely thing and you correct it with 「아니」. Settings → Basics → 「실행 방식」 switches to ask-first. Sending, paying and deleting always ask once
 - **Faster, lighter brain:** only the tools it uses are described to Claude and no skill list — ~34k → ~10k tokens a turn, about 1.3 s faster
