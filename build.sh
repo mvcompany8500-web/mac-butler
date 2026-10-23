@@ -12,7 +12,8 @@ APP_NAME=${APP_NAME:-MacButler}
 BUNDLE_ID=${BUNDLE_ID:-com.macbutler.app}
 SIGN_ID=${SIGN_ID:--}
 VERSION=$(cat VERSION 2>/dev/null || echo 0.1.0)
-APP=build/$APP_NAME.app
+BUILD_DIR=${BUILD_DIR:-build}
+APP=$BUILD_DIR/$APP_NAME.app
 
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/bin"
 cat > "$APP/Contents/Info.plist" <<PLIST

@@ -9,6 +9,7 @@ enum Intent: Equatable {
     case youtube(String)          // "" = YouTube home
     case youtubeNth(Int)
     case search(String)
+    case web(label: String, query: String, url: String)   // shopping / site search
     case openApp(spoken: String, app: String)
     case none
 }
@@ -140,6 +141,20 @@ struct Parser {
             if let m = Parser.match(s, "^(.+?)\\s*(번째|번)\\s*(거|것|영상|꺼)?\\s*(틀어|켜|재생|열어|보여)" + tail), let n = Parser.ordinal(m[1]) { return .youtubeNth(n) }
             if let m = Parser.match(s, "^play\\s+(the\\s+)?(number\\s+)?(\\w+)(\\s+one)?$"), let n = Parser.ordinal(m[3]) { return .youtubeNth(n) }
         }
+
+        // Shopping & site search (the most common everyday asks)
+        let siteVerbs = "(에서|에)\\s*(.+?)\\s*(찾아|검색|보여|사고 싶어|주문|알아봐)"
+        let sites: [(String, String, String)] = [
+            ("쿠팡", "쿠팡", "https://www.coupang.com/np/search?q="),
+            ("네이버\\s*쇼핑", "네이버 쇼핑", "https://search.shopping.naver.com/search/all?query="),
+            ("네이버", "네이버", "https://search.naver.com/search.naver?query="),
+            ("구글", "Google", "https://www.google.com/search?q="),
+            ("아마존", "Amazon", "https://www.amazon.com/s?k=")]
+        for (pat, label, url) in sites {
+            if let m = Parser.match(s, "^" + pat + "\\s*" + siteVerbs + tail) { return .web(label: label, query: m[2], url: url) }
+        }
+        if let m = Parser.match(s, "^(.+?)\\s*(최저가|가격 비교)\\s*(찾아|검색|보여|알아봐)?" + tail) { return .web(label: "네이버 쇼핑", query: m[1], url: "https://search.shopping.naver.com/search/all?query=") }
+        if let m = Parser.match(s, "^(shop for|buy|find)\\s+(.+?)\\s+on\\s+amazon$") { return .web(label: "Amazon", query: m[2], url: "https://www.amazon.com/s?k=") }
 
         // Web search
         if let m = Parser.match(s, "^(.+?)\\s*(검색|찾아 ?봐|찾아)" + tail), !m[1].contains("클로드") { return .search(m[1]) }

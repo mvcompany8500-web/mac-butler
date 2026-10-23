@@ -2,3 +2,4 @@ build/
 local.env
 .DS_Store
 *.part
+build-local/

@@ -183,6 +183,7 @@ final class Butler {
             guard n >= 1, n <= ytList.count else { ask(cmd); return }
             open("https://www.youtube.com/watch?v=" + ytList[n - 1].id); played("\(S.youtube) #\(n)", ytList[n - 1].title)
         case .search(let q): open((cfg.ko ? "https://www.google.com/search?hl=ko&q=" : "https://www.google.com/search?q=") + enc(q)); done(S.searched, q)
+        case .web(let label, let q, let url): open(url + enc(q)); done(label, q)
         case .openApp(let spoken, let app):
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
