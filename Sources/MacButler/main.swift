@@ -144,6 +144,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
 // `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
+// `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).
+if let i = CommandLine.arguments.firstIndex(of: "--parse") {
+    let p = Parser(cfg: Config.load())
+    for line in CommandLine.arguments.dropFirst(i + 1) { print("\(p.parse(p.stripWake(line), hasYouTubeList: true))  ⇐  \(line)") }
+    exit(0)
+}
 // `MacButler --devices` lists microphones and speakers (UIDs go into inputDevice / outputDevice).
 if CommandLine.arguments.contains("--devices") {
     for d in AudioDevices.all() { print("\(d.input ? "🎤" : "  ")\(d.output ? "🔈" : "  ") \(d.name)  —  \(d.uid)") }
