@@ -82,6 +82,12 @@ cd my-jarvis
 ./scripts/install.sh            # deps → Whisper model → build → ~/Applications → start at login
 ```
 
+Or with Homebrew (prebuilt, ad-hoc signed):
+
+```bash
+brew install --cask mvcompany8500-web/tap/my-jarvis
+```
+
 Then look for **◉J** in the menu bar and allow the permissions below. `./scripts/install.sh --no-model` skips the 874 MB download.
 
 ### Permissions
