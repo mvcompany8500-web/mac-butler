@@ -45,7 +45,7 @@ final class BootScene {
             s[i] = Float(v)
         }
         sound = NSSound(data: Whisper.wav(s, rate: Int(rate)))
-        sound?.play()
+        Sound.play(sound)
     }
 
     static func ring(_ host: CALayer, _ c: CGPoint, _ rad: CGFloat, width: CGFloat, dash: [NSNumber]?, alpha: CGFloat,
@@ -218,7 +218,7 @@ final class BootScene {
         let hello = label(v, "", font: .systemFont(ofSize: 56, weight: .bold), color: .white, frame: NSRect(x: 0, y: c.y - R - 285, width: W, height: 72), align: .center)
         type(hello, text.hello, at: 2.4, speed: 0.06)
 
-        if let sound { NSSound(contentsOf: sound, byReference: true)?.play() } else { BootScene.synthChime() }
+        if let sound { Sound.file(sound) } else { BootScene.synthChime() }
         win.alphaValue = 0; win.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { $0.duration = 0.3; win.animator().alphaValue = 1 }
 

@@ -15,6 +15,9 @@ final class SettingsModel: ObservableObject {
     @Published var elevenVoiceId: String
     @Published var elevenKeyFile: String
     @Published var claudeModel: String
+    @Published var inputDevice: String
+    @Published var outputDevice: String
+    let inputs = AudioDevices.inputs(), outputs = AudioDevices.outputs()
     private var cfg: Config
 
     init(_ c: Config) {
@@ -23,6 +26,7 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice
     }
 
     /// Writes only the keys this window manages; everything else in config.json is kept as is.
@@ -32,7 +36,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice
         var el = obj["elevenLabs"] as? [String: Any] ?? [:]
         el["voiceId"] = elevenVoiceId; el["apiKeyFile"] = elevenKeyFile
         obj["elevenLabs"] = el
@@ -75,6 +79,16 @@ struct SettingsView: View {
                     Text(S.t("오른쪽 ⌥ (톡=부르기, 누르고 말하기)", "Right ⌥ (tap = wake, hold = talk)")).tag("rightOption"); Text(S.t("오른쪽 ⌘", "Right ⌘")).tag("rightCommand"); Text(S.t("끔", "Off")).tag("none")
                 }
             }
+            Section(S.t("마이크·스피커", "Microphone & speaker")) {
+                Picker(S.t("마이크", "Microphone"), selection: $m.inputDevice) {
+                    Text(S.t("시스템 기본", "System default")).tag("")
+                    ForEach(m.inputs, id: \.uid) { Text($0.name).tag($0.uid) }
+                }
+                Picker(S.t("스피커", "Speaker"), selection: $m.outputDevice) {
+                    Text(S.t("시스템 기본", "System default")).tag("")
+                    ForEach(m.outputs, id: \.uid) { Text($0.name).tag($0.uid) }
+                }
+            }
             Section(S.t("목소리", "Voice")) {
                 Picker(S.t("읽어 주는 엔진", "Speech engine"), selection: $m.tts) { Text("macOS say").tag("say"); Text("ElevenLabs").tag("elevenlabs") }
                 if m.tts == "say" {
@@ -97,7 +111,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: 600)
+        .frame(width: 560, height: 700)
         .padding(.bottom, 8)
     }
 }

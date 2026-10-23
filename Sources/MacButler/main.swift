@@ -140,6 +140,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
 // `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
+// `MacButler --devices` lists microphones and speakers (UIDs go into inputDevice / outputDevice).
+if CommandLine.arguments.contains("--devices") {
+    for d in AudioDevices.all() { print("\(d.input ? "🎤" : "  ")\(d.output ? "🔈" : "  ") \(d.name)  —  \(d.uid)") }
+    exit(0)
+}
 
 let delegate = AppDelegate()
 signal(SIGTERM, SIG_IGN)   // stop Whisper / Claude children when launchd stops us

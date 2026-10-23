@@ -29,7 +29,9 @@ final class Ear {
     private let target = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
     private var ringEnd: Int { ringBase + ring.count }
 
-    init(locale: String, hints: [String]) {
+    private let inputUID: String
+    init(locale: String, hints: [String], inputUID: String = "") {
+        self.inputUID = inputUID
         recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale)) ?? SFSpeechRecognizer()!
         self.hints = hints
     }
@@ -70,6 +72,7 @@ final class Ear {
 
     private func startEngine() throws {
         let input = engine.inputNode
+        if !inputUID.isEmpty, !AudioDevices.use(inputUID, on: input.audioUnit) { log("ear: chosen mic not found → system default") }
         let fmt = input.outputFormat(forBus: 0)
         guard fmt.sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
         converter = AVAudioConverter(from: fmt, to: target)

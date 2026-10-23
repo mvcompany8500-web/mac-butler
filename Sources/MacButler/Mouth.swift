@@ -41,6 +41,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         p.executableURL = URL(fileURLWithPath: "/usr/bin/say")
         var args: [String] = []
         if !cfg.sayVoice.isEmpty { args += ["-v", cfg.sayVoice] }
+        if let d = AudioDevices.device(uid: cfg.outputDevice) { args += ["-a", String(d.id)] }
         args += ["-r", String(cfg.sayRate), text]
         p.arguments = args
         p.terminationHandler = { [weak self] _ in DispatchQueue.main.async { self?.complete(my) } }
@@ -62,16 +63,32 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
             DispatchQueue.main.async {
                 guard let self, my == self.token else { return }
                 let ok = (resp as? HTTPURLResponse)?.statusCode == 200
-                guard ok, let data, let p = try? AVAudioPlayer(data: data) else {
-                    log("elevenlabs failed → say")
-                    self.say(text, my: my); return
-                }
+                guard ok, let data else { log("elevenlabs failed → say"); self.say(text, my: my); return }
+                if !self.cfg.outputDevice.isEmpty, self.playOnDevice(data, my: my) { return }
+                guard let p = try? AVAudioPlayer(data: data) else { self.say(text, my: my); return }
                 p.delegate = self
                 self.player = p
                 p.play()
             }
         }
         task?.resume()
+    }
+
+    /// Plays through the chosen speaker with a dedicated engine (AVAudioPlayer can't pick a device).
+    private var outEngine: AVAudioEngine?
+    private func playOnDevice(_ data: Data, my: Int) -> Bool {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mb-say-\(my).mp3")
+        guard (try? data.write(to: tmp)) != nil, let file = try? AVAudioFile(forReading: tmp) else { return false }
+        let e = AVAudioEngine(), node = AVAudioPlayerNode()
+        AudioDevices.use(cfg.outputDevice, on: e.outputNode.audioUnit)
+        e.attach(node); e.connect(node, to: e.mainMixerNode, format: file.processingFormat)
+        do { try e.start() } catch { return false }
+        outEngine = e
+        node.scheduleFile(file, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            DispatchQueue.main.async { try? FileManager.default.removeItem(at: tmp); self?.outEngine?.stop(); self?.complete(my) }
+        }
+        node.play()
+        return true
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) { complete(token) }
@@ -82,10 +99,11 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         finish = nil
         task?.cancel(); task = nil
         player?.stop(); player = nil
+        outEngine?.stop(); outEngine = nil
         if let p = proc, p.isRunning { p.terminate() }
         proc = nil
     }
 
     /// Plays a file (greeting / boot sound) without blocking.
-    static func play(_ url: URL) { NSSound(contentsOf: url, byReference: true)?.play() }
+    static func play(_ url: URL) { Sound.file(url) }
 }

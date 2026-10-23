@@ -126,14 +126,19 @@ final class Brain {
         d(t.isEmpty ? strings.failed : t)
     }
 
-    func ask(_ command: String, frontApp: String, step: @escaping (String) -> Void, done: @escaping (String) -> Void) {
+    func ask(_ command: String, live: String = "", frontApp: String, step: @escaping (String) -> Void, done: @escaping (String) -> Void) {
         ensure()
         guard let stdin else { done(strings.noClaude); return }
         let now = DateFormatter(); now.locale = Locale(identifier: cfg.locale)
         now.dateFormat = cfg.ko ? "M월 d일 EEEE a h시 m분" : "EEEE, MMM d, h:mm a"
         let input = cfg.ko ? "[지금 \(now.string(from: Date())) · 맨 앞 앱: \(frontApp)]\n\(cfg.user) 말: \(command)"
                            : "[Now \(now.string(from: Date())) · front app: \(frontApp)]\n\(cfg.user) says: \(command)"
-        let msg: [String: Any] = ["type": "user", "message": ["role": "user", "content": input]]
+        var text = input
+        if !live.isEmpty, Parser.squash(live) != Parser.squash(command) {
+            text += cfg.ko ? "\n(맥 실시간 인식으로는: \(live) — 두 받아쓰기가 다르면 문맥상 맞는 쪽을 따른다)"
+                           : "\n(live recognition heard: \(live) — if the two differ, follow whichever makes sense)"
+        }
+        let msg: [String: Any] = ["type": "user", "message": ["role": "user", "content": text]]
         guard var data = try? JSONSerialization.data(withJSONObject: msg) else { return }
         data.append(0x0A)
         self.step = step; self.done = done; sent += 1; turnCommands = []

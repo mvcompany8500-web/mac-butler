@@ -137,6 +137,8 @@ Everything lives in `~/.macbutler/`:
   "wakeWords": ["자비스", "헤이 자비스"],
   "greetingText": "어서 오십시오, {user}",
   "activation": "voice",           // "voice" = wake word + hotkey · "hold" = only while holding the hotkey
+  "inputDevice": "",               // microphone UID ("" = system default) — list them: MacButler --devices
+  "outputDevice": "",              // speaker UID for the voice and sounds
   "hotkey": "rightOption",         // tap = wake, hold = push-to-talk: rightOption | rightCommand | none
   "customWords": ["Claude", "GitHub"], // names you say often (imported from Handy automatically)
   "tts": "elevenlabs",             // or "say"
