@@ -19,7 +19,7 @@ Small chores happen on your Mac in a second; real coding goes to Claude Code. Vo
 git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler && ./scripts/install.sh
 ```
 
-[Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](#한국어) · [Made by turtle buff ai](#made-by)
+[Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](README.ko.md) · [Made by turtle buff ai](#made-by)
 
 </div>
 
