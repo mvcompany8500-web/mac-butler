@@ -46,6 +46,7 @@ struct Config: Codable {
 
     var inputDevice = ""                // microphone (Core Audio UID); empty = system default
     var outputDevice = ""               // speaker for voice & sounds (Core Audio UID); empty = system default
+    var bargeIn = "auto"                // interrupting while it talks: "any" (headphones) · "wake" (speakers: only the wake word / stop words / hotkey) · "auto"
     var browserApp = "Google Chrome"
     var apps: [String: String] = [:]    // extra spoken name → app name, e.g. {"브루": "Vrew"}
     var customWords: [String] = []     // names & jargon you say often — boosts both recognizers (Handy's list is imported automatically)
@@ -69,6 +70,7 @@ struct Config: Codable {
         whisperModel = v(.whisperModel, z.whisperModel); whisperServer = v(.whisperServer, z.whisperServer)
         tts = v(.tts, z.tts); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)
         inputDevice = v(.inputDevice, z.inputDevice); outputDevice = v(.outputDevice, z.outputDevice)
+        bargeIn = v(.bargeIn, z.bargeIn)
         browserApp = v(.browserApp, z.browserApp); apps = v(.apps, z.apps)
         customWords = v(.customWords, z.customWords); fillerWords = v(.fillerWords, z.fillerWords)
         silenceSec = v(.silenceSec, z.silenceSec); followUpSec = v(.followUpSec, z.followUpSec); maxUtteranceSec = v(.maxUtteranceSec, z.maxUtteranceSec)

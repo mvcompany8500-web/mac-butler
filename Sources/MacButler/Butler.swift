@@ -20,7 +20,23 @@ final class Butler {
     var bargedIn = false
     var ytList: [(id: String, title: String)] = []
     var cancelSend = false
-    var lastLive = ""            // what Apple's live recognizer heard for the current command
+    var lastLive = ""
+    var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
+    /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
+    lazy var bargeAny: Bool = {
+        if cfg.bargeIn == "any" { return true }
+        if cfg.bargeIn == "wake" { return false }
+        let out = AudioDevices.device(uid: cfg.outputDevice)?.name ?? AudioDevices.defaultOutputName()
+        let n = out.lowercased()
+        let headphones = ["airpods", "buds", "headphone", "headset", "beats", "이어폰", "wh-", "wf-", "qc"].contains { n.contains($0) } && !n.contains("외장")
+        log("barge-in mode: \(headphones ? "any speech (headphones)" : "wake word / stop words only (speakers)") · output: \(out)")
+        return headphones
+    }()
+    func canBargeIn(_ t: String) -> Bool {
+        if bargeAny { return true }
+        let a = parser.stripWake(t)
+        return parser.wakeRange(t) != nil || parser.isHush(a) || ["멈춰", "그만", "스톱", "stop", "잠깐", "됐어"].contains { Parser.squash(a).hasPrefix($0) }
+    }            // what Apple's live recognizer heard for the current command
     var learnCandidate: (phrase: String, steps: [[String]])?      // set when you say “취소/멈춰” while a Claude message is about to be sent
     static let claudeBundle = "com.anthropic.claudefordesktop"
 
@@ -163,7 +179,7 @@ final class Butler {
             hud.show(S.conversing, t)
         case .dictation: hud.show(S.dictation, t, color: lime)
         case .speaking:
-            if !speakingText.isEmpty, !isEcho(t) { bargeIn(t) }
+            if !speakingText.isEmpty, !isEcho(t), canBargeIn(t) { bargeIn(t) }
         case .busy:
             if brain.busy { hud.show(S.listening, t, heard: nil, color: amber, speed: 3) }
             let q = Parser.squash(t)
@@ -173,6 +189,7 @@ final class Butler {
 
     func utterance(_ t: String, audio: [Float]) {
         guard enabled, !ear.holding else { return }   // push-to-talk delivers its own utterance on release
+        if Date() < ignoreUntil, mode == .awake { log("ignored (our own voice tail): \(t)"); return }
         if cfg.activation == "hold", mode != .dictation, mode != .speaking { return }   // hold-only: nothing is acted on without the key
         log("heard[\(mode)]: \(t)")
         switch mode {
@@ -206,7 +223,7 @@ final class Butler {
                 refine(audio, t) { [weak self] full in self?.command(full) }
             }
         case .speaking:
-            if !speakingText.isEmpty, !isEcho(t) {
+            if !speakingText.isEmpty, !isEcho(t), canBargeIn(t) {
                 bargeIn(t); awakeStarted = nil
                 refine(audio, t) { [weak self] full in self?.command(full) }
             }
@@ -506,6 +523,7 @@ final class Butler {
             guard let self else { return }
             self.speakingText = ""
             if self.bargedIn { return }
+            self.ignoreUntil = Date().addingTimeInterval(self.bargeAny ? 0 : 0.6)
             self.ear.restart(); then()
         }
     }

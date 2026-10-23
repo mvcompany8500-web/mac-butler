@@ -16,6 +16,7 @@ final class SettingsModel: ObservableObject {
     @Published var elevenKeyFile: String
     @Published var claudeModel: String
     @Published var inputDevice: String
+    @Published var bargeIn: String
     @Published var outputDevice: String
     let inputs = AudioDevices.inputs(), outputs = AudioDevices.outputs()
     private var cfg: Config
@@ -26,7 +27,7 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
-        inputDevice = c.inputDevice; outputDevice = c.outputDevice
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn
     }
 
     /// Writes only the keys this window manages; everything else in config.json is kept as is.
@@ -36,7 +37,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn
         var el = obj["elevenLabs"] as? [String: Any] ?? [:]
         el["voiceId"] = elevenVoiceId; el["apiKeyFile"] = elevenKeyFile
         obj["elevenLabs"] = el
@@ -87,6 +88,11 @@ struct SettingsView: View {
                 Picker(S.t("스피커", "Speaker"), selection: $m.outputDevice) {
                     Text(S.t("시스템 기본", "System default")).tag("")
                     ForEach(m.outputs, id: \.uid) { Text($0.name).tag($0.uid) }
+                }
+                Picker(S.t("말하는 중에 끊기", "Interrupting while it talks"), selection: $m.bargeIn) {
+                    Text(S.t("자동 (이어폰이면 아무 말, 스피커면 「자비스·멈춰」만)", "Auto (headphones: anything · speakers: wake/stop words)")).tag("auto")
+                    Text(S.t("아무 말로나 (이어폰)", "Any speech (headphones)")).tag("any")
+                    Text(S.t("「자비스·멈춰」로만 (스피커)", "Wake/stop words only (speakers)")).tag("wake")
                 }
             }
             Section(S.t("목소리", "Voice")) {
