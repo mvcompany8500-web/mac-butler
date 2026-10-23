@@ -62,6 +62,7 @@ struct Config: Codable {
     var followUpSec = 30.0
     var maxUtteranceSec = 25.0
     var chime = "Tink"
+    var router = "on"                   // fast model that maps loose phrasing to quick commands: "on" (= haiku) · "off" · a model id
     var keepAudio = false               // keep the last 30 utterances (audio + text) locally to check recognition
     var showIdleOrb = true
     var hudPosition = "bottomRight"     // where the orb & card sit: "bottomRight" (default) · "bottomLeft" · "top"
@@ -84,7 +85,7 @@ struct Config: Codable {
         browserApp = v(.browserApp, z.browserApp); apps = v(.apps, z.apps)
         customWords = v(.customWords, z.customWords); fillerWords = v(.fillerWords, z.fillerWords)
         silenceSec = v(.silenceSec, z.silenceSec); followUpSec = v(.followUpSec, z.followUpSec); maxUtteranceSec = v(.maxUtteranceSec, z.maxUtteranceSec)
-        chime = v(.chime, z.chime); keepAudio = v(.keepAudio, z.keepAudio); showIdleOrb = v(.showIdleOrb, z.showIdleOrb); hudPosition = v(.hudPosition, z.hudPosition); hotkey = v(.hotkey, z.hotkey)
+        chime = v(.chime, z.chime); keepAudio = v(.keepAudio, z.keepAudio); router = v(.router, z.router); showIdleOrb = v(.showIdleOrb, z.showIdleOrb); hudPosition = v(.hudPosition, z.hudPosition); hotkey = v(.hotkey, z.hotkey)
     }
 
     // MARK: resolved values

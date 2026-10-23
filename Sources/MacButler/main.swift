@@ -156,6 +156,17 @@ if let i = CommandLine.arguments.firstIndex(of: "--say"), CommandLine.arguments.
     while !done, Date().timeIntervalSince(t0) < 30 { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
     print(String(format: "spoke: %@ in %.1f s", done ? "yes" : "NO", Date().timeIntervalSince(t0))); exit(done ? 0 : 1)
 }
+// `MacButler --route "말"` — what the fast router turns a sentence into (and how long it took).
+if let i = CommandLine.arguments.firstIndex(of: "--route"), CommandLine.arguments.count > i + 1 {
+    let r = Router(cfg: Config.load())
+    for text in CommandLine.arguments.dropFirst(i + 1) {
+        var out: String?? = .none; let t0 = Date()
+        r.route(text, front: "Safari", timeout: 15) { out = .some($0) }
+        while out == nil, Date().timeIntervalSince(t0) < 20 { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+        print(String(format: "%.1fs  %@  →  %@", Date().timeIntervalSince(t0), text, (out ?? nil) ?? "BRAIN"))
+    }
+    r.stop(); exit(0)
+}
 // `MacButler --misses` — sentences that went to Claude, grouped by verb (which quick rules to add next).
 if CommandLine.arguments.contains("--misses") { print(Growth.missReport()); exit(0) }
 // `MacButler --selftest` checks the command grammar without a microphone.

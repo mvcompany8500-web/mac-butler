@@ -9,6 +9,9 @@ final class Butler {
     let S: Strings
     let parser: Parser
     let ear: Ear
+    let router: Router
+    var lastRouted: (said: String, at: Date)?
+    var brainSteps = 0                    // tool steps the brain has taken this turn (router may only overtake it at 0)
     let hud = HUD()
     let mouth: Mouth
     let brain: Thinker
@@ -62,6 +65,7 @@ final class Butler {
         ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + commandWords + cfg.customWords).prefix(100)), inputUID: cfg.inputDevice)
         mouth = Mouth(cfg: cfg)
         brain = Brains.make(cfg)
+        router = Router(cfg: cfg)
         whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.lang,
                           prompt: String(((cfg.wakes + [cfg.user, "Claude", "YouTube"] + cfg.customWords).joined(separator: ", ") + ".").prefix(500)))
     }
@@ -78,6 +82,7 @@ final class Butler {
         ear.onPartial = { [weak self] t in self?.partial(t) }
         ear.onUtterance = { [weak self] t, a in self?.utterance(t, audio: a) }
         brain.warm()
+        router.warm()
         Growth.sweep()
         Timers.onFire = { [weak self] label in self?.timerFired(label) }
         Timers.restore()
@@ -295,6 +300,9 @@ final class Butler {
         if learnCandidate != nil, ["아니", "틀렸", "그게아니", "안됐", "잘못", "no", "wrong"].contains(where: { q.hasPrefix($0) }) {
             log("not learning: \(learnCandidate!.phrase)"); learnCandidate = nil
         }
+        if let r = lastRouted, Date().timeIntervalSince(r.at) < 20, ["아니", "틀렸", "그게아니", "no", "wrong"].contains(where: { q.hasPrefix($0) }) {
+            Aliases.forget(r.said); lastRouted = nil; log("forgot alias: \(r.said)")
+        }
         let intent = parser.parse(cmd, hasYouTubeList: !ytList.isEmpty)
         log("intent: \(intent)")
         switch intent {
@@ -396,6 +404,7 @@ final class Butler {
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
         case .none:
+            if let canon = Aliases.lookup(cmd), isQuick(canon) { log("alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
             Growth.miss(cmd, front: NSWorkspace.shared.frontmostApplication?.localizedName ?? "")
             if let steps = Learning.lookup(cmd) {      // learned before → instant, no Claude call
                 brainCommand = cmd; brainByHold = byHold
@@ -410,7 +419,7 @@ final class Butler {
                 }
                 return
             }
-            ask(cmd)
+            routeOrAsk(cmd)
         }
     }
 
@@ -506,6 +515,32 @@ final class Butler {
         let repeatWish = lastMedia.map { $0.play == play && Date().timeIntervalSince($0.at) < 5 } ?? false
         if play != busy, !repeatWish { Hands.playPause(); lastMedia = (play, Date()) }
         if play { played(S.t("다시 재생", "Resumed"), "▶︎") } else { done(S.t("멈춤", "Paused"), "⏸") }
+    }
+    /// Quick commands only — what the router / aliases may trigger.
+    func isQuick(_ canon: String) -> Bool {
+        switch parser.parse(canon, hasYouTubeList: !ytList.isEmpty) {
+        case .none, .claude, .type, .dictation, .remember, .makeRoutine, .badRoutine, .forgetRoutine, .greet, .bye, .hush, .enter: return false
+        default: return true
+        }
+    }
+    /// Loose phrasing: the brain starts right away and, at the same time, the fast router (2–4 s) tries to map the
+    /// sentence to a quick command. If the router wins before the brain has touched anything, the brain is
+    /// cancelled quietly and the quick command runs; otherwise the brain just carries on — no extra wait either way.
+    /// What the router mapped is remembered, so the same sentence is instant next time.
+    func routeOrAsk(_ cmd: String) {
+        ask(cmd)
+        guard router.enabled, cmd.count <= 60, brain.installed else { return }
+        let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
+        router.route(cmd, front: front, timeout: 6) { [weak self] canon in
+            guard let self, let canon, self.isQuick(canon) else { return }
+            guard self.mode == .busy, self.brainCommand == cmd, self.brainSteps == 0, self.brain.busy else {
+                log("router late (brain already acting): \(cmd) → \(canon)"); Aliases.learn(cmd, canon); return
+            }
+            self.brain.cancel(silently: true)
+            Aliases.learn(cmd, canon); self.lastRouted = (cmd, Date())
+            self.mode = .awake
+            self.handle(canon)
+        }
     }
     func enc(_ s: String) -> String { s.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? s }
     func open(_ url: String) {
@@ -742,8 +777,10 @@ final class Butler {
         let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"
         hud.show(S.thinking, "…", heard: cmd, color: amber, speed: 3)
         Sound.soft("Purr")      // heard you — thinking (so the wait isn't silent)
+        brainSteps = 0
         brain.ask(cmd, live: lastLive, frontApp: front, context: screenContext(front), step: { [weak self] label in
             guard let self else { return }
+            self.brainSteps += 1
             self.hud.show(self.S.working, label, heard: nil, color: amber, speed: 3)
         }, done: { [weak self] answer in
             guard let self else { return }
@@ -888,5 +925,5 @@ final class Butler {
         speak(line) { [weak self] in self?.goIdle() }
     }
     func goIdle() { mode = .idle; hud.idle() }
-    func shutdown() { whisper.stop(); brain.stop(); mouth.stop(); control.stop() }
+    func shutdown() { whisper.stop(); brain.stop(); router.stop(); mouth.stop(); control.stop() }
 }
