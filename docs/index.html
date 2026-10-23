@@ -10,6 +10,7 @@
 <meta property="og:image" content="https://mvcompany8500-web.github.io/mac-butler/hero.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%2334d399' stroke-width='3' stroke-dasharray='6 4'/%3E%3Ccircle cx='32' cy='32' r='12' fill='%2334d399'/%3E%3C/svg%3E">
+<link rel="alternate" hreflang="en" href="https://mvcompany8500-web.github.io/mac-butler/en/">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 :root{
@@ -30,10 +31,17 @@ a{color:inherit;text-decoration:none}
 nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid transparent;transition:border-color .2s}
 nav.scrolled{border-bottom-color:var(--line)}
 nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:-.02em}
+.logo{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:700;font-size:20px;letter-spacing:-.02em}
 .logo svg{width:28px;height:28px}
 .links{display:flex;gap:30px;font-size:15px;font-weight:500}
 .links a:hover{color:var(--blue)}
+.right{display:flex;align-items:center;gap:10px}
+.lang{font-size:13.5px;font-weight:700;color:var(--sub);padding:7px 10px;border-radius:999px}
+.lang:hover{color:var(--ink);background:var(--soft)}
+.gh{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:600;padding:9px 14px;border:1px solid #dfe3e8;border-radius:999px;background:#fff}
+.gh:hover{background:var(--soft)}
+.gh svg{width:18px;height:18px}
+.stars{font-variant-numeric:tabular-nums;color:var(--sub);font-weight:600;border-left:1px solid var(--line);padding-left:8px}
 .btn{display:inline-flex;align-items:center;gap:10px;border-radius:999px;font-weight:600;white-space:nowrap;transition:transform .15s,background .15s}
 .btn-dark{background:var(--ink);color:#fff;padding:10px 18px;font-size:15px}
 .btn-dark:hover{background:#252a33}
@@ -163,6 +171,9 @@ footer a:hover{color:var(--blue)}
 .reveal.in{opacity:1;transform:none}
 @media (max-width:900px){
   .links{display:none}
+  .gh .ghl{display:none}
+  .gh{padding:9px}
+  .right .btn-dark{display:none}
   .grid2{grid-template-columns:1fr;gap:18px}
   .wake,.cards,.res{grid-template-columns:1fr}
   .feats{grid-template-columns:1fr 1fr;gap:12px}
@@ -203,9 +214,15 @@ footer a:hover{color:var(--blue)}
     <a href="#install">설치</a>
     <a href="#more">자료</a>
   </div>
-  <a class="btn btn-dark" href="https://github.com/mvcompany8500-web/mac-butler/releases/latest">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>다운로드
-  </a>
+  <div class="right">
+    <a class="lang" href="en/" hreflang="en" lang="en">EN</a>
+    <a class="gh" href="https://github.com/mvcompany8500-web/mac-butler" aria-label="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg><span class="ghl">GitHub</span><span class="stars" hidden></span>
+    </a>
+    <a class="btn btn-dark" href="https://github.com/mvcompany8500-web/mac-butler/releases/latest">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>다운로드
+    </a>
+  </div>
 </div></nav>
 
 <div class="hero-shell" id="top">
@@ -355,7 +372,7 @@ footer a:hover{color:var(--blue)}
 
 <footer><div class="wrap">
   <div>Mac Butler · 무료 · 오픈소스(MIT) · 만든 곳 <a href="https://turtle-buff.com">터틀메이커(turtle buff ai)</a></div>
-  <div><a href="https://github.com/mvcompany8500-web/mac-butler">GitHub</a> · <a href="https://github.com/mvcompany8500-web/mac-butler/blob/main/README.md">English</a> · <a href="https://github.com/mvcompany8500-web/mac-butler/blob/main/SECURITY.md">보안</a> · <a href="https://www.youtube.com/@turtle_buff">YouTube</a></div>
+  <div><a href="https://github.com/mvcompany8500-web/mac-butler">GitHub</a> · <a href="en/">English</a> · <a href="https://github.com/mvcompany8500-web/mac-butler/blob/main/SECURITY.md">보안</a> · <a href="https://www.youtube.com/@turtle_buff">YouTube</a></div>
 </div></footer>
 
 <script>
@@ -364,6 +381,7 @@ addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>8),{passiv
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');
   e.target.querySelectorAll('.fill').forEach(f=>f.style.width=f.dataset.w+'%');io.unobserve(e.target)}}),{threshold:.15});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+fetch('https://api.github.com/repos/mvcompany8500-web/mac-butler').then(r=>r.json()).then(j=>{const n=j.stargazers_count;if(n>=10){const e=document.querySelector('.stars');e.textContent='★ '+(n>=1000?(n/1000).toFixed(1)+'k':n);e.hidden=false}}).catch(()=>{});
 function copyBrew(b){navigator.clipboard?.writeText(document.getElementById('brew').textContent).then(()=>{b.textContent='복사됨';setTimeout(()=>b.textContent='복사',1500)})}
 </script>
 </body>

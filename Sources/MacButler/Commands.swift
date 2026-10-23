@@ -366,6 +366,12 @@ struct Parser {
     }
     /// 「이거 존댓말로 바꿔」「선택한 거 영어로 번역해」「이 글 짧게 줄여 줘」「맞춤법 고쳐 줘」「좀 다듬어 줘」
     static func rewriteStyle(_ s: String) -> String? {
+        let low = s.lowercased().trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+        let en: [(String, String)] = [("make this more polite", "polite"), ("make this polite", "polite"), ("make this formal", "polite"),
+            ("make this casual", "casual"), ("make this shorter", "short"), ("shorten this", "short"), ("make this longer", "long"),
+            ("translate this to english", "en"), ("translate this into english", "en"), ("translate this to korean", "ko"), ("translate this into korean", "ko"),
+            ("translate this to japanese", "ja"), ("fix the spelling", "spell"), ("fix spelling", "spell"), ("polish this", "polish"), ("clean this up", "polish")]
+        if let hit = en.first(where: { low == $0.0 }) { return hit.1 }
         let q = squash(s)
         guard q.count <= 22 else { return nil }
         let pointed = ["이거", "이글", "이문장", "선택한", "방금쓴", "쓴거", "이내용", "이메시지"].contains(where: q.contains)
@@ -384,6 +390,16 @@ struct Parser {
     /// 「라면 3분」「3분 타이머」「10분 뒤에 알려 줘」「1시간 30분 후에 알려 줘」「30초」 · 「5시에 회의 알려 줘」「오후 3시 반에 알려 줘」
     static func timer(_ s: String) -> (Int, String)? {
         let t = s.replacingOccurrences(of: ",", with: " ").replacingOccurrences(of: ".", with: " ")
+        // English: "3 minute timer", "set a timer for 10 minutes", "remind me in 20 minutes to stretch"
+        let low = t.lowercased()
+        if let m = match(low, "^(?:set (?:a )?)?(\\d+)\\s*(minute|min|second|sec|hour)s?\\s*timer$")
+            ?? match(low, "^(?:set )?(?:a )?timer (?:for )?(\\d+)\\s*(minute|min|second|sec|hour)s?$"), let n = Int(m[1]) {
+            let secs = m[2].hasPrefix("h") ? n * 3600 : m[2].hasPrefix("s") ? n : n * 60
+            return secs > 0 && secs <= 86400 ? (secs, "") : nil
+        }
+        if let m = match(low, "^remind me in (\\d+)\\s*(minute|min|hour)s?(?: to (.+))?$"), let n = Int(m[1]) {
+            return ((m[2].hasPrefix("h") ? n * 3600 : n * 60), m[3])
+        }
         // At a clock time: (오전|오후)? N시 (M분|반)? 에 …
         if let m = match(t, "^(?:(오전|오후|아침|저녁|밤|새벽)\\s*)?(\\S+?)\\s*시\\s*(?:(\\S+?)\\s*분|(반))?\\s*에\\s*(.*?)\\s*(?:알려|깨워|불러|말해)\\s*(?:줘|주세요|줄래)?$"),
            let h = num(m[2]), (0...24).contains(h) {
