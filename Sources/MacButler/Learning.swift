@@ -105,3 +105,59 @@ enum Usage {
         return all[f.string(from: Date())] ?? [:]
     }
 }
+
+/// Grows with use: words the live recognizer keeps missing are added to the vocabulary, stale learned
+/// commands are dropped, temp files and old logs are swept. Progress shows in the menu.
+enum Growth {
+    static var url: URL { Paths.home.appendingPathComponent("growth.json") }
+    struct State: Codable { var wordCounts: [String: Int] = [:]; var wordsLearned: [String] = []; var fastHits = 0 }
+    static var state: State = {
+        guard let d = try? Data(contentsOf: url) else { return State() }
+        return (try? JSONDecoder().decode(State.self, from: d)) ?? State()
+    }()
+    static func save() {
+        if let d = try? JSONEncoder().encode(state) { FileManager.default.createFile(atPath: url.path, contents: d, attributes: [.posixPermissions: 0o600]) }
+    }
+    static func words(_ s: String) -> [String] {
+        s.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { w in
+            let hangul = w.unicodeScalars.contains { $0.value >= 0xAC00 && $0.value <= 0xD7A3 }
+            return hangul ? w.count >= 2 : w.count >= 3
+        }
+    }
+    /// A word Whisper heard that Apple's live recognizer didn't — after 3 times it becomes a recognizer hint.
+    /// Returns words that were just learned.
+    static func study(whisper: String, live: String, known: [String]) -> [String] {
+        guard !whisper.isEmpty, !live.isEmpty else { return [] }
+        let liveSet = Set(words(live).map { $0.lowercased() })
+        let knownSet = Set(known.map { $0.lowercased() })
+        var learned: [String] = []
+        for w in Set(words(whisper)) where !liveSet.contains(w.lowercased()) && !knownSet.contains(w.lowercased()) {
+            // only names / terms: Latin words, or Hangul nouns that don't end like a verb
+            let verbish = ["해", "줘", "요", "다", "고", "서", "면", "지", "까", "야", "어", "아", "게", "는", "은", "을", "를", "이", "가", "에", "도", "만"].contains(String(w.suffix(1)))
+            if verbish { continue }
+            state.wordCounts[w, default: 0] += 1
+            if state.wordCounts[w]! >= 3 { learned.append(w); state.wordsLearned.append(w); state.wordCounts[w] = nil }
+        }
+        if !learned.isEmpty { log("studied new words: \(learned)") }
+        save()
+        return learned
+    }
+    static func fastHit() { state.fastHits += 1; save() }
+
+    /// Housekeeping at launch: forget learned commands unused for 30 days, delete temp files older than a day.
+    static func sweep() {
+        let month: TimeInterval = 30 * 86400
+        let before = Learning.store.count
+        Learning.store = Learning.store.filter { $0.value.uses > 0 || Date().timeIntervalSince($0.value.learned) < month }
+        if Learning.store.count != before { Learning.save(); log("forgot \(before - Learning.store.count) unused learned commands") }
+        let fm = FileManager.default
+        for dir in ["/tmp/macbutler", NSTemporaryDirectory()] {
+            for f in (try? fm.contentsOfDirectory(atPath: dir)) ?? [] where f.hasPrefix("screen") || f.hasPrefix("mb-say") {
+                let p = (dir as NSString).appendingPathComponent(f)
+                if let d = (try? fm.attributesOfItem(atPath: p))?[.modificationDate] as? Date, Date().timeIntervalSince(d) > 86400 { try? fm.removeItem(atPath: p) }
+            }
+        }
+        // keep a week of word candidates that never reached 3
+        if state.wordCounts.count > 500 { state.wordCounts = state.wordCounts.filter { $0.value > 1 }; save() }
+    }
+}

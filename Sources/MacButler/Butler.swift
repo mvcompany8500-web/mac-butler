@@ -43,6 +43,7 @@ final class Butler {
         ear.onPartial = { [weak self] t in self?.partial(t) }
         ear.onUtterance = { [weak self] t, a in self?.utterance(t, audio: a) }
         brain.warm()
+        Growth.sweep()
         listenForSignals()
         do { try ear.start() } catch { log("mic failed: \(error)"); hud.show("⚠︎", S.micError, color: amber) }
         if !brain.installed { hud.show("⚠︎", S.noClaude, color: amber) }
@@ -117,6 +118,18 @@ final class Butler {
         }
     }
     func holdCancelled() { ear.cancelHold() }
+
+    /// Recognizer hints grow with what you say (saved to config.json customWords, used from the next launch).
+    func studyWords(whisper w: String, live: String) {
+        let new = Growth.study(whisper: w, live: live, known: cfg.customWords + cfg.wakes)
+        guard !new.isEmpty else { return }
+        let url = Paths.home.appendingPathComponent("config.json")
+        var obj = (try? JSONSerialization.jsonObject(with: Data(contentsOf: url))) as? [String: Any] ?? [:]
+        var words = obj["customWords"] as? [String] ?? cfg.customWords
+        words.append(contentsOf: new.filter { !words.contains($0) })
+        obj["customWords"] = Array(words.suffix(150))
+        if let d = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) { try? d.write(to: url) }
+    }
 
     /// Same as saying the wake word (hotkey). While speaking it interrupts; while awake it ends the conversation.
     func manualWake() {
@@ -206,6 +219,7 @@ final class Butler {
         lastLive = parser.stripWake(apple)
         whisper.transcribe(audio, fallback: apple) { [weak self] full in
             guard let self else { return }
+            self.studyWords(whisper: full, live: apple)
             var t = full
             // If you said the wake word, nothing before it belongs to this command.
             if self.parser.wakeRange(apple) != nil, let r = self.parser.wakeRange(t), r.lowerBound > t.startIndex { t = String(t[r.lowerBound...]) }
@@ -270,7 +284,7 @@ final class Butler {
                     let ok = Learning.replay(steps)
                     DispatchQueue.main.async {
                         guard let self else { return }
-                        if ok { Learning.used(cmd); Sound.named("Pop"); self.done(self.S.t("기억한 대로", "Done (learned)"), cmd) }
+                        if ok { Learning.used(cmd); Growth.fastHit(); Sound.named("Pop"); self.done(self.S.t("기억한 대로", "Done (learned)"), cmd) }
                         else { Learning.forget(cmd); self.ask(cmd) }   // screen changed — ask Claude and relearn
                     }
                 }

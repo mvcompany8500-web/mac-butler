@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var cfg = Config()
     var statusItems: [NSMenuItem] = []
     var usageItem: NSMenuItem?
+    var growthItem: NSMenuItem?
     func applicationDidFinishLaunching(_ n: Notification) {
         cfg = Config.load()
         let cfg = self.cfg
@@ -35,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(hk)
         }
         menu.addItem(.separator())
+        let gi = NSMenuItem(title: "", action: nil, keyEquivalent: ""); gi.isEnabled = false; menu.addItem(gi); growthItem = gi
         let ui = NSMenuItem(title: "", action: nil, keyEquivalent: ""); ui.isEnabled = false; menu.addItem(ui); usageItem = ui
         menu.addItem(withTitle: S.t("배운 명령 모두 지우기", "Forget learned commands"), action: #selector(forgetLearned), keyEquivalent: "")
         menu.addItem(.separator())
@@ -74,6 +76,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let names = [S.permMic, S.permSpeech, S.permAX, S.permScreen, S.depClaude, S.depWhisper]
         for (i, it) in statusItems.enumerated() { it.title = (ok[i] ? "✓  " : "✗  ") + names[i] }
         let u = Usage.today()
+        growthItem?.title = S.t("📈 배운 명령 \(Learning.store.count)개 · 클로드 없이 바로 \(Growth.state.fastHits)번 · 익힌 낱말 \(Growth.state.wordsLearned.count)개",
+                                "📈 \(Learning.store.count) learned · \(Growth.state.fastHits) done without Claude · \(Growth.state.wordsLearned.count) new words")
         usageItem?.title = S.t("오늘 클로드 \(u["calls"] ?? 0)번 · 토큰 \(((u["input"] ?? 0) + (u["cacheRead"] ?? 0) + (u["cacheWrite"] ?? 0) + (u["output"] ?? 0)) / 1000)천 · 배운 명령 \(Learning.store.count)개",
                                "Today: \(u["calls"] ?? 0) Claude calls · \(((u["input"] ?? 0) + (u["cacheRead"] ?? 0) + (u["cacheWrite"] ?? 0) + (u["output"] ?? 0)) / 1000)k tokens · \(Learning.store.count) learned")
     }

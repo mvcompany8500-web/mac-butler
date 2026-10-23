@@ -49,6 +49,8 @@ screen, run commands and use the web.
 
 While it's talking — or while Claude is still working — just say the next thing: it stops and takes the new command. “됐어” / “that's all” ends the conversation.
 
+**It grows.** Words your Mac's live recognizer keeps missing (names, product terms) are studied and added to its vocabulary after a few times; stale learned commands and temp files are swept automatically. The menu shows what it has learned.
+
 **It gets faster the more you use it.** When Claude figures out how to do something (“pause the video” → press space), Mac Butler remembers the steps and next time does it instantly, without calling Claude. Say “no / 아니” right after and it won't learn it. The menu shows today's Claude calls and tokens.
 
 **Any language.** Korean and English have built-in quick commands; Japanese, Chinese, Spanish, French, German, Portuguese, Italian, Vietnamese, Thai and Indonesian work through Claude, which answers in your language. It picks your Mac's language on first launch.

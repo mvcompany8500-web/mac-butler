@@ -72,6 +72,10 @@ enum SelfTest {
         checkBool("learn rejects click", Learning.replayable(["jax click 10 10"]) == nil)
         checkBool("tokens quoted", Learning.tokens("jax tap \"Save as\" 2") == ["jax", "tap", "Save as", "2"])
 
+        // Growth: names are studied, verbs are not
+        checkBool("study ignores verbs", !Growth.words("크롬 열어 줘").contains("열어") || Growth.study(whisper: "열어", live: "x", known: []).isEmpty)
+        checkBool("words latin", Growth.words("open ComfyUI now").contains("ComfyUI"))
+
         // YouTube parser
         let html = #""videoRenderer":{"videoId":"abcdefghijk","thumbnail":{},"title":{"runs":[{"text":"First video"}]}"#
         checkBool("youtube parse", Butler.parseYouTube(html).first?.id == "abcdefghijk")

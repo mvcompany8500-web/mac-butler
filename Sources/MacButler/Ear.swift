@@ -3,7 +3,7 @@ import AVFoundation
 import Speech
 
 final class Ear {
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private let recognizer: SFSpeechRecognizer
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -52,21 +52,42 @@ final class Ear {
         Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
         // The mic stops when another app (e.g. a dictation app) or a device change reconfigures audio.
         // Restart on Apple's notification, and as a watchdog if no audio arrived for 3 s.
-        engineObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
-            log("ear: audio configuration changed → restarting mic"); self?.restartEngine()
-        }
+        observeEngine()
         Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            guard let self else { return }
+            guard let self, Date().timeIntervalSince(self.lastRestart) > 3 else { return }
             self.lock.lock(); let last = self.lastBuffer; self.lock.unlock()
             if Date().timeIntervalSince(last) > 3 { log("ear: no audio for 3 s → restarting mic"); self.restartEngine() }
+            // Voice is coming in but the recognizer has produced nothing for 10 s → it's stuck; start a fresh task.
+            if !self.muted, Date().timeIntervalSince(self.lastLoud) < 2, Date().timeIntervalSince(self.lastChange) > 10,
+               Date().timeIntervalSince(self.taskStart) > 10 { log("ear: speech but no text for 10 s → restarting recognizer"); self.restart() }
+        }
+        // Heartbeat for troubleshooting: loudest level heard in the last minute.
+        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            log(String(format: "ear: alive · peak %.3f · floor %.4f", self.peak, self.floor)); self.peak = 0
         }
         log("ear on: on-device=\(recognizer.supportsOnDeviceRecognition)")
     }
 
+    private var lastRestart = Date.distantPast
+    private var peak: Float = 0
+    private func observeEngine() {
+        if let o = engineObserver { NotificationCenter.default.removeObserver(o) }
+        engineObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            // Our own restart (or picking a device) also fires this — only react if the mic really stopped,
+            // and never more than once every 3 s (this used to loop 70 times a minute).
+            guard !self.engine.isRunning, Date().timeIntervalSince(self.lastRestart) > 3 else { return }
+            log("ear: audio configuration changed → restarting mic"); self.restartEngine()
+        }
+    }
     private func restartEngine() {
+        lastRestart = Date()
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
-        lock.lock(); lastBuffer = Date(); lock.unlock()   // give it a moment before the watchdog fires again
+        engine = AVAudioEngine()          // a fresh engine so the chosen mic is applied cleanly
+        observeEngine()
+        lock.lock(); lastBuffer = Date(); lock.unlock()
         do { try startEngine(); restart() } catch { log("ear: mic restart failed: \(error)") }
     }
 
@@ -102,6 +123,7 @@ final class Ear {
                 for i in 0..<n { sum += ch[i] * ch[i] }
                 let rms = sqrt(sum / Float(max(n, 1)))
                 DispatchQueue.main.async {
+                    self.peak = max(self.peak, rms)
                     if !self.muted {
                         self.floor = rms < self.floor ? rms : self.floor * 0.998 + rms * 0.002
                         if rms > max(self.floor * 3.5, 0.003) {
