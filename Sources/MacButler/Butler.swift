@@ -49,29 +49,27 @@ final class Butler {
         }
     }
 
-    /// Local signals from the bundled tools (`butler`). Same-machine only.
-    private func listenForSignals() {
-        let dnc = DistributedNotificationCenter.default()
-        dnc.addObserver(forName: .init("com.macbutler.type"), object: nil, queue: .main) { n in
-            guard let t = n.object as? String else { return }
-            DispatchQueue.global().async { Hands.typeVisible(t) }
-        }
-        dnc.addObserver(forName: .init("com.macbutler.delegate"), object: nil, queue: .main) { [weak self] n in
-            let parts = (n.object as? String ?? "").split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
-            guard let self, parts.count == 2, !parts[1].isEmpty else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.claudeMacro(target: parts[0], message: parts[1], newSession: parts[0].isEmpty) }
-        }
-        dnc.addObserver(forName: .init("com.macbutler.settings"), object: nil, queue: .main) { [weak self] n in
-            guard let self else { return }
-            if (n.object as? String) == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: self.cfg) }
-        }
-        // Text instead of voice — for testing and screen recordings.
-        dnc.addObserver(forName: .init("com.macbutler.say"), object: nil, queue: .main) { [weak self] n in
-            guard let self, let t = n.object as? String else { return }
-            log("text command: \(t)")
-            if self.parser.isGreeting(t) { self.greet(); return }
-            if self.mode == .idle { self.mode = .awake; self.awakeUntil = Date().addingTimeInterval(self.cfg.followUpSec) }
-            self.utterance(t, audio: [])
+    /// Commands from the bundled tools (`butler`, `jax field`) over the private control socket (see ControlSocket).
+    lazy var control = ControlSocket { [weak self] cmd, text in self?.signal(cmd, text) }
+    private func listenForSignals() { control.start() }
+    func signal(_ cmd: String, _ text: String) {
+        switch cmd {
+        case "type":
+            if cfg.brainAccess != "full", let b = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, Butler.protectedApps.contains(b) || b == Bundle.main.bundleIdentifier {
+                log("blocked typing into protected app \(b)"); return
+            }
+            DispatchQueue.global().async { Hands.typeVisible(text) }
+        case "delegate":
+            let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
+            guard parts.count == 2, !parts[1].isEmpty else { return }
+            askToDelegate(target: parts[0], message: parts[1], newSession: parts[0].isEmpty)
+        case "settings": if text == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: cfg) }
+        case "say":   // text instead of voice — for testing and screen recordings
+            log("text command: \(text)")
+            if parser.isGreeting(text) { greet(); return }
+            if mode == .idle { mode = .awake; awakeUntil = Date().addingTimeInterval(cfg.followUpSec) }
+            utterance(text, audio: [])
+        default: break
         }
     }
 
@@ -165,6 +163,7 @@ final class Butler {
     // MARK: acting
 
     func handle(_ cmd: String) {
+        if pendingDelegate != nil, answerPending(cmd) { return }
         let intent = parser.parse(cmd, hasYouTubeList: !ytList.isEmpty)
         log("intent: \(intent)")
         switch intent {
@@ -176,7 +175,7 @@ final class Butler {
         case .hush: converse()
         case .bye: NSSound(named: "Pop")?.play(); goIdle()
         case .type(let text): Hands.paste(text); done(S.typed, text)
-        case .claude(let target, let message, let newSession): claudeMacro(target: target, message: message, newSession: newSession)
+        case .claude(let target, let message, let newSession): askToDelegate(target: target, message: message, newSession: newSession)
         case .youtube(let q):
             if q.isEmpty { open("https://www.youtube.com/"); played(S.youtube, "YouTube") } else { youtube(q) }
         case .youtubeNth(let n):
@@ -264,6 +263,43 @@ final class Butler {
             DispatchQueue.main.async { NSSound(named: "Pop")?.play(); self.done(newSession ? self.S.claudeDelegated : self.S.claudeSent, message) }
         }
     }
+    // MARK: confirm before handing work to a full-power Claude session
+    // Voices from a TV or a web page must not be able to start work on your computer. Say “응 / 맡겨 / yes”.
+    static let protectedApps: Set<String> = [
+        "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
+        "org.alacritty", "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby", "com.apple.ScriptEditor2", "com.apple.Automator",
+        "com.apple.shortcuts", "com.apple.systempreferences", "com.apple.keychainaccess", "com.apple.Passwords",
+        "com.apple.SecurityAgent", "com.apple.UserNotificationCenter", "com.apple.coreservices.uiagent", "com.apple.installer",
+        "com.apple.dt.Xcode", "com.apple.Console", "com.anthropic.claudefordesktop", "com.microsoft.VSCode",
+        "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.1password.1password", "com.bitwarden.desktop"]
+    var pendingDelegate: (target: String, message: String, newSession: Bool)?
+    func askToDelegate(target: String, message: String, newSession: Bool) {
+        guard cfg.confirmDelegate else { claudeMacro(target: target, message: message, newSession: newSession); return }
+        pendingDelegate = (target, message, newSession)
+        let where_ = newSession ? S.t("클로드 새 세션", "a new Claude session") : (target.isEmpty ? "Claude" : target)
+        log("delegate pending: \(message)")
+        speak(S.t("\(where_)에 맡길까요?", "Hand this to \(where_)?")) { [weak self] in
+            guard let self else { return }
+            self.converse(keep: true)
+            self.hud.show(self.S.t("◌ 맡길까요? 「응」 / 「아니」", "◌ Hand it over? “yes” / “no”"), message, heard: nil, color: amber)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+                if self?.pendingDelegate?.message == message { self?.pendingDelegate = nil; log("delegate expired") }
+            }
+        }
+    }
+    /// Returns true if the utterance answered a pending hand-off question.
+    func answerPending(_ a: String) -> Bool {
+        guard let p = pendingDelegate else { return false }
+        let s = Parser.squash(a)
+        let yes = ["응", "네", "예", "맡겨", "그래", "좋아", "해", "보내", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay"]
+        let no = ["아니", "아니야", "취소", "하지마", "됐어", "no", "nope", "cancel", "stop"]
+        pendingDelegate = nil
+        if yes.contains(where: { s == $0 || s.hasPrefix($0) && s.count <= 4 }) { claudeMacro(target: p.target, message: p.message, newSession: p.newSession); return true }
+        if no.contains(where: { s.hasPrefix($0) }) { NSSound(named: "Pop")?.play(); log("delegate cancelled"); converse(keep: true); return true }
+        log("delegate dropped (no clear yes)")
+        return false
+    }
+
     func fail(_ why: String) { speak(why) { [weak self] in self?.converse(keep: true) } }
 
     func dictate(_ t: String) {
@@ -360,5 +396,5 @@ final class Butler {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in if self?.mode == .idle { self?.hud.idle() } }
     }
     func goIdle() { mode = .idle; hud.idle() }
-    func shutdown() { whisper.stop(); brain.stop(); mouth.stop() }
+    func shutdown() { whisper.stop(); brain.stop(); mouth.stop(); control.stop() }
 }

@@ -28,6 +28,21 @@ final class Brain {
         return cfg.fill(s)
     }
 
+    /// What the brain may do. A voice assistant hears TVs, videos and web pages, so by default it gets a fixed
+    /// allowlist: open apps/URLs, press/type through the bundled tools, look at the screen, search the web.
+    /// No arbitrary shell, no file writes, no fetching arbitrary URLs, no MCP servers, and the user's own
+    /// Claude settings (which may allow much more) are not loaded. Anything else is denied automatically.
+    static func permissionArgs(_ access: String) -> [String] {
+        if access == "full" {
+            return ["--allowedTools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
+        }
+        let allow = ["Bash(jax:*)", "Bash(jtype:*)", "Bash(butler delegate:*)", "Bash(date)",
+                     "Read(//tmp/macbutler/**)", "Read(//private/tmp/macbutler/**)", "WebSearch"]
+        let deny = ["WebFetch", "Write", "Edit", "NotebookEdit", "SendMessage", "ToolSearch", "Task", "Agent", "Glob", "Grep"]
+        return ["--setting-sources", "project", "--strict-mcp-config", "--permission-mode", "default",
+                "--allowedTools", allow.joined(separator: ","), "--disallowedTools", deny.joined(separator: ",")]
+    }
+
     func warm() { ensure() }
     private func ensure() {
         if let p = proc, p.isRunning, sent < 25, Date().timeIntervalSince(lastUse) < 1800 { return }
@@ -37,12 +52,11 @@ final class Brain {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: bin)
         p.arguments = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
-                       "--model", cfg.claudeModel, "--append-system-prompt", systemPrompt(),
-                       "--allowedTools", "Bash,Read,Glob,Grep,WebSearch,WebFetch",
-                       "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
+                       "--model", cfg.claudeModel, "--append-system-prompt", systemPrompt()] + Brain.permissionArgs(cfg.brainAccess)
         p.currentDirectoryURL = Paths.home.appendingPathComponent("work")
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = Paths.envPath
+        if cfg.brainAccess != "full" { env["MACBUTLER_SAFE"] = "1"; env["MACBUTLER_BUNDLE"] = Bundle.main.bundleIdentifier ?? "" }
         p.environment = env
         let inPipe = Pipe(), out = Pipe()
         p.standardInput = inPipe; p.standardOutput = out; p.standardError = FileHandle.nullDevice

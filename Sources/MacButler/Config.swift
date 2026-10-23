@@ -33,6 +33,8 @@ struct Config: Codable {
 
     var claudePath = ""                 // empty → auto-detect `claude`
     var claudeModel = "sonnet"
+    var confirmDelegate = true          // ask “hand this to Claude?” before typing a task into the Claude app
+    var brainAccess = "safe"            // "safe": fixed tool allowlist, no shell/file writes/web fetch · "full": any Bash (power users)
     var whisperModel = ""               // empty → ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
     var whisperServer = ""              // empty → auto-detect `whisper-server`
 
@@ -58,7 +60,7 @@ struct Config: Codable {
         wakeWords = v(.wakeWords, z.wakeWords); greetPhrases = v(.greetPhrases, z.greetPhrases)
         greetingText = v(.greetingText, z.greetingText); bootTitle = v(.bootTitle, z.bootTitle); bootSubtitle = v(.bootSubtitle, z.bootSubtitle)
         greetOpen = v(.greetOpen, z.greetOpen)
-        claudePath = v(.claudePath, z.claudePath); claudeModel = v(.claudeModel, z.claudeModel)
+        claudePath = v(.claudePath, z.claudePath); claudeModel = v(.claudeModel, z.claudeModel); brainAccess = v(.brainAccess, z.brainAccess); confirmDelegate = v(.confirmDelegate, z.confirmDelegate)
         whisperModel = v(.whisperModel, z.whisperModel); whisperServer = v(.whisperServer, z.whisperServer)
         tts = v(.tts, z.tts); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)
         browserApp = v(.browserApp, z.browserApp); apps = v(.apps, z.apps)
@@ -110,8 +112,11 @@ enum Paths {
         let old = fm.homeDirectoryForCurrentUser.appendingPathComponent(".myjarvis")   // name before 0.2
         if env == nil, !fm.fileExists(atPath: def.path), fm.fileExists(atPath: old.path) { try? fm.moveItem(at: old, to: def) }
         let u = env.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) } ?? def
+        // Owner-only: settings, logs (they contain what you said) and the control socket live here.
         for sub in ["", "logs", "work", "voice", "models"] {
-            try? FileManager.default.createDirectory(at: u.appendingPathComponent(sub), withIntermediateDirectories: true)
+            let d = u.appendingPathComponent(sub)
+            try? fm.createDirectory(at: d, withIntermediateDirectories: true)
+            try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: d.path)
         }
         return u
     }()
@@ -140,8 +145,13 @@ func log(_ s: String) {
     let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm:ss"
     let line = "\(f.string(from: Date())) \(s)\n"
     let url = Paths.home.appendingPathComponent("logs/butler.log")
+    let fm = FileManager.default
+    if let size = (try? fm.attributesOfItem(atPath: url.path))?[.size] as? Int, size > 5_000_000 {   // keep ~5 MB + one old file
+        let old = url.deletingPathExtension().appendingPathExtension("old.log")
+        try? fm.removeItem(at: old); try? fm.moveItem(at: url, to: old)
+    }
     if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close() }
-    else { try? line.data(using: .utf8)!.write(to: url) }
+    else { fm.createFile(atPath: url.path, contents: line.data(using: .utf8), attributes: [.posixPermissions: 0o600]) }
 }
 
 /// Reads KEY=value from a dotenv file.

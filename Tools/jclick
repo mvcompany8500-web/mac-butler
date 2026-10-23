@@ -1,3 +1,3 @@
 #!/bin/zsh
-# Click at screen point X Y and put the pointer straight back. Prefer `jax tap` — it doesn't need coordinates.
-exec /opt/homebrew/bin/cliclick -r "c:$1,$2" 2>/dev/null || exec /usr/local/bin/cliclick -r "c:$1,$2"
+# Press whatever is at screen point X Y (pointer snaps back). Prefer `jax tap` — it doesn't need coordinates.
+exec "${0:a:h}/jax" click "$1" "$2"

@@ -7,7 +7,9 @@ final class Whisper {
     let binary: String?
     let language: String
     let prompt: String
-    let port = 8178
+    // A fresh random loopback port each launch, and we only talk to the server process we started —
+    // another program can't squat a known port and feed us fake "transcriptions".
+    let port = Int.random(in: 20_000...60_000)
     private var proc: Process?
     private var lastUse = Date()
     private var queue: [([Float], String, (String) -> Void)] = []
@@ -15,9 +17,11 @@ final class Whisper {
 
     init(model: String, binary: String?, language: String, prompt: String) {
         self.model = model; self.binary = binary; self.language = language; self.prompt = prompt
-        // Clean up a server left behind by a previous run.
-        let k = Process(); k.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
-        k.arguments = ["-f", "whisper-server .*--port \(port)"]; try? k.run(); k.waitUntilExit()
+        // Clean up a server we left behind in a previous run (pid file, and only if it really is whisper-server).
+        let pidFile = Paths.home.appendingPathComponent("whisper.pid")
+        if let t = try? String(contentsOf: pidFile, encoding: .utf8), let old = pid_t(t.trimmingCharacters(in: .whitespacesAndNewlines)),
+           let name = Whisper.processName(old), name.contains("whisper-server") { kill(old, SIGTERM) }
+        try? FileManager.default.removeItem(at: pidFile)
         Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             guard let self, let p = self.proc, p.isRunning, Date().timeIntervalSince(self.lastUse) > 180 else { return }
             p.terminate(); self.proc = nil; log("whisper idle → stopped")
@@ -32,7 +36,10 @@ final class Whisper {
         p.executableURL = URL(fileURLWithPath: binary)
         p.arguments = ["-m", model, "--host", "127.0.0.1", "--port", String(port), "-l", language, "-t", "4"]
         p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
-        do { try p.run(); proc = p; log("whisper on") } catch { log("whisper failed: \(error)") }
+        do {
+            try p.run(); proc = p; log("whisper on (port \(port))")
+            try? String(p.processIdentifier).write(to: Paths.home.appendingPathComponent("whisper.pid"), atomically: true, encoding: .utf8)
+        } catch { log("whisper failed: \(error)") }
     }
     func stop() { proc?.terminate(); proc = nil }
 
@@ -58,6 +65,7 @@ final class Whisper {
         }
     }
     private func attempt(_ wav: Data, tries: Int, done: @escaping (String?) -> Void) {
+        guard proc?.isRunning == true else { done(nil); return }   // never trust a port we didn't start
         var req = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/inference")!)
         req.httpMethod = "POST"; req.timeoutInterval = 15
         let b = "mj\(UUID().uuidString)"
@@ -81,6 +89,10 @@ final class Whisper {
         }.resume()
     }
 
+    static func processName(_ pid: pid_t) -> String? {
+        var buf = [CChar](repeating: 0, count: 4096)
+        return proc_pidpath(pid, &buf, UInt32(buf.count)) > 0 ? String(cString: buf) : nil
+    }
     static func hangulRatio(_ x: String) -> Double {
         Double(x.unicodeScalars.filter { $0.value >= 0xAC00 && $0.value <= 0xD7A3 }.count) / Double(max(x.filter { $0.isLetter }.count, 1))
     }

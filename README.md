@@ -143,8 +143,10 @@ Everything lives in `~/.macbutler/`:
 
 * **Stays on your Mac:** microphone audio, wake-word detection, Whisper transcription, logs. No telemetry.
 * **Leaves your Mac:** the text of commands that go to Claude Code (Anthropic) and, if enabled, answers sent to ElevenLabs for speech. Quick commands never leave the Mac.
-* **It acts on your computer.** Claude Code runs with `Bash`, `Read`, `WebSearch` and the bundled `jax`/`jclick`/`jtype` tools. The built-in rules tell it never to delete, send, publish, pay or enter passwords without asking you first — but treat it like giving someone your keyboard. Use the menu toggle to stop listening during calls and meetings.
-* Anyone near your mic can say the wake word. TV and videos can too — after it starts a video it goes idle for that reason.
+* **Safe by default.** The assistant's brain can only use a fixed set of tools — no arbitrary shell, no file writes, no fetching URLs — and it can't press or type anything in terminals, code editors, the Claude app, System Settings, Keychain or permission prompts.
+* **Asks before handing work to Claude Code.** A new session only starts after you say yes, so a voice from a TV or a web page can't start work on your computer.
+* Other apps can't send it commands (owner-only control socket). Details and how to report a vulnerability: [SECURITY.md](SECURITY.md).
+* Use the menu toggle to stop listening during calls and meetings.
 
 ## Known limitations
 
