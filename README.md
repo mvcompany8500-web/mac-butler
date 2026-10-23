@@ -4,7 +4,8 @@
 
 <img src="docs/demo.gif" width="820" alt="Mac Butler wake-up animation: a boot log types out, rings spin, “Welcome home, sir.”, then it shrinks into the on-screen orb">
 
-**Talk to your Mac. It clicks, types and hands work to Claude Code — without moving your mouse.**
+**From “play some lofi” to “fix the login bug” — just say it.**
+Small chores happen on your Mac in a second; real coding goes to Claude Code. Voice coding, all the way.
 
 **No API key — uses your Claude plan** · **Audio never leaves your Mac** · **Asks before deleting, sending or paying**
 
@@ -199,7 +200,10 @@ inspired by [Handy](https://github.com/cjpais/Handy).
 
 ## 한국어
 
-**맥 버틀러(Mac Butler)** — 늘 듣고 있다가 「자비스」(기본 호출어, 설정에서 바꿀 수 있음) 하고 부르면 말로 맥을 움직이는 비서입니다. 키보드도 마우스도 안 씁니다.
+**「유튜브 틀어」부터 「로그인 버그 고쳐」까지, 말하면 됩니다. 입코딩의 끝.**
+
+**맥 버틀러(Mac Butler)** — 늘 듣고 있다가 「자비스」(기본 호출어, 설정에서 바꿀 수 있음) 하고 부르면 말로 맥을 움직이는 비서입니다.
+쉬운 일은 맥이 바로 하고, 코딩 같은 중요한 일은 클로드 코드에 말로 맡깁니다. 키보드도 마우스도 안 씁니다.
 쉬운 일(앱 열기·검색·유튜브·글 입력·받아쓰기)은 1초 안에 직접 하고, 나머지는 클로드 코드가 화면을 보고 처리한 뒤 말로 답합니다.
 「클로드코드한테 ○○ 해서 보내」라고 하면 클로드 앱에 새 세션을 열어 일을 통째로 맡깁니다.
 

@@ -5,7 +5,9 @@
 # Optional local overrides (not committed): local.env  (APP_NAME, BUNDLE_ID, SIGN_ID)
 set -e
 cd "${0:a:h}"
+_A=$APP_NAME; _B=$BUNDLE_ID; _S=$SIGN_ID          # values passed on the command line win over local.env
 [[ -f local.env ]] && source local.env
+APP_NAME=${_A:-$APP_NAME}; BUNDLE_ID=${_B:-$BUNDLE_ID}; SIGN_ID=${_S:-$SIGN_ID}
 APP_NAME=${APP_NAME:-MacButler}
 BUNDLE_ID=${BUNDLE_ID:-com.macbutler.app}
 SIGN_ID=${SIGN_ID:--}
@@ -40,5 +42,11 @@ swiftc -O Tools/jax.swift -o "$APP/Contents/Resources/bin/jax"
 swiftc -O Tools/butler.swift -o "$APP/Contents/Resources/bin/butler"
 cp Tools/jclick Tools/jtype "$APP/Contents/Resources/bin/"
 cp -R Resources/prompts "$APP/Contents/Resources/"
-codesign --force --deep --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP" >/dev/null
+if [[ "$SIGN_ID" == Developer\ ID* ]]; then
+  # Release signing: hardened runtime + entitlements (needed for notarization)
+  for t in "$APP"/Contents/Resources/bin/*; do codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$t" >/dev/null; done
+  codesign --force --options runtime --timestamp --entitlements Resources/MacButler.entitlements --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP" >/dev/null
+else
+  codesign --force --deep --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP" >/dev/null
+fi
 echo "✓ $PWD/$APP ($VERSION, $BUNDLE_ID)"
