@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 — 2026-10-23
+- Fix: the first word went missing when the live recognizer split a sentence (「하이 자비스 / 아멜리아 먹방…」 → 「먹방…」)
+- Whisper output that heard a video or other people (dialogue lines, far longer than what you said) falls back to the live text
+- Cutting in over speakers is stricter (someone else talking or a video won't cut it off); the wake word / hotkey always works
+- A stray word from someone in the room no longer cancels what Claude is doing; corrections (「아니 …」) aren't learned as commands
+- New: 「화면 꺼」 (display off), 「다음 영상」 (⏭), 「유튜브 화면 꺼」 closes those tabs, 「켜져 있는 클로드에게」 = current window
+
 ## 0.6.0 — 2026-10-23
 - **Works out of the box with the built-in macOS voice** — free, offline; picks the most natural installed voice (Premium > Enhanced > Yuna/Samantha). Setup shows how to get a free Premium voice. ElevenLabs stays optional (the demo video's voice)
 - **Cut in over speakers** — no headphones needed: it compares the mic with how loud it is talking, and ignores a video playing in the room (`--echotest` checks your room)

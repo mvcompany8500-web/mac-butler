@@ -69,6 +69,11 @@ final class Whisper {
             }
             Utterances.keep(wav, apple: fallback, whisper: t)
             if Whisper.isHallucination(t, apple: fallback) { t = "" }
+            // "- 어디야죠? - 혼자 더 맛있어. - 하이자비스. …" — a video or other people talking got transcribed too.
+            if !t.isEmpty, !fallback.isEmpty, t.hasPrefix("- ") || t.contains(" - ")
+                || Parser.squash(t).count > Parser.squash(Whisper.hangulize(fallback)).count * 2 + 6 {
+                log("whisper heard more than you said (video / other voices) → Apple text: \(t)"); t = ""
+            }
             if !t.isEmpty, !fallback.isEmpty, !Whisper.related(t, fallback) { log("whisper ignored (unrelated to what was heard): \(t)"); t = "" }
             if self.language == "ko", !t.isEmpty, Whisper.hangulRatio(fallback) > 0.5, Whisper.hangulRatio(t) < 0.5 { t = "" }
             log("whisper: \(t.isEmpty ? "(using Apple text)" : t)")

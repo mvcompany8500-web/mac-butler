@@ -44,6 +44,7 @@ final class Ear {
 
     private var lastBuffer = Date()
     private var speechOnset = 0                 // absolute sample where the current utterance began (VAD)
+    private var lastTextSample = 0              // ring position when the live text last changed
     private var engineObserver: NSObjectProtocol?
 
     func start() throws {
@@ -166,11 +167,16 @@ final class Ear {
                         let prev = self.lastText
                         self.lastText = ""
                         let audio = self.segment()
-                        self.lock.lock(); self.segStart = self.ringEnd; self.lock.unlock()
+                        // The new words began right after the old text stopped changing — not now (that cut the first word).
+                        self.lock.lock(); self.segStart = max(self.lastTextSample - 3200, self.ringBase); self.lock.unlock()
                         self.onUtterance(prev, audio)
                         if myGen != self.gen { return }
                     }
-                    if t != self.lastText { self.lastText = t; self.lastChange = Date(); self.onPartial(t) }
+                    if t != self.lastText {
+                        self.lastText = t; self.lastChange = Date()
+                        self.lock.lock(); self.lastTextSample = self.ringEnd; self.lock.unlock()
+                        self.onPartial(t)
+                    }
                     if res.isFinal { self.flush() }
                 } else if err != nil {
                     self.restart()

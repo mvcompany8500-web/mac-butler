@@ -82,6 +82,9 @@ enum SelfTest {
                              ("자비스, 자비스, 클로드 창에다가 지금 버그 체크해서 다시 고쳐놓으라 그래", "claude(target: \"\""),
                              ("하이재비스 유튜브 참 켜", "youtube(\"\")"), ("YouTube창 켜", "youtube(\"\")"), ("유튜브 창 켜 봐", "youtube(\"\")"),
                              ("하이 재비스 쿠팡 열어", "web(label: \"쿠팡\", query: \"\""),
+                             ("이제 화면 다 꺼", "displayOff"), ("화면 전체를 아예 꺼버리라고", "displayOff"), ("다음 영상으로 넘겨", "mediaNext"),
+                             ("그래, 사파리 영상이 다 꺼. 유튜브 켜져 있는 화면 다 꺼.", "closeTabs(label: \"유튜브\""),
+                             ("켜져있는 클로드에게 지금 버그 지금까지 된거 한번 더 체크해서 고치라고 해", "claude(target: \"\", message: \"지금 버그 지금까지 된거 한번 더 체크해서 고치라고 해\", newSession: false)"),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }

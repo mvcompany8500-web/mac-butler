@@ -23,6 +23,7 @@ final class Butler {
     var lastLive = ""
     var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
     var spokeAt = Date.distantPast        // when it last stopped talking (finished or interrupted)
+    var lastSpoken = ""                   // its last spoken answer — its echo can lead the next recording
     var lastMedia: (play: Bool, at: Date)?
     var lastSite: (label: String, url: String, at: Date)?   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
     /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
@@ -226,7 +227,8 @@ final class Butler {
             }
             // A new command while Claude is still thinking: drop the old one and take the new one right away.
             // (While a message is being typed into the Claude app we don't interrupt — only “취소” stops it.)
-            if brain.busy, a.count >= 2 {
+            // …but not for a stray word from someone else in the room ("할게"): a real command, the wake word, or a full sentence.
+            if brain.busy, parser.wakeRange(t) != nil || parser.parse(a, hasYouTubeList: !ytList.isEmpty) != .none || Parser.squash(a).count >= 8 {
                 log("interrupt → new command: \(a)")
                 brain.cancel(silently: true)
                 mode = .awake; awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
@@ -243,11 +245,12 @@ final class Butler {
     /// Apple's text is shown instantly; the command itself uses Whisper's more accurate text.
     func refine(_ audio: [Float], _ apple: String, then: @escaping (String) -> Void) {
         if !audio.isEmpty && whisper.available { hud.show(S.transcribing, apple, speed: 2) }
+        let apple = dropEcho(apple)
         lastLive = parser.stripWake(apple)
         whisper.transcribe(audio, fallback: apple) { [weak self] full in
             guard let self else { return }
             self.studyWords(whisper: full, live: apple)
-            var t = full
+            var t = self.dropEcho(full)
             // If you said the wake word, nothing before it belongs to this command.
             if self.parser.wakeRange(apple) != nil, let r = self.parser.wakeRange(t), r.lowerBound > t.startIndex { t = String(t[r.lowerBound...]) }
             then(t)
@@ -292,6 +295,14 @@ final class Butler {
             // (Right after it was talking, "멈춰" was meant for its voice — that's already stopped.)
             if Date().timeIntervalSince(spokeAt) > 3, AudioDevices.outputBusy(cfg.outputDevice, micUID: cfg.inputDevice) == true { media(play: false) } else { converse() }
         case .media(let play): media(play: play)
+        case .mediaNext:
+            Hands.mediaKey(17)            // ⏭ — YouTube skips to the next video
+            played(S.t("다음 영상", "Next"), "⏭")
+        case .displayOff:
+            done(S.t("화면 끔", "Display off"), "🌙")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/pmset"); p.arguments = ["displaysleepnow"]; try? p.run()
+            }
         case .bye: Sound.named("Pop"); goIdle()
         case .type(let text): Hands.paste(text); done(S.typed, text)
         case .claude(let target, let message, let newSession):
@@ -535,7 +546,8 @@ final class Butler {
             guard let self else { return }
             log("brain → \(answer)")
             Memory.exchange(user: cmd, reply: answer)
-            if let steps = Learning.replayable(self.brain.lastCommands) {
+            let correction = ["아니", "그게 아니", "no ", "not "].contains { cmd.lowercased().hasPrefix($0) }
+            if !correction, let steps = Learning.replayable(self.brain.lastCommands) {
                 self.learnCandidate = (cmd, steps)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in   // no “아니” within 12 s → keep it
                     guard let self, let c = self.learnCandidate, c.phrase == cmd else { return }
@@ -579,6 +591,7 @@ final class Butler {
 
     /// The ear stays open while speaking — if the user starts talking, stop and listen (barge-in).
     func speak(_ text: String, then: @escaping () -> Void) {
+        lastSpoken = text
         mode = .speaking
         speakingText = text; bargedIn = false
         ear.muted = false; ear.restart()
@@ -611,11 +624,23 @@ final class Butler {
         log("barge-in: your voice over the speaker")
         mouth.stop(); spokeAt = Date()
         speakingText = ""
-        ear.restart(); ear.markSegmentNow(back: 1.0)     // Whisper gets the start of what you said too
+        ear.restart(); ear.markSegmentNow(back: 0.6)     // Whisper gets the start of what you said (not much of its own voice)
         mode = .awake; awakeStarted = Date()
         awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
         whisper.warm()
         hud.show(S.conversing, S.speakNow, heard: "")
+    }
+    /// "대표님. 아니 아멜리아 먹방…" — right after you cut in, the recording can start with the tail of its own answer.
+    /// Only its way of addressing you is dropped: your own first words may well repeat what it said ("유튜브 영상…").
+    func dropEcho(_ t: String) -> String {
+        guard Date().timeIntervalSince(spokeAt) < 20, !lastSpoken.isEmpty else { return t }
+        let me = Parser.squash(cfg.user)
+        guard !me.isEmpty else { return t }
+        var words = t.split(separator: " ").map(String.init)
+        var dropped = 0
+        while let w = words.first, Parser.squash(w) == me, words.count > 1 { words.removeFirst(); dropped += 1 }
+        if dropped > 0 { log("dropped its own voice: \(dropped) word(s)") }
+        return words.joined(separator: " ")
     }
     /// Don't mistake our own voice (from speakers) for the user.
     func isEcho(_ t: String) -> Bool {

@@ -13,6 +13,8 @@ enum Intent: Equatable {
     case remember(String)                                   // 「기억해: …」 — a long-term note
     case media(play: Bool)                                  // pause / resume whatever video or music is playing
     case closeTabs(label: String, host: String)             // 「유튜브 창 꺼」 — close those browser tabs
+    case mediaNext                                          // 「다음 영상」 — skip to the next video / track
+    case displayOff                                         // 「화면 꺼」 — turn the display off (sleep)
     case openApp(spoken: String, app: String)
     case none
 }
@@ -135,6 +137,8 @@ struct Parser {
         if isBye(s) { return .bye }
         s = Parser.dropLeadIn(s)
         if let c = Parser.closeTabs(s) { return .closeTabs(label: c.0, host: c.1) }
+        if Parser.isDisplayOff(s) { return .displayOff }
+        if Parser.isNext(s) { return .mediaNext }
         if let play = Parser.mediaControl(s) { return .media(play: play) }
 
         let tail = "\\s*(해 줘|해줘|해 주세요|해|줘|좀|봐|봐 줘|봐줘|주세요)?$"
@@ -148,7 +152,11 @@ struct Parser {
             var target = m[1]
             let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는", "떠 있는", "떠있는", "열려 있는"].contains { target.contains($0) } || (m[3].hasPrefix("창에") && target.isEmpty)
             for w in ["프로젝트", "세션", "창", "에 있는", "떠 있는", "떠있는", "열려 있는", "있는", "지금", "켜져 있는", "켜진", "열린", "현재", "여기", "보고"] { target = target.replacingOccurrences(of: w, with: "") }
-            target = target.trimmingCharacters(in: .whitespaces)
+            target = target.trimmingCharacters(in: .whitespaces.union(.punctuationCharacters))
+            // "켜져있는 클로드에게" — what's left is only a "the open one" word → the current window
+            let openWords = ["켜져", "켜져있는", "떠", "떠있는", "열려", "열려있는", "켜진", "열린", "지금", "현재", "여기", "이"]
+            let isHere = here || openWords.contains(Parser.squash(target))
+            if openWords.contains(Parser.squash(target)) { target = "" }
             var rest = m[4]
             for p in ["다가 ", "다 "] where rest.hasPrefix(p) { rest = String(rest.dropFirst(p.count)) }
             // "클로드한테 얘기해. <내용>" — the verb came first, the content after it
@@ -160,9 +168,9 @@ struct Parser {
             if let q = Parser.match(rest, "^(.+?)\\s*(이?라고)\\s*(전달|보내|말|입력|써|적어|넣어|해|얘기)" + tail) {
                 // 「테스트라고 전달해」 quotes a word; 「버그 고치라고 해」 is an order — keep the whole order.
                 let verbStem = "하치기리지가보내주우추르꾸들켜꺼써봐줘라".contains(q[1].last ?? " ")
-                return .claude(target: target, message: verbStem ? rest : q[1], newSession: target.isEmpty && !here)
+                return .claude(target: target, message: verbStem ? rest : q[1], newSession: target.isEmpty && !isHere)
             }
-            return .claude(target: target, message: rest, newSession: target.isEmpty && !here)
+            return .claude(target: target, message: rest, newSession: target.isEmpty && !isHere)
         }
         if let m = Parser.match(s, "^(ask|tell|have)\\s+claude(\\s+code)?\\s+(to\\s+)?(.+)$") {
             return .claude(target: "", message: m[4], newSession: m[1].lowercased() != "tell")
@@ -239,13 +247,31 @@ struct Parser {
     /// "지금 켜져 있는 유튜브 창 꺼", "쿠팡 탭 닫아" → close those tabs (not just pause).
     static func closeTabs(_ s: String) -> (String, String)? {
         let q = squash(s)
-        guard ["창", "탭", "페이지", "window", "tab"].contains(where: q.contains),
+        guard ["창", "탭", "페이지", "화면", "window", "tab"].contains(where: q.contains),
               ["꺼", "닫아", "닫어", "종료", "없애", "close"].contains(where: q.contains) else { return nil }
         let sites = [("유튜브", "youtube.com"), ("youtube", "youtube.com"), ("쿠팡", "coupang.com"), ("네이버", "naver.com"), ("구글", "google.com"), ("아마존", "amazon.com")]
         // "구글이나 이런 거 탭들 다 꺼" — more than one site, vaguely → Claude decides.
         if ["이나", "같은거", "이런거", "같은것", "등등"].contains(where: q.contains) { return nil }
         guard let (word, host) = sites.first(where: { q.contains($0.0) }) else { return nil }
         return (word == "youtube" ? "유튜브" : word, host)
+    }
+    /// "화면 꺼", "화면 전체를 아예 꺼 버려", "모니터 꺼" → the display itself. Only those words — "이미지랑 폴더 화면에
+    ///있는 거 다 꺼" is about windows, so anything else in the sentence sends it to Claude.
+    static func isDisplayOff(_ s: String) -> Bool {
+        var q = squash(s)
+        guard ["화면", "모니터", "디스플레이", "screen", "display"].contains(where: q.contains), ["꺼", "끄", "off"].contains(where: q.contains) else { return false }
+        let ok = ["디스플레이", "버리라고", "turnoff", "display", "screen", "모니터", "전체를", "이제", "화면", "전체", "아예", "버려", "라고", "꺼", "끄", "다", "좀", "줘", "the", "off"]
+        var changed = true
+        while changed && !q.isEmpty {
+            changed = false
+            for w in ok where q.hasPrefix(w) { q.removeFirst(w.count); changed = true; break }
+        }
+        return q.isEmpty
+    }
+    /// "다음 영상으로 넘겨", "다음 곡", "next video"
+    static func isNext(_ s: String) -> Bool {
+        let q = squash(s)
+        return q.count <= 16 && (["다음영상", "다음곡", "다음노래", "다음거틀어", "다음걸로", "nextvideo", "nextsong", "skip"].contains(where: q.contains))
     }
     /// "영상 멈춰", "유튜브 꺼", "노래 정지", "틀어져 있는 영상들 다 꺼" → pause · "다시 틀어", "이어서 재생" → play.
     static func mediaControl(_ s: String) -> Bool? {
