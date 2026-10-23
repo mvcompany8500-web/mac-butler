@@ -169,6 +169,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--route"), CommandLine.argument
 }
 // `MacButler --misses` — sentences that went to Claude, grouped by verb (which quick rules to add next).
 if CommandLine.arguments.contains("--misses") { print(Growth.missReport()); exit(0) }
+// `MacButler --demo-frames <dir>` renders the README demo frames from the real HUD (see docs/make-demo.sh).
+if let i = CommandLine.arguments.firstIndex(of: "--demo-frames"), CommandLine.arguments.count > i + 1 { DemoFrames.run(CommandLine.arguments[i + 1]); exit(0) }
 // `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).

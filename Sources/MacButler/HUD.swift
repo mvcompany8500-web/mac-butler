@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 
-// The face: a glowing orb + a card at the top of the bottom-right corner (or bottom-left / top — config hudPosition). Click-through, on every Space.
+// The face: a glowing orb + a card in the bottom-right corner (or bottom-left / top — config hudPosition). Click-through, on every Space.
 
 let cyan = NSColor(calibratedRed: 0.30, green: 0.85, blue: 1.0, alpha: 1)
 let amber = NSColor(calibratedRed: 1.0, green: 0.72, blue: 0.25, alpha: 1)
@@ -68,6 +68,8 @@ final class HUD {
     let m: CGFloat = 28           // room for the glow
     private var tone = cyan
 
+    static var offscreen = false     // `--demo-frames`: build the views without showing the window
+    var root: NSView? { panel.contentView }
     init() {
         let scr = NSScreen.main!.visibleFrame
         panel = NSPanel(contentRect: NSRect(x: scr.midX - (w + 2 * m) / 2, y: scr.maxY - 200, width: w + 2 * m, height: 200),
@@ -97,7 +99,7 @@ final class HUD {
         for v in [status, heard, text] { root.addSubview(v) }
         panel.contentView = root
         layout()
-        panel.orderFrontRegardless()
+        if !HUD.offscreen { panel.orderFrontRegardless() }
         idle()
     }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.7 — 2026-10-24
+- Fix: when Whisper's version was set aside as "unsure" but is a known command (「자비스, 아파트」 vs Apple's 「버드」), it's used; otherwise the brain sees both versions
+- 「세 번째 영상 찍어/눌러/클릭해」 = play the 3rd video; the fast router skips a late answer instead of restarting (no cold start next time)
+- New README hero and demo (`docs/make-demo.sh` renders the demo from the real HUD, off-screen); Mac first — Windows later
+
 ## 0.6.6 — 2026-10-24
 - **Faster turn-taking:** a sentence that clearly ended (…해/줘/틀어/?) runs after 0.9 s instead of the full pause; a soft sound the moment a request goes to the brain; a fresh brain is swapped in right after a heavy turn instead of on your next question (a 100k-token turn took 32 s, a fresh one ~7 s)
 - **Fast router:** a small model (Haiku) runs *alongside* the brain and maps loose phrasing (「너무 시끄럽다 좀 작게」 → 소리 줄여) to a quick command; if it wins before the brain acts, the brain is cancelled. Mappings are remembered → instant next time; 「아니」 forgets one

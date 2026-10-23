@@ -2,7 +2,9 @@
 
 # ◉ Mac Butler
 
-<img src="docs/demo.gif" width="820" alt="Mac Butler wake-up animation: a boot log types out, rings spin, “Welcome home, sir.”, then it shrinks into the on-screen orb">
+<img src="docs/hero.png" width="820" alt="Talk to your Mac and it just does it — YouTube, timers, rewriting text, handing work to Claude Code">
+
+<img src="docs/demo.gif" width="760" alt="The real on-screen orb and card: say it, it happens; it pauses by itself during calls or Handy dictation">
 
 **From “play some lofi” to “fix the login bug” — just say it.**
 Small chores happen on your Mac in a second; real coding goes to Claude Code. Voice coding, all the way.
@@ -80,6 +82,8 @@ mic ──► Apple on-device speech ──► wake word / live text on the HUD
 * **Whisper on demand.** The model loads when you call it and unloads after 3 idle minutes (~1 GB).
 
 ## Requirements
+
+> **Mac first. Windows comes later** — once wake-word listening and transcription there are as quick as on the Mac.
 
 * macOS 14 or later, Apple Silicon recommended (tested on Mac mini M4, macOS 27)
 * [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) installed and logged in (`claude` in your terminal once). Uses your Claude plan.
