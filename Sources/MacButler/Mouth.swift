@@ -14,6 +14,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
     let echo = DoubleTalk()             // knows how loud we're playing → tells your voice from ours
     private lazy var elevenKey: String? = {
         let e = cfg.elevenLabs
+        if let k = Keys.get("elevenlabs") { return k }          // the Keychain first (`MacButler --set-key elevenlabs`)
         if !e.apiKey.isEmpty { return e.apiKey }
         if !e.apiKeyFile.isEmpty, let k = dotenv(e.apiKeyFile, "ELEVENLABS_API_KEY") { return k }
         return ProcessInfo.processInfo.environment["ELEVENLABS_API_KEY"]
@@ -29,6 +30,8 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         finish = done
         if cfg.tts == "elevenlabs", let key = elevenKey, !cfg.elevenLabs.voiceId.isEmpty {
             eleven(text, key: key, my: my)
+        } else if let req = Mouth.speechRequest(cfg, text) {
+            fetch(req, text: text, my: my)
         } else {
             say(text, my: my)
         }
@@ -116,11 +119,63 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         task?.resume()
     }
 
+    /// Other voices you can plug in (`tts`): "openai", "azure" (Azure Speech — natural Korean voices such as
+    /// ko-KR-SunHiNeural, with a monthly free tier), or "http" — any server that takes {"text", "voice", "language"}
+    /// as JSON and answers with audio. Keys come from the Keychain (`MacButler --set-key openai` / `azure-speech` / `http-tts`).
+    /// nil = not configured (or no key) → the free built-in voice.
+    static func speechRequest(_ cfg: Config, _ text: String) -> URLRequest? {
+        func json(_ url: URL, _ body: [String: Any], _ headers: [String: String]) -> URLRequest {
+            var r = URLRequest(url: url); r.httpMethod = "POST"; r.timeoutInterval = 12
+            r.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            for (k, v) in headers { r.setValue(v, forHTTPHeaderField: k) }
+            return r
+        }
+        switch cfg.tts {
+        case "openai":
+            guard let key = Keys.lookup("openai", env: "OPENAI_API_KEY") else { return nil }
+            return json(URL(string: "https://api.openai.com/v1/audio/speech")!,
+                        ["model": cfg.ttsModel.isEmpty ? "gpt-4o-mini-tts" : cfg.ttsModel, "voice": cfg.ttsVoice.isEmpty ? "alloy" : cfg.ttsVoice,
+                         "input": text, "response_format": "mp3"], ["Authorization": "Bearer \(key)"])
+        case "azure":
+            guard let key = Keys.lookup("azure-speech", env: "AZURE_SPEECH_KEY"), !cfg.ttsRegion.isEmpty,
+                  cfg.ttsRegion.allSatisfy({ $0.isLetter || $0.isNumber }),
+                  let url = URL(string: "https://\(cfg.ttsRegion).tts.speech.microsoft.com/cognitiveservices/v1") else { return nil }
+            let voice = cfg.ttsVoice.isEmpty ? (cfg.ko ? "ko-KR-SunHiNeural" : "en-US-AvaNeural") : cfg.ttsVoice
+            let esc = text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
+            var r = URLRequest(url: url); r.httpMethod = "POST"; r.timeoutInterval = 12
+            r.httpBody = Data("<speak version='1.0' xml:lang='\(cfg.locale)'><voice name='\(voice)'>\(esc)</voice></speak>".utf8)
+            r.setValue(key, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
+            r.setValue("application/ssml+xml", forHTTPHeaderField: "Content-Type")
+            r.setValue("audio-24khz-48kbitrate-mono-mp3", forHTTPHeaderField: "X-Microsoft-OutputFormat")
+            r.setValue("MacButler", forHTTPHeaderField: "User-Agent")
+            return r
+        case "http":
+            guard let url = APIBrain.safeBase(cfg.ttsURL) else { return nil }
+            var h: [String: String] = [:]
+            if let k = Keys.get("http-tts") { h["Authorization"] = "Bearer \(k)" }
+            return json(url, ["text": text, "voice": cfg.ttsVoice, "language": cfg.lang], h)
+        default: return nil
+        }
+    }
+    private func fetch(_ req: URLRequest, text: String, my: Int) {
+        task = URLSession.shared.dataTask(with: req) { [weak self] data, resp, _ in
+            DispatchQueue.main.async {
+                guard let self, my == self.token else { return }
+                guard (resp as? HTTPURLResponse)?.statusCode == 200, let data, data.count > 500, self.playOnDevice(data, my: my) else {
+                    log("\(self.cfg.tts) voice failed → built-in voice"); self.say(text, my: my); return
+                }
+            }
+        }
+        task?.resume()
+    }
+
     /// Plays through the chosen speaker with a dedicated engine (AVAudioPlayer can't pick a device),
     /// measuring the level as it goes so a voice over the top of it can be told apart from our echo.
     private var outEngine: AVAudioEngine?
     private func playOnDevice(_ data: Data, my: Int) -> Bool {
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mb-say-\(my).mp3")
+        let ext = data.prefix(4) == Data("RIFF".utf8) ? "wav" : "mp3"     // a voice server may answer with WAV
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mb-say-\(my).\(ext)")
         guard (try? data.write(to: tmp)) != nil else { return false }
         return playFile(tmp, my: my)
     }

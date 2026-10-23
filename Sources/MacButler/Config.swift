@@ -32,6 +32,9 @@ struct Config: Codable {
     var bootSubtitle = ""               // empty → "{user}의 개인 비서" / "Personal assistant of {user}" (or a generic line)
     var greetOpen: [String] = []        // URLs to open when greeted
 
+    var brainProvider = "claude-code"   // "claude-code" (default, your Claude subscription) · "anthropic" · "openai" · "gemini" · "openrouter" · "groq" · "ollama" · "lmstudio" · "openai-compatible" — keys go in the Keychain (`MacButler --set-key openai`)
+    var brainModel = ""                 // model for an API brain, e.g. "gpt-5-mini", "gemini-3-flash", "claude-sonnet-5-5"; empty → provider default / a local server's first model
+    var brainBaseURL = ""               // only for "openai-compatible" (or to point a provider elsewhere): https://…/v1, or http://127.0.0.1:…/v1
     var claudePath = ""                 // empty → auto-detect `claude`
     var claudeModel = "sonnet"
     var confirmDelegate = "never"       // how boldly it acts: "never" = do it right away (default) · "brain" = ask before Claude hands work on · "always" = ask first, ask when unsure
@@ -39,7 +42,11 @@ struct Config: Codable {
     var whisperModel = ""               // empty → ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
     var whisperServer = ""              // empty → auto-detect `whisper-server`
 
-    var tts = "say"                     // "say" (macOS voices) or "elevenlabs"
+    var tts = "say"                     // "say" (free macOS voices, default) · "elevenlabs" · "openai" · "azure" · "http" (your own voice server)
+    var ttsVoice = ""                   // voice for openai / azure / http, e.g. "alloy", "ko-KR-SunHiNeural"
+    var ttsModel = ""                   // openai only; empty → gpt-4o-mini-tts
+    var ttsRegion = ""                  // azure only, e.g. "koreacentral"
+    var ttsURL = ""                     // http only: https://… (or http://127.0.0.1:…) that turns {"text","voice","language"} into audio
     var sayVoice = ""                   // empty → system voice for the language
     var sayRate = 190
     var elevenLabs = ElevenLabsConfig()
@@ -68,9 +75,10 @@ struct Config: Codable {
         wakeWords = v(.wakeWords, z.wakeWords); greetPhrases = v(.greetPhrases, z.greetPhrases)
         greetingText = v(.greetingText, z.greetingText); bootTitle = v(.bootTitle, z.bootTitle); bootSubtitle = v(.bootSubtitle, z.bootSubtitle)
         greetOpen = v(.greetOpen, z.greetOpen)
+        brainProvider = v(.brainProvider, z.brainProvider); brainModel = v(.brainModel, z.brainModel); brainBaseURL = v(.brainBaseURL, z.brainBaseURL)
         claudePath = v(.claudePath, z.claudePath); claudeModel = v(.claudeModel, z.claudeModel); brainAccess = v(.brainAccess, z.brainAccess); confirmDelegate = v(.confirmDelegate, z.confirmDelegate)
         whisperModel = v(.whisperModel, z.whisperModel); whisperServer = v(.whisperServer, z.whisperServer)
-        tts = v(.tts, z.tts); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)
+        tts = v(.tts, z.tts); ttsVoice = v(.ttsVoice, z.ttsVoice); ttsModel = v(.ttsModel, z.ttsModel); ttsRegion = v(.ttsRegion, z.ttsRegion); ttsURL = v(.ttsURL, z.ttsURL); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)
         inputDevice = v(.inputDevice, z.inputDevice); outputDevice = v(.outputDevice, z.outputDevice)
         bargeIn = v(.bargeIn, z.bargeIn)
         browserApp = v(.browserApp, z.browserApp); apps = v(.apps, z.apps)

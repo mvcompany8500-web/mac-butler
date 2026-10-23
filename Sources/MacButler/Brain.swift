@@ -14,14 +14,15 @@ final class Brain {
     private var pendingText: String?
     private var sent = 0, received = 0
     private var lastUse = Date()
-    private(set) var lastCommands: [String] = []     // Bash commands of the last finished turn (for learning)
+    private(set) var lastCommands: [String] = []     // tool steps of the last finished turn as jax lines (for learning)
     private var turnCommands: [String] = []
     init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.assistantName) }
     var busy: Bool { done != nil }
     var installed: Bool { cfg.claudeBinary != nil }
 
+    func systemPrompt() -> String { Brain.systemPrompt(cfg) }
     /// System prompt: ~/.macbutler/prompt.md if present, otherwise the bundled template for the language.
-    func systemPrompt() -> String {
+    static func systemPrompt(_ cfg: Config) -> String {
         let user = Paths.home.appendingPathComponent("prompt.md")
         let bundled = Paths.resources.appendingPathComponent("prompts/prompt.\(cfg.ko ? "ko" : "en").md")
         var s = (try? String(contentsOf: user, encoding: .utf8)) ?? (try? String(contentsOf: bundled, encoding: .utf8)) ?? "You are {assistant}, a voice assistant for {user}."
@@ -33,10 +34,9 @@ final class Brain {
                       : "- **Act, don't ask.** If the request is short or vague, do the most likely thing given the screen and what was just done, then say what you did — {user} will say \"no\" if it was wrong. Ask first only before something irreversible (deleting, sending, paying).")
             : (cfg.ko ? "- 뜻이 둘로 갈리면 실행하기 전에 질문 하나로 묻는다(물음표로 끝나면 바로 대답할 수 있다). 분명하면 바로 한다."
                       : "- If the request could mean two different things, ask one short question before acting. If it's clear, just do it.")
-        let delegateRule = instant
-            ? (cfg.ko ? "바로 넘어간다 — 답은 「○○에 맡겼습니다」 한 문장." : "It's sent right away — answer in one sentence like \"Handed to …\".")
-            : (cfg.ko ? "이 명령은 바로 넘기지 않고 {user}의 「응」을 기다린다 — 답은 「○○에 이렇게 맡길까요?」 질문 한 문장으로 하고, 맡겼다고 말하지 않는다."
-                      : "It is NOT sent yet — Mac Butler waits for {user} to say yes, so your answer must be one question like \"Shall I hand this to …?\" and never claim it was done.")
+        // Hand-offs from the brain always wait for the user's yes (see Butler.delegateFromBrain), in every mode.
+        let delegateRule = cfg.ko ? "이 명령은 바로 넘기지 않고 {user}의 「응」을 기다린다 — 답은 「○○에 이렇게 맡길까요?」 질문 한 문장으로 하고, 맡겼다고 말하지 않는다."
+                                  : "It is NOT sent yet — Mac Butler waits for {user} to say yes, so your answer must be one question like \"Shall I hand this to …?\" and never claim it was done."
         s = s.replacingOccurrences(of: "{askRule}", with: askRule).replacingOccurrences(of: "{delegateRule}", with: delegateRule)
         s += Memory.promptBlock(ko: cfg.ko)
         let scr = NSScreen.main?.frame.size ?? .zero
@@ -44,22 +44,68 @@ final class Brain {
         return cfg.fill(s)
     }
 
-    /// What the brain may do. A voice assistant hears TVs, videos and web pages, so by default it gets a fixed
-    /// allowlist: open apps/URLs, press/type through the bundled tools, look at the screen, search the web.
-    /// No arbitrary shell, no file writes, no fetching arbitrary URLs, no MCP servers, and the user's own
-    /// Claude settings (which may allow much more) are not loaded. Anything else is denied automatically.
+    /// What the brain may do. A voice assistant hears TVs, videos and web pages, so by default it gets only Mac Butler's
+    /// tool box (the `butler` MCP server: press/type/open/look, each one guarded) and web search. No shell at all, no file
+    /// reads or writes, no fetching arbitrary URLs, no other MCP servers, and the user's own Claude settings (which may
+    /// allow much more) are not loaded. Anything else is denied automatically.
     static func permissionArgs(_ access: String) -> [String] {
+        let mcp = ["--strict-mcp-config", "--mcp-config", mcpConfig(safe: access != "full")]
         if access == "full" {
-            return ["--tools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disable-slash-commands",
-                    "--allowedTools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
+            return mcp + ["--tools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disable-slash-commands",
+                    "--allowedTools", "mcp__butler,Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
         }
-        let allow = ["Bash(jax:*)", "Bash(jtype:*)", "Bash(butler delegate:*)", "Bash(butler session:*)", "Bash(date)",
-                     "Read(//tmp/macbutler/**)", "Read(//private/tmp/macbutler/**)", "WebSearch"]
-        let deny = ["WebFetch", "Write", "Edit", "NotebookEdit", "SendMessage", "ToolSearch", "Task", "Agent", "Glob", "Grep"]
-        // Only the tools it uses are even described to it (34k → 10k tokens a turn, ~1.3 s faster); no skill list.
-        return ["--setting-sources", "project", "--strict-mcp-config", "--permission-mode", "default",
-                "--tools", "Bash,Read,WebSearch", "--disable-slash-commands",
-                "--allowedTools", allow.joined(separator: ","), "--disallowedTools", deny.joined(separator: ",")]
+        let deny = ["Bash", "Read", "Write", "Edit", "NotebookEdit", "WebFetch", "Glob", "Grep", "SendMessage", "ToolSearch", "Task", "Agent"]
+        // Only the tools it uses are even described to it (fewer tokens a turn, faster); no skill list.
+        return mcp + ["--setting-sources", "project", "--permission-mode", "default",
+                "--tools", "WebSearch", "--disable-slash-commands",
+                "--allowedTools", "mcp__butler,WebSearch", "--disallowedTools", deny.joined(separator: ",")]
+    }
+    /// The tool box as an MCP server. The safe-mode flags are fixed here, where the brain can't change them.
+    static func mcpConfig(safe: Bool) -> String {
+        var env = ["MACBUTLER_HOME": Paths.home.path, "MACBUTLER_BUNDLE": Bundle.main.bundleIdentifier ?? "",
+                   "MACBUTLER_VERSION": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""]
+        if safe { env["MACBUTLER_SAFE"] = "1" }
+        let cfg: [String: Any] = ["mcpServers": ["butler": ["type": "stdio", "command": Paths.tools.appendingPathComponent("butler-mcp").path, "args": [String](), "env": env]]]
+        return (try? JSONSerialization.data(withJSONObject: cfg)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    }
+    /// A tool-box call written as the equivalent jax line, so learning and 「창 다 꺼」 bookkeeping work the same for every brain.
+    static func commandLine(_ tool: String, _ a: [String: Any]) -> String {
+        func q(_ k: String) -> String {
+            let v = (a[k] as? String) ?? (a[k] as? NSNumber)?.stringValue ?? ""
+            return v.contains("\"") ? "'\(v)'" : "\"\(v)\""
+        }
+        switch tool {
+        case "tap": return "jax tap \(q("name"))" + (a["n"] != nil ? " \(q("n"))" : "")
+        case "field": return "jax field \(q("field")) \(q("text"))"
+        case "type": return "jtype \(q("text"))"
+        case "key": return "jax key \(q("keys"))"
+        case "volume": return "jax volume \(q("level"))"
+        case "open_app": return "jax open-app \(q("name"))"
+        case "open_url": return "jax open-url \(q("url"))"
+        case "click": return "jax click \(q("x")) \(q("y"))"
+        case "list", "front", "screenshot": return "jax \(tool)"
+        case "now": return "date"
+        default: return "butler \(tool)"          // delegate, switch_session: never learned
+        }
+    }
+    func stepLabel(_ tool: String, _ a: [String: Any]) -> String { Brain.stepLabel(cfg, tool, a) }
+    /// What the HUD shows while a tool runs.
+    static func stepLabel(_ cfg: Config, _ tool: String, _ a: [String: Any]) -> String {
+        let v = { (k: String) in ((a[k] as? String) ?? (a[k] as? NSNumber)?.stringValue ?? "").prefix(40) }
+        let ko = cfg.ko
+        switch tool {
+        case "tap": return ko ? "「\(v("name"))」 누르는 중" : "Pressing “\(v("name"))”"
+        case "field", "type": return ko ? "입력하는 중" : "Typing"
+        case "key": return ko ? "\(v("keys")) 누르는 중" : "Pressing \(v("keys"))"
+        case "open_app": return ko ? "\(v("name")) 여는 중" : "Opening \(v("name"))"
+        case "open_url": return ko ? "\(URL(string: String(v("url")))?.host ?? "페이지") 여는 중" : "Opening \(URL(string: String(v("url")))?.host ?? "the page")"
+        case "list", "front": return ko ? "화면 살펴보는 중" : "Looking at the screen"
+        case "screenshot": return ko ? "화면 보는 중" : "Looking at the screen"
+        case "click": return ko ? "누르는 중" : "Pressing"
+        case "volume": return ko ? "소리 조절 중" : "Setting the volume"
+        case "delegate": return ko ? "클로드에 맡기는 중" : "Handing to Claude"
+        default: return Strings(ko: ko, name: cfg.assistantName).working
+        }
     }
 
     func warm() { ensure() }
@@ -119,9 +165,13 @@ final class Brain {
         if !tools.isEmpty {
             finalTimer?.cancel(); pendingText = nil
             for c in tools {
-                let inp = c["input"] as? [String: Any]
-                if c["name"] as? String == "Bash", let cmd = inp?["command"] as? String { turnCommands.append(cmd) }
-                step?((inp?["description"] as? String) ?? strings.toolNames[c["name"] as? String ?? ""] ?? strings.working)
+                let inp = c["input"] as? [String: Any] ?? [:], name = c["name"] as? String ?? ""
+                if name.hasPrefix("mcp__butler__") {
+                    let t = String(name.dropFirst("mcp__butler__".count))
+                    turnCommands.append(Brain.commandLine(t, inp)); step?(stepLabel(t, inp)); continue
+                }
+                if name == "Bash", let cmd = inp["command"] as? String { turnCommands.append(cmd) }
+                step?((inp["description"] as? String) ?? strings.toolNames[name] ?? strings.working)
             }
         } else if !text.isEmpty {
             // Text with no tool call is almost always the final answer — speak it now instead of
@@ -145,22 +195,26 @@ final class Brain {
     func ask(_ command: String, live: String = "", frontApp: String, context: String = "", step: @escaping (String) -> Void, done: @escaping (String) -> Void) {
         ensure()
         guard let stdin else { done(strings.noClaude); return }
-        let now = DateFormatter(); now.locale = Locale(identifier: cfg.locale)
-        now.dateFormat = cfg.ko ? "M월 d일 EEEE a h시 m분" : "EEEE, MMM d, h:mm a"
-        let ctx = context.isEmpty ? "" : "\n" + context
-        let input = cfg.ko ? "[지금 \(now.string(from: Date())) · 맨 앞 앱: \(frontApp)]\(ctx)\n\(cfg.user) 말: \(command)"
-                           : "[Now \(now.string(from: Date())) · front app: \(frontApp)]\(ctx)\n\(cfg.user) says: \(command)"
-        var text = input
-        if !live.isEmpty, Parser.squash(live) != Parser.squash(command) {
-            text += cfg.ko ? "\n(맥 실시간 인식으로는: \(live) — 두 받아쓰기가 다르면 문맥상 맞는 쪽을 따른다)"
-                           : "\n(live recognition heard: \(live) — if the two differ, follow whichever makes sense)"
-        }
+        let text = Brain.turnText(cfg, command, live: live, frontApp: frontApp, context: context)
         let msg: [String: Any] = ["type": "user", "message": ["role": "user", "content": text]]
         guard var data = try? JSONSerialization.data(withJSONObject: msg) else { return }
         data.append(0x0A)
         self.step = step; self.done = done; sent += 1; turnCommands = []
         stdin.write(data)
         log("brain ← \(command)")
+    }
+    /// One turn's input: time, front app, screen context, what was said (and the live text when it differs).
+    static func turnText(_ cfg: Config, _ command: String, live: String, frontApp: String, context: String) -> String {
+        let now = DateFormatter(); now.locale = Locale(identifier: cfg.locale)
+        now.dateFormat = cfg.ko ? "M월 d일 EEEE a h시 m분" : "EEEE, MMM d, h:mm a"
+        let ctx = context.isEmpty ? "" : "\n" + context
+        var text = cfg.ko ? "[지금 \(now.string(from: Date())) · 맨 앞 앱: \(frontApp)]\(ctx)\n\(cfg.user) 말: \(command)"
+                          : "[Now \(now.string(from: Date())) · front app: \(frontApp)]\(ctx)\n\(cfg.user) says: \(command)"
+        if !live.isEmpty, Parser.squash(live) != Parser.squash(command) {
+            text += cfg.ko ? "\n(맥 실시간 인식으로는: \(live) — 두 받아쓰기가 다르면 문맥상 맞는 쪽을 따른다)"
+                           : "\n(live recognition heard: \(live) — if the two differ, follow whichever makes sense)"
+        }
+        return text
     }
     func stop() { proc?.terminate(); proc = nil }
     /// silently: drop the answer instead of saying “stopped” (used when a new command takes over).

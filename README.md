@@ -90,6 +90,27 @@ It talks with **the built-in macOS voice** — free, offline, no sign-up. It pic
 * **Free:** System Settings → Accessibility → Spoken Content → System voice → Manage Voices… → download a **Premium** voice. It's used automatically.
 * **Paid:** the voice in the demo video is [ElevenLabs](https://elevenlabs.io). Put your own API key in Settings → Voice. If the key runs out, it falls back to the macOS voice.
 
+## Plug in another brain or voice
+
+The default brain is **Claude Code with your Claude plan**. Settings → Brain lets you pick another one instead — the
+hands stay the same tool box with the same safety checks, so no brain gets a shell or your files:
+
+| Brain (`brainProvider`) | What you need |
+|---|---|
+| `claude-code` (default) | Claude Code signed in to your Claude plan |
+| `anthropic` | an Anthropic API key (default model `claude-sonnet-5-5`, with web search) |
+| `openai` · `gemini` · `openrouter` · `groq` | that service's API key and a model name from its list (`brainModel`) |
+| `ollama` · `lmstudio` | free and offline — a local model server on this Mac (small models are weaker at Korean tool use) |
+| `openai-compatible` | any server that speaks the OpenAI chat API (`brainBaseURL`, https — or http only on this Mac) |
+
+Voices (`tts`): `say` (free macOS voice, default), `elevenlabs`, `openai`, `azure` (natural Korean voices, monthly free
+tier) or `http` (your own voice server: it gets `{"text","voice","language"}` and answers with audio). If one fails,
+the free macOS voice reads instead.
+
+Keys go into the **macOS Keychain**, never into `config.json`: paste them in Settings, or
+`MacButler.app/Contents/MacOS/MacButler --set-key openai` (reads the key from stdin). To check a brain without the
+microphone: `MACBUTLER_HOME=/tmp/mb-test MacButler --ask "지금 몇 시야?"`.
+
 ## Install
 
 ```bash
@@ -151,10 +172,12 @@ Everything lives in `~/.macbutler/`:
   "outputDevice": "",              // speaker UID for the voice and sounds
   "hotkey": "rightOption",         // tap = wake, hold = push-to-talk: rightOption | rightCommand | none
   "customWords": ["Claude", "GitHub"], // names you say often (imported from Handy automatically)
-  "tts": "say",                    // "say" = built-in macOS voice (default) · "elevenlabs" = your key
+  "tts": "say",                    // "say" = built-in macOS voice (default) · "elevenlabs" · "openai" · "azure" · "http"
   "sayVoice": "",                  // "" = most natural installed voice · or an identifier from Settings → Voice
   "elevenLabs": { "apiKeyFile": "~/.secrets/.env", "voiceId": "…", "model": "eleven_flash_v2_5" },
   "claudeModel": "sonnet",
+  "brainProvider": "claude-code",  // or anthropic · openai · gemini · openrouter · groq · ollama · lmstudio · openai-compatible
+  "brainModel": "",                // for API brains, e.g. a model name from the provider's list
   "whisperModel": "",              // default ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
   "browserApp": "Safari",           // default · "Google Chrome" etc. · "" = your default browser
   "apps": { "브루": "Vrew" },       // extra spoken app names
@@ -165,9 +188,11 @@ Everything lives in `~/.macbutler/`:
 ## Privacy & safety
 
 * **Stays on your Mac:** microphone audio, wake-word detection, Whisper transcription, logs. No telemetry.
-* **Leaves your Mac:** the text of commands that go to Claude Code (Anthropic) and, if enabled, answers sent to ElevenLabs for speech. Quick commands never leave the Mac.
-* **Safe by default.** The assistant's brain can only use a fixed set of tools — no arbitrary shell, no file writes, no fetching URLs — and it can't press or type anything in terminals, code editors, the Claude app, System Settings, Keychain or permission prompts.
-* **Asks before handing work to Claude Code.** A new session only starts after you say yes, so a voice from a TV or a web page can't start work on your computer.
+* **Leaves your Mac:** the text of commands that go to the brain you chose (Claude Code / Anthropic by default) and, if you picked a paid voice, the answers it reads aloud. A local brain (Ollama, LM Studio) keeps everything on the Mac. Quick commands never leave the Mac.
+* **Safe by default, whatever the brain.** The brain only gets Mac Butler's tool box — no shell, no file reading or writing, no fetching URLs — and it can't press or type anything in terminals, code editors, the Claude app, System Settings, Keychain, password fields or permission prompts.
+* **Asks before anything irreversible.** Send, pay, post and delete buttons — and Enter in messengers or web forms, line breaks typed by the brain — wait for "Shall I send it?" → yes. The one shortcut: you asked for exactly that while holding the hotkey (a TV can say "send", it can't hold the key).
+* **Asks before handing work to a Claude Code session.** Anything the brain wants to hand over waits for your spoken yes, so a TV or a web page can't start work on your computer. ("Right away" mode applies only when you ask for Claude yourself.)
+* Everything it pressed, typed or opened is logged in `~/.macbutler/logs/actions.log`.
 * Other apps can't send it commands (owner-only control socket). Details and how to report a vulnerability: [SECURITY.md](SECURITY.md).
 * Use the menu toggle to stop listening during calls and meetings.
 

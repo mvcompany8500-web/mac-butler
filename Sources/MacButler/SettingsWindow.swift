@@ -21,6 +21,14 @@ final class SettingsModel: ObservableObject {
     @Published var outputDevice: String
     @Published var hudPosition: String
     @Published var confirmDelegate: String
+    @Published var brainProvider: String
+    @Published var brainModel: String
+    @Published var brainBaseURL: String
+    @Published var brainKey = ""            // typed here, saved to the Keychain only — never to config.json
+    @Published var ttsVoice: String
+    @Published var ttsRegion: String
+    @Published var ttsURL: String
+    @Published var voiceKey = ""
     let inputs = AudioDevices.inputs(), outputs = AudioDevices.outputs()
     private var cfg: Config
 
@@ -31,7 +39,12 @@ final class SettingsModel: ObservableObject {
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
         inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate
+        brainProvider = c.brainProvider; brainModel = c.brainModel; brainBaseURL = c.brainBaseURL
+        ttsVoice = c.ttsVoice; ttsRegion = c.ttsRegion; ttsURL = c.ttsURL
     }
+    /// Keychain account for the chosen voice's key.
+    var voiceAccount: String { ["openai": "openai", "azure": "azure-speech", "http": "http-tts", "elevenlabs": "elevenlabs"][tts] ?? "" }
+    static func keyHint(_ account: String) -> String { Keys.get(account).map { "…" + $0.suffix(4) } ?? "" }
 
     /// Writes only the keys this window manages; everything else in config.json is kept as is.
     func save() {
@@ -41,6 +54,11 @@ final class SettingsModel: ObservableObject {
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
         obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate
+        obj["brainProvider"] = brainProvider; obj["brainModel"] = brainModel; obj["brainBaseURL"] = brainBaseURL
+        obj["ttsVoice"] = ttsVoice; obj["ttsRegion"] = ttsRegion; obj["ttsURL"] = ttsURL
+        let bk = brainKey.trimmingCharacters(in: .whitespacesAndNewlines), vk = voiceKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !bk.isEmpty, brainProvider != "claude-code" { Keys.set(brainProvider, bk); log("saved a key for \(brainProvider)") }
+        if !vk.isEmpty, !voiceAccount.isEmpty { Keys.set(voiceAccount, vk); log("saved a key for \(voiceAccount)") }
         var el = obj["elevenLabs"] as? [String: Any] ?? [:]
         el["voiceId"] = elevenVoiceId; el["apiKeyFile"] = elevenKeyFile
         obj["elevenLabs"] = el
@@ -109,7 +127,13 @@ struct SettingsView: View {
                 }
             }
             Section(S.t("목소리", "Voice")) {
-                Picker(S.t("읽어 주는 엔진", "Speech engine"), selection: $m.tts) { Text(S.t("맥 목소리 (무료·기본)", "macOS voice (free, default)")).tag("say"); Text(S.t("ElevenLabs (유료·내 열쇠)", "ElevenLabs (paid, your key)")).tag("elevenlabs") }
+                Picker(S.t("읽어 주는 엔진", "Speech engine"), selection: $m.tts) {
+                    Text(S.t("맥 목소리 (무료·기본)", "macOS voice (free, default)")).tag("say")
+                    Text(S.t("ElevenLabs (내 열쇠)", "ElevenLabs (your key)")).tag("elevenlabs")
+                    Text(S.t("OpenAI 목소리 (내 열쇠)", "OpenAI voice (your key)")).tag("openai")
+                    Text(S.t("Azure 음성 (내 열쇠, 매달 무료 한도)", "Azure Speech (your key, monthly free tier)")).tag("azure")
+                    Text(S.t("내 음성 서버 (주소)", "My own voice server (URL)")).tag("http")
+                }
                 if m.tts == "say" {
                     Picker(S.t("맥 목소리", "macOS voice"), selection: $m.sayVoice) {
                         Text(S.t("자동 (설치된 것 중 가장 자연스러운 목소리)", "Automatic (the most natural voice installed)")).tag("")
@@ -118,13 +142,50 @@ struct SettingsView: View {
                     Text(S.t("더 자연스러운 목소리(무료): 시스템 설정 → 손쉬운 사용 → 읽기 및 말하기 → 시스템 목소리 → 목소리 관리… → Premium 받기",
                              "More natural voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices… → download a Premium voice"))
                         .font(.caption).foregroundStyle(.secondary)
-                } else {
+                } else if m.tts == "elevenlabs" {
                     TextField("ElevenLabs voice ID", text: $m.elevenVoiceId)
-                    TextField(S.t("API 열쇠가 든 .env 파일 경로", "Path to a .env with ELEVENLABS_API_KEY"), text: $m.elevenKeyFile)
+                    TextField(S.t("API 열쇠가 든 .env 파일 경로 (또는 아래 칸)", "Path to a .env with ELEVENLABS_API_KEY (or the box below)"), text: $m.elevenKeyFile)
+                } else {
+                    TextField(S.t("목소리 이름", "Voice"), text: $m.ttsVoice,
+                              prompt: Text(m.tts == "azure" ? "ko-KR-SunHiNeural" : m.tts == "openai" ? "alloy" : S.t("서버가 아는 이름", "a name your server knows")))
+                    if m.tts == "azure" { TextField(S.t("지역", "Region"), text: $m.ttsRegion, prompt: Text("koreacentral")) }
+                    if m.tts == "http" { TextField(S.t("서버 주소", "Server URL"), text: $m.ttsURL, prompt: Text("http://127.0.0.1:5002/tts")) }
+                }
+                if m.tts != "say" {
+                    SecureField(S.t("열쇠 (키체인에 저장)", "Key (saved in the Keychain)"), text: $m.voiceKey,
+                                prompt: Text(SettingsModel.keyHint(m.voiceAccount).isEmpty ? S.t(m.tts == "http" ? "필요할 때만" : "붙여 넣기", m.tts == "http" ? "only if needed" : "paste it here") : S.t("저장됨 ", "saved ") + SettingsModel.keyHint(m.voiceAccount)))
+                    Text(S.t("안 되면 늘 무료 맥 목소리로 대신 읽습니다.", "If it fails, the free macOS voice reads instead.")).font(.caption).foregroundStyle(.secondary)
                 }
             }
             Section(S.t("두뇌", "Brain")) {
-                Picker(S.t("Claude 모델", "Claude model"), selection: $m.claudeModel) { Text("Sonnet").tag("sonnet"); Text("Haiku").tag("haiku"); Text("Opus").tag("opus") }
+                Picker(S.t("생각하는 AI", "Who does the thinking"), selection: $m.brainProvider) {
+                    Text(S.t("Claude Code (내 Claude 구독, 기본)", "Claude Code (your Claude plan, default)")).tag("claude-code")
+                    Text(S.t("Claude API (내 열쇠)", "Claude API (your key)")).tag("anthropic")
+                    Text(S.t("GPT — OpenAI (내 열쇠)", "GPT — OpenAI (your key)")).tag("openai")
+                    Text(S.t("Gemini (내 열쇠)", "Gemini (your key)")).tag("gemini")
+                    Text(S.t("OpenRouter (내 열쇠, 여러 회사 모델)", "OpenRouter (your key, many models)")).tag("openrouter")
+                    Text(S.t("Groq (내 열쇠)", "Groq (your key)")).tag("groq")
+                    Text(S.t("내 컴퓨터 — Ollama (무료)", "This Mac — Ollama (free)")).tag("ollama")
+                    Text(S.t("내 컴퓨터 — LM Studio (무료)", "This Mac — LM Studio (free)")).tag("lmstudio")
+                    Text(S.t("다른 OpenAI 호환 주소", "Another OpenAI-compatible server")).tag("openai-compatible")
+                }
+                if m.brainProvider == "claude-code" {
+                    Picker(S.t("Claude 모델", "Claude model"), selection: $m.claudeModel) { Text("Sonnet").tag("sonnet"); Text("Haiku").tag("haiku"); Text("Opus").tag("opus") }
+                } else {
+                    TextField(S.t("모델 이름", "Model"), text: $m.brainModel,
+                              prompt: Text(["anthropic": "claude-sonnet-5-5", "ollama": S.t("비우면 설치된 첫 모델", "empty = first installed"),
+                                            "lmstudio": S.t("비우면 불러온 첫 모델", "empty = first loaded")][m.brainProvider] ?? S.t("그 회사 모델 목록의 이름", "a name from their model list")))
+                    if m.brainProvider == "openai-compatible" {
+                        TextField(S.t("서버 주소", "Server URL"), text: $m.brainBaseURL, prompt: Text("https://…/v1"))
+                    }
+                    if !["ollama", "lmstudio"].contains(m.brainProvider) {
+                        SecureField(S.t("API 열쇠 (키체인에 저장)", "API key (saved in the Keychain)"), text: $m.brainKey,
+                                    prompt: Text(SettingsModel.keyHint(m.brainProvider).isEmpty ? S.t("붙여 넣기", "paste it here") : S.t("저장됨 ", "saved ") + SettingsModel.keyHint(m.brainProvider)))
+                    }
+                    Text(S.t("어떤 두뇌든 손(누르기·입력·열기)은 같은 안전 장치를 지납니다. 셸·파일은 없습니다.",
+                             "Whatever brain you pick, the hands go through the same safety checks. There's no shell or file access."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             HStack {
                 Button(S.t("설정 폴더 열기", "Open folder")) { NSWorkspace.shared.open(Paths.home) }
@@ -133,7 +194,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 700)
+        .frame(width: 580, height: 760)
         .padding(.bottom, 8)
     }
 }

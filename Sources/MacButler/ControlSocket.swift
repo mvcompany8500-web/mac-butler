@@ -1,15 +1,18 @@
 // Local control channel for the bundled tools (`butler`, `jax field`).
 // A Unix socket at ~/.macbutler/butler.sock, mode 0600, and every connection must come from the
 // same user (getpeereid). Sandboxed apps can't reach it; other users can't connect.
-// Wire format: "<command>\n<text>" — commands: say, type, delegate, settings.
+// Wire format: "<command>\n<text>" — commands: say, type, delegate, settings, session, setup, confirm. Two get a real
+// answer: confirm ("yes" when the user asked for that send/pay/post/delete, otherwise "ask" — see jax) and delegate
+// ("sent", or "pending" when it waits for the user's yes).
 import Foundation
 
 final class ControlSocket {
     static var path: String { Paths.home.appendingPathComponent("butler.sock").path }
     private var fd: Int32 = -1
     private let handler: (String, String) -> Void
+    private let respond: (String, String) -> String
 
-    init(handler: @escaping (String, String) -> Void) { self.handler = handler }
+    init(handler: @escaping (String, String) -> Void, respond: @escaping (String, String) -> String) { self.handler = handler; self.respond = respond }
 
     func start() {
         let p = ControlSocket.path
@@ -44,11 +47,16 @@ final class ControlSocket {
                     if n <= 0 { break }
                     data.append(contentsOf: buf[0..<n])
                 }
-                write(c, "ok\n", 3)
-                close(c)
-                guard let s = String(data: data, encoding: .utf8) else { continue }
+                let s = String(data: data, encoding: .utf8) ?? ""
                 let parts = s.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
                 let cmd = String(parts.first ?? ""), text = parts.count > 1 ? String(parts[1]) : ""
+                if cmd == "confirm" || cmd == "delegate" {
+                    let answer = DispatchQueue.main.sync { self.respond(cmd, text) } + "\n"
+                    _ = answer.withCString { write(c, $0, strlen($0)) }
+                    close(c); continue
+                }
+                write(c, "ok\n", 3)
+                close(c)
                 guard ["say", "type", "delegate", "settings", "session", "setup"].contains(cmd) else { continue }
                 DispatchQueue.main.async { self.handler(cmd, text) }
             }

@@ -77,6 +77,11 @@ enum AX {
         if let f = attr(app, "AXFocusedWindow") { let fw = f as! AXUIElement; ws.removeAll { CFEqual($0, fw) }; ws.insert(fw, at: 0) }
         return ws
     }
+    /// The focused text box is a password field (typing into it is refused in safe mode).
+    static func focusedIsSecure() -> Bool {
+        guard let f = attr(AXUIElementCreateSystemWide(), kAXFocusedUIElementAttribute) else { return false }
+        return (attr(f as! AXUIElement, "AXSubrole") as? String) == "AXSecureTextField"
+    }
     static func press(_ e: AXUIElement) { AXUIElementPerformAction(e, kAXPressAction as CFString) }
     static func focus(_ e: AXUIElement) { AXUIElementSetAttributeValue(e, kAXFocusedAttribute as CFString, kCFBooleanTrue) }
     static func button(in win: AXUIElement, titled titles: [String]) -> AXUIElement? {

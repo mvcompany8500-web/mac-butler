@@ -11,7 +11,7 @@ final class Butler {
     let ear: Ear
     let hud = HUD()
     let mouth: Mouth
-    let brain: Brain
+    let brain: Thinker
     let whisper: Whisper
     var awakeUntil = Date.distantPast
     var awakeStarted: Date?
@@ -61,7 +61,7 @@ final class Butler {
                                   : ["Claude", "enter", "stop", "YouTube", "search", "play", "pause", "next video", "close", "go back"]
         ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + commandWords + cfg.customWords).prefix(100)), inputUID: cfg.inputDevice)
         mouth = Mouth(cfg: cfg)
-        brain = Brain(cfg: cfg)
+        brain = Brains.make(cfg)
         whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.lang,
                           prompt: String(((cfg.wakes + [cfg.user, "Claude", "YouTube"] + cfg.customWords).joined(separator: ", ") + ".").prefix(500)))
     }
@@ -100,7 +100,11 @@ final class Butler {
     }
 
     /// Commands from the bundled tools (`butler`, `jax field`) over the private control socket (see ControlSocket).
-    lazy var control = ControlSocket { [weak self] cmd, text in self?.signal(cmd, text) }
+    lazy var control = ControlSocket(handler: { [weak self] cmd, text in self?.signal(cmd, text) },
+                                     respond: { [weak self] cmd, text in
+                                         guard let self else { return cmd == "delegate" ? "pending" : "ask" }
+                                         return cmd == "delegate" ? self.delegateFromBrain(text) : self.confirmAction(text)
+                                     })
     private func listenForSignals() { control.start() }
     func signal(_ cmd: String, _ text: String) {
         switch cmd {
@@ -108,12 +112,10 @@ final class Butler {
             if cfg.brainAccess != "full", let b = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, Butler.protectedApps.contains(b) || b == Bundle.main.bundleIdentifier {
                 log("blocked typing into protected app \(b)"); return
             }
-            DispatchQueue.global().async { Hands.typeVisible(text) }
-        case "delegate":   // from the brain: it asks the question in its own answer, we just hold the task
-            let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
-            guard parts.count == 2, !parts[1].isEmpty else { return }
-            let here = parts[0] == "." || parts[0] == "지금" || parts[0].lowercased() == "here"
-            askToDelegate(target: here ? "" : parts[0], message: parts[1], newSession: parts[0].isEmpty, speakQuestion: false)
+            if cfg.brainAccess != "full", AX.focusedIsSecure() { log("blocked typing into a password field"); return }
+            // A line break typed into a chat box or form is Enter — it would send/submit without the send check.
+            let line = cfg.brainAccess == "full" ? text : text.replacingOccurrences(of: #"[\r\n\u{2028}\u{2029}]+"#, with: " ", options: .regularExpression)
+            DispatchQueue.global().async { Hands.typeVisible(line) }
         case "session":   // switch the Claude app to a session by name — navigation only, nothing typed
             openClaudeSession(text)
         case "settings": if text == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: cfg) }
@@ -151,7 +153,7 @@ final class Butler {
             guard let self else { return }
             let cmd = self.parser.stripWake(full)
             if cmd.isEmpty { self.converse(); return }
-            if self.mode == .dictation { self.dictate(full) } else { self.handle(cmd) }
+            if self.mode == .dictation { self.dictate(full) } else { self.byHold = true; self.handle(cmd); self.byHold = false }
         }
     }
     func holdCancelled() { ear.cancelHold() }
@@ -287,6 +289,7 @@ final class Butler {
     // MARK: acting
 
     func handle(_ cmd: String) {
+        if pendingAction != nil, answerAction(cmd) { return }
         if pendingDelegate != nil, answerPending(cmd) { return }
         let q = Parser.squash(cmd)
         if learnCandidate != nil, ["아니", "틀렸", "그게아니", "안됐", "잘못", "no", "wrong"].contains(where: { q.hasPrefix($0) }) {
@@ -383,6 +386,7 @@ final class Butler {
         case .none:
             Growth.miss(cmd, front: NSWorkspace.shared.frontmostApplication?.localizedName ?? "")
             if let steps = Learning.lookup(cmd) {      // learned before → instant, no Claude call
+                brainCommand = cmd; brainByHold = byHold
                 hud.show(S.t("◌ 기억한 대로 하는 중", "◌ Doing it the way I learned"), cmd, heard: nil, color: amber, speed: 3)
                 DispatchQueue.global().async { [weak self] in
                     let ok = Learning.replay(steps)
@@ -415,8 +419,10 @@ final class Butler {
         return lines.map { "[" + $0 + "]" }.joined(separator: "\n")
     }
     func noteOpened(url: String) {
-        if let h = URL(string: url)?.host, !h.isEmpty { openedHosts.insert(h) }
+        if let h = URL(string: url)?.host(percentEncoded: true), Butler.safeHost(h) { openedHosts.insert(h.lowercased()) }
     }
+    /// Hosts end up inside AppleScript (closeTabs) — only plain host names, nothing that could break out of the quotes.
+    static func safeHost(_ h: String) -> Bool { h.count < 254 && h.range(of: #"^[A-Za-z0-9.-]+$"#, options: .regularExpression) != nil }
     /// An app it starts (not one that was already running) — so closing it later never takes away your own window.
     func noteOpened(app: String) {
         guard !Butler.neverClose.contains(app), !NSWorkspace.shared.runningApplications.contains(where: { $0.localizedName == app }) else { return }
@@ -449,6 +455,7 @@ final class Butler {
     /// Closes the browser tabs on that site — the front window first; if none there, any window.
     /// (YouTube Studio and the like are left alone. Only browsers already running are touched.)
     func closeTabs(_ host: String, frontFirst: Bool = true) -> Int {
+        guard host.range(of: #"^[A-Za-z0-9.:/-]+$"#, options: .regularExpression) != nil else { log("close tabs: refused odd host \(host.debugDescription)"); return 0 }
         var total = 0
         for (bundle, app) in [("com.google.Chrome", "Google Chrome"), ("com.apple.Safari", "Safari")]
         where !NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty {
@@ -609,6 +616,85 @@ final class Butler {
         return false
     }
 
+    // MARK: send / pay / post / delete — the hands ask before they press (see jax `confirmIrreversible`)
+    var brainCommand = ""          // what the user said that the brain (or a learned replay) is acting on right now
+    var brainByHold = false        // …and whether they said it holding the hotkey (no TV can do that)
+    var byHold = false             // set while handling a push-to-talk command
+    var pendingAction: (kind: String, bundle: String, what: String, args: [String], at: Date)?
+    static let askedFor: [String: [String]] = [
+        "send": ["보내", "전송", "송신", "send"],
+        "pay": ["결제", "구매", "구입", "주문", "송금", "이체", "pay", "buy", "purchase", "order", "checkout"],
+        "post": ["게시", "올려", "올리", "업로드", "등록", "post", "publish", "upload", "tweet"],
+        "delete": ["삭제", "지워", "지우", "비워", "delete", "remove", "trash"]]
+    /// Called on the socket thread (synchronously) when a tool is about to press something irreversible.
+    /// "yes" only when the user's own words asked for that kind of action; otherwise it's held for a spoken yes.
+    func confirmAction(_ text: String) -> String {
+        let p = text.components(separatedBy: "\u{1F}")
+        guard p.count >= 4 else { return "ask" }
+        let kind = p[0]
+        // Pressed without asking only when the user held the hotkey and said it (a TV or a video can say "보내",
+        // it can't hold the key). Spoken the normal way, it asks once.
+        if cfg.confirmDelegate != "always", brainByHold, Butler.userAskedFor(kind, brainCommand) {
+            log("confirm \(kind): asked for (hotkey) in 「\(brainCommand)」 → \(p[2])"); return "yes"
+        }
+        pendingAction = (kind, p[1], p[2], Array(p[3...]), Date())
+        log("confirm \(kind): holding \(p[2]) for a yes")
+        return "ask"
+    }
+    /// A Claude Code session can do far more than the safe brain, so work the brain wants to hand over always waits for
+    /// a spoken yes, whatever `confirmDelegate` says — the brain may have been talked into it by a page title or a link.
+    /// ("바로 실행" applies only to a hand-off the user asked for directly — the `.claude` quick command.)
+    func delegateFromBrain(_ text: String) -> String {
+        let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, !parts[1].isEmpty else { return "pending" }
+        let here = parts[0] == "." || parts[0] == "지금" || parts[0].lowercased() == "here"
+        pendingDelegate = (here ? "" : parts[0], parts[1], parts[0].isEmpty)
+        log("delegate pending (needs a yes): \(parts[1])")
+        return "pending"
+    }
+    static func userAskedFor(_ kind: String, _ said: String) -> Bool {
+        let s = said.lowercased()
+        return (askedFor[kind] ?? []).contains(where: s.contains)
+    }
+    func showPendingAction(_ what: String) {
+        hud.show(S.t("◌ 누를까요? 「응」 / 「아니」", "◌ Press it? “yes” / “no”"), what, heard: nil, color: amber)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 25) { [weak self] in
+            if let a = self?.pendingAction, Date().timeIntervalSince(a.at) >= 25 { self?.pendingAction = nil; log("held action expired") }
+        }
+    }
+    /// Returns true if the utterance answered “press it?”.
+    func answerAction(_ a: String) -> Bool {
+        guard let p = pendingAction else { return false }
+        pendingAction = nil
+        guard Date().timeIntervalSince(p.at) < 60 else { return false }
+        let s = Parser.squash(a)
+        let yes = ["응", "네", "예", "그래", "좋아", "눌러", "해", "보내", "결제", "올려", "지워", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay", "send"]
+        let no = ["아니", "아니야", "취소", "하지마", "됐어", "no", "nope", "cancel", "stop"]
+        if no.contains(where: { s.hasPrefix($0) }) || s.contains("말고") { Sound.named("Pop"); log("held action cancelled"); done(S.t("취소", "Cancelled"), p.what); return true }
+        guard yes.contains(where: { s.hasPrefix($0) }) else { log("held action dropped (no clear yes)"); return false }
+        // Only in the app it was meant for — if the screen moved on, pressing now could hit something else.
+        guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier == p.bundle else {
+            fail(S.t("화면이 바뀌어서 누르지 않았습니다.", "The screen changed, so I didn't press it.")); return true
+        }
+        log("held action confirmed: \(p.what)")
+        DispatchQueue.global().async { [weak self] in
+            let proc = Process()
+            proc.executableURL = Paths.tools.appendingPathComponent("jax")
+            proc.arguments = p.args
+            var env = ProcessInfo.processInfo.environment
+            env["MACBUTLER_SAFE"] = "1"; env["MACBUTLER_CONFIRMED"] = "1"; env["MACBUTLER_BUNDLE"] = Bundle.main.bundleIdentifier ?? ""
+            proc.environment = env
+            proc.standardOutput = FileHandle.nullDevice; proc.standardError = FileHandle.nullDevice
+            let ok = (try? proc.run()) != nil && { proc.waitUntilExit(); return proc.terminationStatus == 0 }()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if ok { Sound.named("Pop"); self.done(self.S.t("눌렀음", "Done"), p.what) }
+                else { self.fail(self.S.t("누르지 못했습니다.", "Couldn't press it.")) }
+            }
+        }
+        return true
+    }
+
     func openClaudeSession(_ name: String) {
         NSRunningApplication.runningApplications(withBundleIdentifier: Butler.claudeBundle).first?.activate()
         DispatchQueue.global().async { [weak self] in
@@ -640,6 +726,7 @@ final class Butler {
     func ask(_ cmd: String) {
         guard brain.installed else { fail(S.noClaude); return }
         mode = .busy
+        brainCommand = cmd; brainByHold = byHold; pendingAction = nil
         let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"
         hud.show(S.thinking, "…", heard: cmd, color: amber, speed: 3)
         brain.ask(cmd, live: lastLive, frontApp: front, context: screenContext(front), step: { [weak self] label in
@@ -662,6 +749,7 @@ final class Butler {
             self.speak(spoken) {
                 if Parser.startedMedia(answer) { self.played(self.S.youtubePlay, spoken); return }
                 self.converse(keep: true)   // leave the answer on screen
+                if let a = self.pendingAction { self.showPendingAction(a.what) }
                 if let p = self.pendingDelegate {
                     self.hud.show(self.S.t("◌ 맡길까요? 「응」 / 「아니」", "◌ Hand it over? “yes” / “no”"), p.message, heard: nil, color: amber)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in

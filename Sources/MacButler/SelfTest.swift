@@ -69,6 +69,32 @@ enum SelfTest {
         check(pe, "daddy's home", .greet)
         checkBool("en wake strip", pe.stripWake("Hey Jarvis, open chrome") == "open chrome")
 
+        // Hands ask before send / pay / post / delete, and before handing work to a full-power Claude session
+        checkBool("「카톡으로 보내 줘」 asked to send", Butler.userAskedFor("send", "엄마한테 카톡으로 보내 줘"))
+        checkBool("「카톡 열어」 didn't ask to send", !Butler.userAskedFor("send", "카톡 열어서 엄마 채팅 찾아"))
+        checkBool("「결제해」 asked to pay", Butler.userAskedFor("pay", "장바구니 결제해"))
+        checkBool("「보내」 is not a pay request", !Butler.userAskedFor("pay", "이거 보내"))
+        checkBool("plain host kept", Butler.safeHost("www.youtube.com"))
+        checkBool("AppleScript-breaking host refused", !Butler.safeHost("x\" then\ntell current application to do shell script \"id"))
+        checkBool("percent-encoded host refused", !Butler.safeHost("x%22%20then"))
+        checkBool("MCP tap → jax line", Brain.commandLine("tap", ["name": "저장", "n": 2]) == "jax tap \"저장\" \"2\"")
+        checkBool("MCP open_url → jax line", Brain.commandLine("open_url", ["url": "https://naver.com"]) == "jax open-url \"https://naver.com\"")
+        checkBool("MCP steps are learnable", Learning.replayable([Brain.commandLine("open_url", ["url": "https://naver.com"])]) != nil)
+        checkBool("MCP delegate is never learned", Learning.replayable([Brain.commandLine("delegate", ["session": "", "task": "x"])]) == nil)
+
+        // Plug-in voices and brains: keys only over https, plain http only to this Mac
+        var hv = Config(); hv.tts = "http"; hv.ttsURL = "http://127.0.0.1:5002/tts"
+        checkBool("http voice on this Mac", Mouth.speechRequest(hv, "안녕")?.url?.absoluteString == "http://127.0.0.1:5002/tts")
+        hv.ttsURL = "http://example.com/tts"
+        checkBool("http voice elsewhere needs https", Mouth.speechRequest(hv, "안녕") == nil)
+        var az = Config(); az.tts = "azure"; az.ttsRegion = "korea.central/../x"
+        checkBool("azure region can't inject a host", Mouth.speechRequest(az, "안녕") == nil)
+        checkBool("brain base: https ok", APIBrain.safeBase("https://openrouter.ai/api/v1") != nil)
+        checkBool("brain base: local http ok", APIBrain.safeBase("http://127.0.0.1:11434/v1") != nil)
+        checkBool("brain base: remote http refused", APIBrain.safeBase("http://evil.example/v1") == nil)
+        var cc = Config(); checkBool("default brain is Claude Code", APIBrain.provider(cc) == nil)
+        cc.brainProvider = "ollama"; checkBool("ollama brain", APIBrain.provider(cc)?.local == true)
+
         // Whisper sanity
         checkBool("whisper drops subtitle line", Whisper.clean("한글자막 by 한효정\n 헤이 자비스 지금 몇 시야?", apple: "헤이 자비스 지금 몇 시야") == "헤이 자비스 지금 몇 시야?")
         checkBool("whisper unrelated rejected", !Whisper.related("자비스, 이거 지금, 고맙습니다.", "됐어"))

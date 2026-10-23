@@ -41,6 +41,7 @@ swiftc -O -swift-version 5 Sources/MacButler/*.swift -o "$APP/Contents/MacOS/$AP
 echo "› compiling tools"
 swiftc -O Tools/jax.swift -o "$APP/Contents/Resources/bin/jax"
 swiftc -O Tools/butler.swift -o "$APP/Contents/Resources/bin/butler"
+swiftc -O Tools/mcp.swift -o "$APP/Contents/Resources/bin/butler-mcp"
 cp Tools/jclick Tools/jtype "$APP/Contents/Resources/bin/"
 cp -R Resources/prompts "$APP/Contents/Resources/"
 if [[ "$SIGN_ID" == Developer\ ID* ]]; then

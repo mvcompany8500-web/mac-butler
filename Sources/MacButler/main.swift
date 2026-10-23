@@ -166,6 +166,26 @@ if let i = CommandLine.arguments.firstIndex(of: "--parse") {
     for line in CommandLine.arguments.dropFirst(i + 1) { print("\(p.parse(p.stripWake(line), hasYouTubeList: true))  ⇐  \(line)") }
     exit(0)
 }
+// `MacButler --ask "말"` sends one request through the brain, no microphone — for checking a brain and its safety.
+// Point MACBUTLER_HOME at a scratch folder so its tools can't reach a Mac Butler that is running.
+if let i = CommandLine.arguments.firstIndex(of: "--ask"), CommandLine.arguments.count > i + 1 {
+    let b = Brains.make(Config.load()); var answer: String?
+    b.ask(CommandLine.arguments[i + 1], live: "", frontApp: NSWorkspace.shared.frontmostApplication?.localizedName ?? "?", context: "",
+          step: { print("· \($0)") }, done: { answer = $0 })
+    let t0 = Date()
+    while answer == nil, Date().timeIntervalSince(t0) < 180 { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+    print("steps: \(b.lastCommands.joined(separator: " ; "))\n→ \(answer ?? "(no answer in 180 s)")")
+    b.stop(); exit(answer == nil ? 1 : 0)
+}
+// `MacButler --set-key openai` stores an API key in the Keychain (read from stdin, so it never lands in shell history);
+// `--forget-key openai` removes it. Providers: anthropic, openai, gemini, openrouter, groq, openai-compatible, elevenlabs.
+if let i = CommandLine.arguments.firstIndex(where: { $0 == "--set-key" || $0 == "--forget-key" }), CommandLine.arguments.count > i + 1 {
+    let account = CommandLine.arguments[i + 1].lowercased()
+    if CommandLine.arguments[i] == "--forget-key" { Keys.remove(account); print("removed \(account)"); exit(0) }
+    if isatty(0) != 0 { print("paste the \(account) key, then Enter: ", terminator: "") }
+    guard let k = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines), !k.isEmpty else { print("no key"); exit(1) }
+    print(Keys.set(account, k) ? "saved \(account) (…\(k.suffix(4)))" : "couldn't save"); exit(0)
+}
 // `MacButler --devices` lists microphones and speakers (UIDs go into inputDevice / outputDevice).
 if CommandLine.arguments.contains("--devices") {
     for d in AudioDevices.all() { print("\(d.input ? "🎤" : "  ")\(d.output ? "🔈" : "  ") \(d.name)  —  \(d.uid)") }
