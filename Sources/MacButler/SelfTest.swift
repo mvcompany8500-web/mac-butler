@@ -73,6 +73,9 @@ enum SelfTest {
         checkBool("whisper drops subtitle line", Whisper.clean("한글자막 by 한효정\n 헤이 자비스 지금 몇 시야?", apple: "헤이 자비스 지금 몇 시야") == "헤이 자비스 지금 몇 시야?")
         checkBool("whisper unrelated rejected", !Whisper.related("자비스, 이거 지금, 고맙습니다.", "됐어"))
         checkBool("whisper related kept", Whisper.related("한글 인식 자체가 생각보다 많이 안 돼.", "한글 이진식 자체가 생각보다 많이 안 돼"))
+        checkBool("whisper shaky word → Apple text", !Whisper.shaky([("자비스,", 0.9), ("신별시야.", 0.2)], apple: "자비스 지금 몇 시야").isEmpty)
+        checkBool("whisper sure word kept", Whisper.shaky([("한글", 0.9), ("인식", 0.6)], apple: "한글 이진식").isEmpty)
+        checkBool("whisper shaky word Apple also heard", Whisper.shaky([("코덱스", 0.2)], apple: "코덱스 켜").isEmpty)
 
         // Learning: only safe action steps are replayable
         checkBool("learn jax key", Learning.replayable(["jax front", "jax key space"])?.count == 1)

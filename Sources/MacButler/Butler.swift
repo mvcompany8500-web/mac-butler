@@ -46,6 +46,7 @@ final class Butler {
         parser = Parser(cfg: cfg)
         Sound.outputUID = cfg.outputDevice
         hud.position = cfg.hudPosition
+        Utterances.enabled = cfg.keepAudio
         ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + cfg.customWords + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"])).prefix(100)), inputUID: cfg.inputDevice)
         mouth = Mouth(cfg: cfg)
         brain = Brain(cfg: cfg)

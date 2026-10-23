@@ -54,9 +54,16 @@ final class Whisper {
         let (audio, fallback, done) = queue.removeFirst()
         warm()
         let wav = Whisper.wav(audio)
-        attempt(wav, tries: 30) { [weak self] text in
+        attempt(wav, tries: 30) { [weak self] text, words in
             guard let self else { return }
             var t = Whisper.clean(text ?? "", apple: fallback)
+            // A word Whisper itself wasn't sure of, that Apple didn't hear either, means the audio was garbled
+            // (e.g. "지금 몇 시야" → "신별시야") — then Apple's live text is the safer one.
+            let shaky = Whisper.shaky(words, apple: fallback)
+            if !t.isEmpty, !shaky.isEmpty, Parser.squash(fallback).count * 10 >= Parser.squash(t).count * 7 {
+                log("whisper unsure of \(shaky.joined(separator: ", ")) → Apple text: \(t)"); t = ""
+            }
+            Utterances.keep(wav, apple: fallback, whisper: t)
             if Whisper.isHallucination(t, apple: fallback) { t = "" }
             if !t.isEmpty, !fallback.isEmpty, !Whisper.related(t, fallback) { log("whisper ignored (unrelated to what was heard): \(t)"); t = "" }
             if self.language == "ko", !t.isEmpty, Whisper.hangulRatio(fallback) > 0.5, Whisper.hangulRatio(t) < 0.5 { t = "" }
@@ -65,15 +72,15 @@ final class Whisper {
             self.running = false; self.next()
         }
     }
-    private func attempt(_ wav: Data, tries: Int, done: @escaping (String?) -> Void) {
-        guard proc?.isRunning == true else { done(nil); return }   // never trust a port we didn't start
+    private func attempt(_ wav: Data, tries: Int, done: @escaping (String?, [(String, Double)]) -> Void) {
+        guard proc?.isRunning == true else { done(nil, []); return }   // never trust a port we didn't start
         var req = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/inference")!)
         req.httpMethod = "POST"; req.timeoutInterval = 15
         let b = "mj\(UUID().uuidString)"
         req.setValue("multipart/form-data; boundary=\(b)", forHTTPHeaderField: "Content-Type")
         var body = Data()
         func field(_ n: String, _ v: String) { body.append("--\(b)\r\nContent-Disposition: form-data; name=\"\(n)\"\r\n\r\n\(v)\r\n".data(using: .utf8)!) }
-        field("response_format", "json"); field("language", language); field("temperature", "0")
+        field("response_format", "verbose_json"); field("language", language); field("temperature", "0")
         if !prompt.isEmpty { field("prompt", prompt) }
         body.append("--\(b)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.wav\"\r\nContent-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
         body.append(wav); body.append("\r\n--\(b)--\r\n".data(using: .utf8)!)
@@ -85,7 +92,14 @@ final class Whisper {
                     return
                 }
                 let obj = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-                done(obj?["text"] as? String)
+                // Pieces without a leading space belong to the word before; a word is as sure as its least sure piece.
+                var words: [(String, Double)] = []
+                for w in (obj?["segments"] as? [[String: Any]] ?? []).flatMap({ $0["words"] as? [[String: Any]] ?? [] }) {
+                    guard let t = w["word"] as? String, let p = w["probability"] as? Double else { continue }
+                    if t.hasPrefix(" ") || words.isEmpty { words.append((t.trimmingCharacters(in: .whitespaces), p)) }
+                    else { words[words.count - 1].0 += t; words[words.count - 1].1 = min(words[words.count - 1].1, p) }
+                }
+                done(obj?["text"] as? String, words)
             }
         }.resume()
     }
@@ -109,6 +123,14 @@ final class Whisper {
         let bag = Set(b)
         let hit = a.filter { bag.contains($0) }.count
         return Double(hit) / Double(a.count) >= 0.45 && b.count <= a.count * 3 + 10
+    }
+    /// Words Whisper gave low probability to and that Apple's live text doesn't contain.
+    static func shaky(_ words: [(String, Double)], apple: String) -> [String] {
+        let a = Parser.squash(apple)
+        return words.filter { w, p in
+            let k = Parser.squash(w)
+            return p < 0.35 && k.count >= 2 && !a.contains(k)
+        }.map { "\($0.0) \(String(format: "%.2f", $0.1))" }
     }
     static func hangulRatio(_ x: String) -> Double {
         Double(x.unicodeScalars.filter { $0.value >= 0xAC00 && $0.value <= 0xD7A3 }.count) / Double(max(x.filter { $0.isLetter }.count, 1))
