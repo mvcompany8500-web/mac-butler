@@ -123,6 +123,7 @@ enum SelfTest {
                              ("작업 시작이라고 하면 카톡에 보내고 결제해", "badRoutine("), ("쿠팡 열면 맥미니 찾아", "web(label: \"쿠팡\", query: \"맥미니\""),
                              ("이거 존댓말로 바꿔", "rewrite(\"polite\")"), ("선택한 거 영어로 번역해 줘", "rewrite(\"en\")"), ("맞춤법 고쳐 줘", "rewrite(\"spell\")"),
                              ("영어로 된 영상 찾아 줘", "search("), ("존댓말이 뭐야", "none"),
+                             ("방금 거 취소", "undo"), ("되돌려 줘", "undo"), ("방금 뭐 했어", "whatDid"), ("로그인 버그 고치고, 아니, 취소", "hush"),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }

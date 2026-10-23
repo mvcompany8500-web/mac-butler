@@ -25,6 +25,8 @@ enum Intent: Equatable {
     case multi([String])                                    // 「로파이 틀고 소리 줄이고 화면 꺼」 — each part is a quick command
     case routine(String)                                    // a routine's name was said → run its steps
     case rewrite(String)                                    // 「이거 존댓말로 바꿔」 — rewrite the selected text (style)
+    case undo                                               // 「방금 거 취소」「되돌려」「원래대로」 — undo the last quick action
+    case whatDid                                            // 「방금 뭐 했어?」
     case makeRoutine(name: String, steps: [String])         // 「앞으로 '작업 시작' 하면 A하고 B해」 (steps = quick commands only)
     case badRoutine(String)                                 // tried to put something that isn't a quick command in a routine
     case forgetRoutine(String)                              // 「작업 시작 루틴 지워」
@@ -143,6 +145,8 @@ struct Parser {
         let sq = Parser.squash(s)
         if s.isEmpty { return .none }
         if Parser.isCancelTimers(s) { return .cancelTimers }
+        if ["방금거취소", "방금거취소해", "방금건취소", "되돌려", "되돌려줘", "원래대로", "원래대로해", "원래대로돌려", "실행취소", "방금거되돌려", "undo", "undothat"].contains(sq.replacingOccurrences(of: "것", with: "거")) { return .undo }
+        if ["방금뭐했어", "뭐했어", "방금뭐한거야", "방금뭐했니", "whatdidyoujustdo", "whatdidyoudo"].contains(sq) { return .whatDid }
         if Parser.cancelledAtEnd(s) { return .hush }     // “…, 아니 취소” / “…, never mind” — the speaker took it back
         if isGreeting(s) { return .greet }
         if ["받아써", "받아적어", "받아쓰기", "타이핑모드", "말하는대로써", "takedictation", "dictationmode", "startdictation"].contains(where: sq.contains) { return .dictation }

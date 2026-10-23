@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.6 — 2026-10-24
+- **Faster turn-taking:** a sentence that clearly ended (…해/줘/틀어/?) runs after 0.9 s instead of the full pause; a soft sound the moment a request goes to the brain; a fresh brain is swapped in right after a heavy turn instead of on your next question (a 100k-token turn took 32 s, a fresh one ~7 s)
+- **Fast router:** a small model (Haiku) runs *alongside* the brain and maps loose phrasing (「너무 시끄럽다 좀 작게」 → 소리 줄여) to a quick command; if it wins before the brain acts, the brain is cancelled. Mappings are remembered → instant next time; 「아니」 forgets one
+- **Routines by voice:** 「앞으로 '작업 시작' 하면 클로드 열고 로파이 틀고 소리 30으로 해」 → 「작업 시작」 (quick commands only)
+- **Rewrite the selection:** 「이거 존댓말로 바꿔」, 「영어로」, 「짧게」, 「맞춤법 고쳐」 — pastes over the selection, never sends, ⌘Z undoes; refused in password fields
+- **Pauses in calls:** while Zoom / FaceTime / Teams / Meet in a browser / KakaoTalk (or Handy) records from the mic, it stops listening; the hotkey still works
+- **「되돌려」 / 「방금 뭐 했어?」:** undo the last quick action (volume, a page it opened, a timer, a rewrite), or hear what it just did
+
 ## 0.6.5 — 2026-10-23 · security
 - **Hand-offs Claude proposes always wait for your spoken yes** (in every mode). Your own 「클로드한테 …」 still goes straight through
 - **Send / pay / post / delete** buttons, Enter in messengers and web forms, ⌘/⌃+Enter are held until you say yes (or say it holding the hotkey); brain-typed line breaks become spaces; never types into password fields

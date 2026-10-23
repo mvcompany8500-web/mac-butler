@@ -11,7 +11,9 @@ final class Butler {
     let ear: Ear
     let router: Router
     var lastRouted: (said: String, at: Date)?
-    var brainSteps = 0                    // tool steps the brain has taken this turn (router may only overtake it at 0)
+    var brainSteps = 0
+    /// The last quick action, how to take it back, and how to say it: 「되돌려」 / 「방금 뭐 했어?」
+    var lastDone: (said: String, undo: (() -> Void)?)?                    // tool steps the brain has taken this turn (router may only overtake it at 0)
     let hud = HUD()
     let mouth: Mouth
     let brain: Thinker
@@ -330,6 +332,9 @@ final class Butler {
             }
             done(front, what == "back" ? S.t("뒤로", "Back") : what == "forward" ? S.t("앞으로", "Forward") : S.t("새로고침", "Reloaded"))
         case .volume(let set, let delta, let mute):
+            var e0: NSDictionary?
+            let before = NSAppleScript(source: "output volume of (get volume settings)")?.executeAndReturnError(&e0).int32Value ?? 50
+            lastDone = (S.t("소리를 바꿨어요", "changed the volume"), { NSAppleScript(source: "set volume output volume \(before) without output muted")?.executeAndReturnError(nil) })
             let script = mute ? "set volume output muted true"
                 : set.map { "set volume output volume \($0) without output muted" }
                 ?? "set volume output volume ((output volume of (get volume settings)) + \(delta)) without output muted"
@@ -344,6 +349,7 @@ final class Butler {
         case .timer(let secs, let label):
             let at = Date().addingTimeInterval(TimeInterval(secs))
             Timers.add(at: at, label: label)
+            lastDone = (S.t("타이머를 맞췄어요", "set a timer"), { Timers.cancelLast() })
             let f = DateFormatter(); f.locale = Locale(identifier: cfg.locale); f.dateFormat = cfg.ko ? "a h:mm" : "h:mm a"
             let span = secs < 3600 ? (secs % 60 == 0 ? S.t("\(secs / 60)분", "\(secs / 60) min") : S.t("\(secs / 60)분 \(secs % 60)초", "\(secs / 60)m \(secs % 60)s")) : f.string(from: at)
             Sound.named("Pop")
@@ -362,9 +368,17 @@ final class Butler {
                 guard let self else { return }
                 guard let out else { self.done(self.S.t("못 바꿈", "Failed"), self.S.t("다시 말씀해 주세요", "Try again")); return }
                 Hands.paste(out)                  // replaces the selection; never presses send — ⌘Z undoes it
+                self.lastDone = (self.S.t("선택한 글을 바꿨어요", "rewrote the selection"), { Hands.key(6, .maskCommand) })
                 log("rewrite[\(style)] \(text.count) → \(out.count) chars")
                 self.done(self.S.t("바꿈 (⌘Z 되돌리기)", "Rewritten (⌘Z to undo)"), String(out.prefix(120)))
             }
+        case .undo:
+            guard let u = lastDone?.undo else { done(S.t("되돌릴 게 없어요", "Nothing to undo"), ""); return }
+            u(); let what = lastDone?.said ?? ""; lastDone = nil
+            done(S.t("되돌림", "Undone"), what)
+        case .whatDid:
+            let what = lastDone?.said ?? S.t("아직 한 일이 없어요", "nothing yet")
+            speak(cfg.ko ? "방금 \(what)." : "I just \(what).") { [weak self] in self?.converse(keep: true) }
         case .routine(let name):
             let steps = Routines.all[name] ?? []
             log("routine \(name): \(steps)")
@@ -559,6 +573,9 @@ final class Butler {
     func enc(_ s: String) -> String { s.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? s }
     func open(_ url: String) {
         noteOpened(url: url)
+        if let h = URL(string: url)?.host(percentEncoded: true), h.range(of: "^[A-Za-z0-9.-]+$", options: .regularExpression) != nil {
+            lastDone = (S.t("\(h)를 열었어요", "opened \(h)"), { [weak self] in _ = self?.closeTabs("://" + h + "/", frontFirst: true) })
+        }
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         p.arguments = cfg.browserApp.isEmpty ? [url] : ["-a", cfg.browserApp, url]
         try? p.run()
@@ -800,6 +817,7 @@ final class Butler {
             guard let self else { return }
             log("brain → \(answer)")
             Memory.exchange(user: cmd, reply: answer)
+            self.lastDone = (self.S.t("「\(cmd)」 하신 걸 클로드가 처리했어요: \(answer)", "Claude handled “\(cmd)”: \(answer)"), nil)   // what it did, not undoable
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.brain.warm() }   // swap in a fresh brain now if it got heavy, not on the next question
             self.noteOpened(fromBrain: self.brain.lastCommands)
             let correction = ["아니", "그게 아니", "no ", "not "].contains { cmd.lowercased().hasPrefix($0) }

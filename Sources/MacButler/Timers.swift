@@ -20,6 +20,12 @@ enum Timers {
         save()
         items.forEach(schedule)
     }
+    static func cancelLast() {
+        guard let last = items.last else { return }
+        items.removeLast(); save()
+        if let t = live.last { t.invalidate(); live.removeLast() }
+        log("timer cancelled: \(last.label)")
+    }
     @discardableResult static func cancelAll() -> Int {
         let n = items.count
         live.forEach { $0.invalidate() }; live = []; items = []; save()
