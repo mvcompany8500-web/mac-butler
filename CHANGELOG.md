@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 — 2026-10-23
+- Fix: the mic could get stuck restarting after audio changes (stopped hearing the wake word) — now restarts only when it really stopped, with a fresh engine and a 3 s debounce; recognizer stall detection
+- Choose microphone and speaker in Settings (`--devices` lists them)
+- Claude sees both transcripts when Whisper and live recognition disagree; quick commands fall back to the live text
+- Grows: missed words are studied into the vocabulary; stale learned commands and temp files are swept; progress in the menu
+
 ## 0.5.0 — 2026-10-23
 - **Push-to-talk:** hold right ⌥ and talk, release to run (exact audio, like Handy); tap still wakes. New `activation: "hold"` = hotkey only, nothing transcribed otherwise
 - **Setup window** on first launch: live permission checklist, one-click fixes, in-app Whisper download with SHA-256 check
