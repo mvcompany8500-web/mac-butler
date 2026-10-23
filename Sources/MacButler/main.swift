@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: S.menuToggle(), action: #selector(toggle), keyEquivalent: "")
         menu.addItem(withTitle: S.menuGreet(), action: #selector(greet), keyEquivalent: "")
+        menu.addItem(withTitle: S.t("설정…", "Settings…"), action: #selector(openSettings), keyEquivalent: ",")
         menu.addItem(withTitle: S.menuFolder(), action: #selector(openFolder), keyEquivalent: "")
         menu.addItem(.separator())
         let head = NSMenuItem(title: S.menuStatus, action: nil, keyEquivalent: ""); head.isEnabled = false
@@ -100,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !j.enabled { j.goIdle() }
     }
     @objc func greet() { butler?.greet() }
+    @objc func openSettings() { SettingsWindow.show(cfg: cfg) }
     @objc func openFolder() { NSWorkspace.shared.open(Paths.home) }
     @objc func quit() { NSApp.terminate(nil) }
     func applicationWillTerminate(_ n: Notification) { butler?.shutdown() }

@@ -106,7 +106,11 @@ Open the **◉J** menu → *Status*. Each ✗ opens the right System Settings pa
 
 ## Configuration
 
-Everything lives in `~/.macbutler/` (menu → *Open settings folder*):
+Menu bar → **Settings…** (⌘,) covers the common options — language, what it calls you, assistant name, wake words, voice, hotkey, Claude model:
+
+<img src="docs/settings.png" width="420" alt="Settings window">
+
+Everything lives in `~/.macbutler/`:
 
 | File | |
 |---|---|
@@ -162,7 +166,8 @@ Everything lives in `~/.macbutler/` (menu → *Open settings folder*):
 ## Roadmap
 
 - [ ] Signed & notarized release + Homebrew tap (`brew install --cask mac-butler`)
-- [ ] Settings window (no JSON editing) and a first-run setup wizard
+- [x] Settings window (no JSON editing)
+- [ ] First-run setup wizard
 - [ ] Push-to-talk mode (hold the hotkey) for open offices
 - [ ] Quick-command grammars for Japanese, Spanish, …
 - [ ] Custom wake-word engine (no Apple speech needed for the wake word)

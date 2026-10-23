@@ -61,6 +61,10 @@ final class Butler {
             guard let self, parts.count == 2, !parts[1].isEmpty else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.claudeMacro(target: parts[0], message: parts[1], newSession: parts[0].isEmpty) }
         }
+        dnc.addObserver(forName: .init("com.macbutler.settings"), object: nil, queue: .main) { [weak self] n in
+            guard let self else { return }
+            if (n.object as? String) == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: self.cfg) }
+        }
         // Text instead of voice — for testing and screen recordings.
         dnc.addObserver(forName: .init("com.macbutler.say"), object: nil, queue: .main) { [weak self] n in
             guard let self, let t = n.object as? String else { return }

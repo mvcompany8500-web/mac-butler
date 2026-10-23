@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 — 2026-10-23
+- Settings window (menu → Settings…, ⌘,): language, name, wake words, voice, hotkey, Claude model — saves to config.json (other keys kept) and restarts
+- `butler settings` opens it from the command line
+- Boot log title keeps word spacing (“MAC BUTLER · BOOT SEQUENCE”)
+
 ## 0.2.0 — 2026-10-23
 - Renamed **My Jarvis → Mac Butler** (repo `mac-butler`, app `MacButler.app`, settings `~/.macbutler`, CLI `butler`).
   The assistant still answers to “Jarvis” by default; `~/.myjarvis` is moved automatically on first launch.

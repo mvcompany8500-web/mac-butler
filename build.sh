@@ -34,7 +34,7 @@ PLIST
 
 echo "› compiling app"
 swiftc -O -swift-version 5 Sources/MacButler/*.swift -o "$APP/Contents/MacOS/$APP_NAME" \
-  -framework AppKit -framework AVFoundation -framework Speech -framework QuartzCore -framework ApplicationServices
+  -framework AppKit -framework AVFoundation -framework Speech -framework QuartzCore -framework ApplicationServices -framework SwiftUI
 echo "› compiling tools"
 swiftc -O Tools/jax.swift -o "$APP/Contents/Resources/bin/jax"
 swiftc -O Tools/butler.swift -o "$APP/Contents/Resources/bin/butler"
