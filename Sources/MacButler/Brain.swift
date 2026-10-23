@@ -135,8 +135,10 @@ final class Brain {
         log("brain ← \(command)")
     }
     func stop() { proc?.terminate(); proc = nil }
-    func cancel() {
+    /// silently: drop the answer instead of saying “stopped” (used when a new command takes over).
+    func cancel(silently: Bool = false) {
         guard done != nil else { return }
+        if silently { done = nil; step = nil }
         let p = proc; proc = nil; p?.terminate()
         finish(strings.stopped)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.ensure() }

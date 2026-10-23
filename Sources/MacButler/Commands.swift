@@ -103,6 +103,7 @@ struct Parser {
         let s = Parser.clean(raw)
         let sq = Parser.squash(s)
         if s.isEmpty { return .none }
+        if Parser.cancelledAtEnd(s) { return .hush }     // “…, 아니 취소” / “…, never mind” — the speaker took it back
         if isGreeting(s) { return .greet }
         if ["받아써", "받아적어", "받아쓰기", "타이핑모드", "말하는대로써", "takedictation", "dictationmode", "startdictation"].contains(where: sq.contains) { return .dictation }
         if enterWords.contains(sq) { return .enter }
@@ -167,6 +168,11 @@ struct Parser {
         return .none
     }
 
+    static let cancelWords = ["아니 취소", "아니취소", "취소", "하지 마", "하지마", "아니야 됐어", "아니 됐어", "never mind", "nevermind", "cancel that", "scratch that"]
+    static func cancelledAtEnd(_ s: String) -> Bool {
+        let t = s.lowercased().trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        return t.count > 4 && cancelWords.contains { t.hasSuffix($0) }
+    }
     static func ordinal(_ w: String) -> Int? {
         let t = w.replacingOccurrences(of: " ", with: "").lowercased()
         if let n = Int(t.filter { $0.isNumber }), n > 0 { return n }

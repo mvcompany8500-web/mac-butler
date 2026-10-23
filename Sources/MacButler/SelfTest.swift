@@ -32,6 +32,7 @@ enum SelfTest {
         check(pk, "에어팟 최저가 찾아 줘", .web(label: "네이버 쇼핑", query: "에어팟", url: "https://search.shopping.naver.com/search/all?query="))
         check(pk, "네이버에서 오늘 날씨 검색해", .web(label: "네이버", query: "오늘 날씨", url: "https://search.naver.com/search.naver?query="))
         check(pk, "지금 켜진 클로드 창에 로그인 버그 고쳐 줘", .claude(target: "", message: "로그인 버그 고쳐 줘", newSession: false))
+        check(pk, "지금 켜진 클로드 창에 로그인 버그 고치고, 아니, 취소", .hush)
         check(pk, "됐어", .bye)
         check(pk, "너 꺼", .bye)
         check(pk, "시끄러워", .hush)

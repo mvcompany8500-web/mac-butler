@@ -19,6 +19,7 @@ final class Butler {
     var speakingText = ""
     var bargedIn = false
     var ytList: [(id: String, title: String)] = []
+    var cancelSend = false      // set when you say “취소/멈춰” while a Claude message is about to be sent
     static let claudeBundle = "com.anthropic.claudefordesktop"
 
     init(cfg: Config) {
@@ -116,7 +117,10 @@ final class Butler {
         case .dictation: hud.show(S.dictation, t, color: lime)
         case .speaking:
             if !speakingText.isEmpty, !isEcho(t) { bargeIn(t) }
-        case .busy: break
+        case .busy:
+            if brain.busy { hud.show(S.listening, t, heard: nil, color: amber, speed: 3) }
+            let q = Parser.squash(t)
+            if ["취소", "멈춰", "하지마", "아니", "스톱", "stop", "cancel"].contains(where: { q.hasSuffix($0) }) { cancelSend = true }
         }
     }
 
@@ -139,7 +143,20 @@ final class Butler {
         case .dictation:
             whisper.transcribe(audio, fallback: t) { [weak self] full in self?.dictate(full) }
         case .busy:
-            if parser.wakeRange(t) != nil, parser.isHush(parser.stripWake(t)) || parser.isBye(parser.stripWake(t)) { brain.cancel() }
+            let a = parser.stripWake(t)
+            if parser.isHush(a) || parser.isBye(a) || Parser.cancelledAtEnd(" " + a) || ["취소", "멈춰", "stop", "cancel"].contains(Parser.squash(a)) {
+                cancelSend = true
+                if brain.busy { brain.cancel() }
+                return
+            }
+            // A new command while Claude is still thinking: drop the old one and take the new one right away.
+            // (While a message is being typed into the Claude app we don't interrupt — only “취소” stops it.)
+            if brain.busy, a.count >= 2 {
+                log("interrupt → new command: \(a)")
+                brain.cancel(silently: true)
+                mode = .awake; awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
+                refine(audio, t) { [weak self] full in self?.command(full) }
+            }
         case .speaking:
             if !speakingText.isEmpty, !isEcho(t) {
                 bargeIn(t); awakeStarted = nil
@@ -265,11 +282,20 @@ final class Butler {
                 }
             }
             guard let box = AX.composer(win) else { DispatchQueue.main.async { self.fail(self.S.claudeNoInput) }; return }
-            DispatchQueue.main.async { self.hud.show(self.S.claudeTyping, message, heard: nil, color: amber, speed: 3) }
+            DispatchQueue.main.async { self.cancelSend = false; self.hud.show(self.S.claudeTyping, message, heard: nil, color: amber, speed: 3) }
             AX.focus(box)
             Thread.sleep(forTimeInterval: 0.15)
             Hands.typeVisible(message)
-            Thread.sleep(forTimeInterval: 0.25)
+            // Last chance: 1.5 s to say “취소 / stop” before Enter.
+            DispatchQueue.main.async { self.hud.show(self.S.t("◌ 곧 보냄 · 「취소」 하면 멈춤", "◌ Sending… say “stop” to cancel"), message, heard: nil, color: amber, speed: 3) }
+            Thread.sleep(forTimeInterval: 1.5)
+            var cancelled = false
+            DispatchQueue.main.sync { cancelled = self.cancelSend; self.cancelSend = false }
+            if cancelled {
+                Hands.key(0, .maskCommand); Thread.sleep(forTimeInterval: 0.05); Hands.key(51)   // ⌘A, delete — clear what we typed
+                DispatchQueue.main.async { NSSound(named: "Pop")?.play(); log("claude send cancelled"); self.done(self.S.t("취소", "Cancelled"), message) }
+                return
+            }
             Hands.key(Hands.enter)
             DispatchQueue.main.async { NSSound(named: "Pop")?.play(); self.done(newSession ? self.S.claudeDelegated : self.S.claudeSent, message) }
         }
