@@ -1,6 +1,11 @@
 # Changelog
 
 ## 0.6.3 — 2026-10-23
+- **Acts right away by default** (like a car assistant): no "shall I?" questions; it does the most likely thing and you correct it with 「아니」. Settings → Basics → 「실행 방식」 switches to ask-first. Sending, paying and deleting always ask once
+- **Faster, lighter brain:** only the tools it uses are described to Claude and no skill list — ~34k → ~10k tokens a turn, about 1.3 s faster
+- Claude is told the page in front (title + URL) and what Mac Butler opened, so 「그거」, 「뒤로 가」 need no extra look
+- 「창 다 꺼」 closes what it opened for you (pages by exact site, apps it started) — never Claude, Finder, terminals or editors
+- Understands 「쿠팡 말고 유튜브 …」, 「유튜브에다가」, 「아니, …」 corrections, 「…검색해봐」
 - Opens links in **Safari** by default (every Mac has it; set `browserApp` for Chrome). If Safari's autoplay block leaves a YouTube video paused, it presses play once
 - The orb & card now sit in the bottom-right corner by default (out of the way of what you're doing); bottom-left / top in Settings → Basics
 

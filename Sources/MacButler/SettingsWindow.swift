@@ -20,6 +20,7 @@ final class SettingsModel: ObservableObject {
     @Published var bargeIn: String
     @Published var outputDevice: String
     @Published var hudPosition: String
+    @Published var confirmDelegate: String
     let inputs = AudioDevices.inputs(), outputs = AudioDevices.outputs()
     private var cfg: Config
 
@@ -29,7 +30,7 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
-        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate
     }
 
     /// Writes only the keys this window manages; everything else in config.json is kept as is.
@@ -39,7 +40,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate
         var el = obj["elevenLabs"] as? [String: Any] ?? [:]
         el["voiceId"] = elevenVoiceId; el["apiKeyFile"] = elevenKeyFile
         obj["elevenLabs"] = el
@@ -81,6 +82,13 @@ struct SettingsView: View {
                 Picker(S.t("단축키로 부르기", "Wake hotkey"), selection: $m.hotkey) {
                     Text(S.t("오른쪽 ⌥ (톡=부르기, 누르고 말하기)", "Right ⌥ (tap = wake, hold = talk)")).tag("rightOption"); Text(S.t("오른쪽 ⌘", "Right ⌘")).tag("rightCommand"); Text(S.t("끔", "Off")).tag("none")
                 }
+                Picker(S.t("실행 방식", "How it acts"), selection: $m.confirmDelegate) {
+                    Text(S.t("바로 실행 (기본) — 묻지 않고 한다", "Right away (default) — just does it")).tag("never")
+                    Text(S.t("클로드에 일을 넘길 때만 묻기", "Ask only before handing work to Claude")).tag("brain")
+                    Text(S.t("물어보고 실행 — 애매하면 묻는다", "Ask first — asks when unsure")).tag("always")
+                }
+                Text(S.t("어느 방식이든 보내기·결제·삭제처럼 되돌릴 수 없는 일은 한 번 묻습니다.", "In every mode it asks once before anything irreversible (sending, paying, deleting)."))
+                    .font(.caption).foregroundStyle(.secondary)
                 Picker(S.t("화면 위치", "On-screen position"), selection: $m.hudPosition) {
                     Text(S.t("오른쪽 아래 (기본)", "Bottom right (default)")).tag("bottomRight"); Text(S.t("왼쪽 아래", "Bottom left")).tag("bottomLeft"); Text(S.t("위 가운데", "Top center")).tag("top")
                 }

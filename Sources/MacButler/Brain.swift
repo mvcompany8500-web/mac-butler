@@ -26,6 +26,18 @@ final class Brain {
         let bundled = Paths.resources.appendingPathComponent("prompts/prompt.\(cfg.ko ? "ko" : "en").md")
         var s = (try? String(contentsOf: user, encoding: .utf8)) ?? (try? String(contentsOf: bundled, encoding: .utf8)) ?? "You are {assistant}, a voice assistant for {user}."
         if !cfg.ko, cfg.lang != "en" { s += "\n\nAlways answer in \(cfg.languageName) — the language {user} speaks." }
+        // How boldly it acts: "never" (default) = do it right away, like a car assistant; otherwise ask when unsure.
+        let instant = cfg.confirmDelegate == "never"
+        let askRule = instant
+            ? (cfg.ko ? "- **되묻지 말고 바로 한다.** 말이 짧거나 애매해도 지금 화면·방금 한 일에 비춰 가장 그럴듯한 뜻으로 실행하고, 한 일을 말한다. 틀렸으면 {user}이 「아니」 하고 바로잡는다. 되묻는 건 지우기·보내기·결제처럼 되돌릴 수 없는 일뿐."
+                      : "- **Act, don't ask.** If the request is short or vague, do the most likely thing given the screen and what was just done, then say what you did — {user} will say \"no\" if it was wrong. Ask first only before something irreversible (deleting, sending, paying).")
+            : (cfg.ko ? "- 뜻이 둘로 갈리면 실행하기 전에 질문 하나로 묻는다(물음표로 끝나면 바로 대답할 수 있다). 분명하면 바로 한다."
+                      : "- If the request could mean two different things, ask one short question before acting. If it's clear, just do it.")
+        let delegateRule = instant
+            ? (cfg.ko ? "바로 넘어간다 — 답은 「○○에 맡겼습니다」 한 문장." : "It's sent right away — answer in one sentence like \"Handed to …\".")
+            : (cfg.ko ? "이 명령은 바로 넘기지 않고 {user}의 「응」을 기다린다 — 답은 「○○에 이렇게 맡길까요?」 질문 한 문장으로 하고, 맡겼다고 말하지 않는다."
+                      : "It is NOT sent yet — Mac Butler waits for {user} to say yes, so your answer must be one question like \"Shall I hand this to …?\" and never claim it was done.")
+        s = s.replacingOccurrences(of: "{askRule}", with: askRule).replacingOccurrences(of: "{delegateRule}", with: delegateRule)
         s += Memory.promptBlock(ko: cfg.ko)
         let scr = NSScreen.main?.frame.size ?? .zero
         s = s.replacingOccurrences(of: "{screen}", with: "\(Int(scr.width))×\(Int(scr.height))")
@@ -38,12 +50,15 @@ final class Brain {
     /// Claude settings (which may allow much more) are not loaded. Anything else is denied automatically.
     static func permissionArgs(_ access: String) -> [String] {
         if access == "full" {
-            return ["--allowedTools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
+            return ["--tools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disable-slash-commands",
+                    "--allowedTools", "Bash,Read,Glob,Grep,WebSearch,WebFetch", "--disallowedTools", "SendMessage,ToolSearch,Task,Agent"]
         }
         let allow = ["Bash(jax:*)", "Bash(jtype:*)", "Bash(butler delegate:*)", "Bash(butler session:*)", "Bash(date)",
                      "Read(//tmp/macbutler/**)", "Read(//private/tmp/macbutler/**)", "WebSearch"]
         let deny = ["WebFetch", "Write", "Edit", "NotebookEdit", "SendMessage", "ToolSearch", "Task", "Agent", "Glob", "Grep"]
+        // Only the tools it uses are even described to it (34k → 10k tokens a turn, ~1.3 s faster); no skill list.
         return ["--setting-sources", "project", "--strict-mcp-config", "--permission-mode", "default",
+                "--tools", "Bash,Read,WebSearch", "--disable-slash-commands",
                 "--allowedTools", allow.joined(separator: ","), "--disallowedTools", deny.joined(separator: ",")]
     }
 
@@ -127,13 +142,14 @@ final class Brain {
         d(t.isEmpty ? strings.failed : t)
     }
 
-    func ask(_ command: String, live: String = "", frontApp: String, step: @escaping (String) -> Void, done: @escaping (String) -> Void) {
+    func ask(_ command: String, live: String = "", frontApp: String, context: String = "", step: @escaping (String) -> Void, done: @escaping (String) -> Void) {
         ensure()
         guard let stdin else { done(strings.noClaude); return }
         let now = DateFormatter(); now.locale = Locale(identifier: cfg.locale)
         now.dateFormat = cfg.ko ? "M월 d일 EEEE a h시 m분" : "EEEE, MMM d, h:mm a"
-        let input = cfg.ko ? "[지금 \(now.string(from: Date())) · 맨 앞 앱: \(frontApp)]\n\(cfg.user) 말: \(command)"
-                           : "[Now \(now.string(from: Date())) · front app: \(frontApp)]\n\(cfg.user) says: \(command)"
+        let ctx = context.isEmpty ? "" : "\n" + context
+        let input = cfg.ko ? "[지금 \(now.string(from: Date())) · 맨 앞 앱: \(frontApp)]\(ctx)\n\(cfg.user) 말: \(command)"
+                           : "[Now \(now.string(from: Date())) · front app: \(frontApp)]\(ctx)\n\(cfg.user) says: \(command)"
         var text = input
         if !live.isEmpty, Parser.squash(live) != Parser.squash(command) {
             text += cfg.ko ? "\n(맥 실시간 인식으로는: \(live) — 두 받아쓰기가 다르면 문맥상 맞는 쪽을 따른다)"

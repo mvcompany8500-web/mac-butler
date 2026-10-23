@@ -85,6 +85,8 @@ enum SelfTest {
                              ("이제 화면 다 꺼", "displayOff"), ("화면 전체를 아예 꺼버리라고", "displayOff"), ("다음 영상으로 넘겨", "mediaNext"),
                              ("그래, 사파리 영상이 다 꺼. 유튜브 켜져 있는 화면 다 꺼.", "closeTabs(label: \"유튜브\""),
                              ("켜져있는 클로드에게 지금 버그 지금까지 된거 한번 더 체크해서 고치라고 해", "claude(target: \"\", message: \"지금 버그 지금까지 된거 한번 더 체크해서 고치라고 해\", newSession: false)"),
+                             ("자비스야, 쿠팡 말고 유튜브 터틀메이커 검색해봐.", "youtube(\"터틀메이커\")"), ("아니, 유튜브에다가 터틀메이커 검색해줘.", "youtube(\"터틀메이커\")"),
+                             ("지금 켜져 있는 창들 다 꺼줘.", "closeOpened"), ("창 다 꺼", "closeOpened"), ("아니 취소", "hush"),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }

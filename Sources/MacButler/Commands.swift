@@ -15,6 +15,7 @@ enum Intent: Equatable {
     case closeTabs(label: String, host: String)             // 「유튜브 창 꺼」 — close those browser tabs
     case mediaNext                                          // 「다음 영상」 — skip to the next video / track
     case displayOff                                         // 「화면 꺼」 — turn the display off (sleep)
+    case closeOpened                                        // 「창 다 꺼」 — close what it opened for you (pages, apps)
     case openApp(spoken: String, app: String)
     case none
 }
@@ -136,12 +137,15 @@ struct Parser {
         if isHush(s) { return .hush }
         if isBye(s) { return .bye }
         s = Parser.dropLeadIn(s)
+        // "쿠팡 말고 유튜브 터틀메이커 검색해봐" — the part after 말고 is what you want
+        if let r = s.range(of: #"\s말고[,\s]+"#, options: .regularExpression), s[r.upperBound...].count >= 2 { s = String(s[r.upperBound...]) }
         if let c = Parser.closeTabs(s) { return .closeTabs(label: c.0, host: c.1) }
+        if Parser.isCloseOpened(s) { return .closeOpened }
         if Parser.isDisplayOff(s) { return .displayOff }
         if Parser.isNext(s) { return .mediaNext }
         if let play = Parser.mediaControl(s) { return .media(play: play) }
 
-        let tail = "\\s*(해 줘|해줘|해 주세요|해|줘|좀|봐|봐 줘|봐줘|주세요)?$"
+        let tail = "\\s*(해 봐 줘|해봐줘|해 봐|해봐|해 줘|해줘|해 주세요|해|줘|좀|봐|봐 줘|봐줘|주세요)?$"
         // Korean: 「안녕하세요 라고 써 줘」
         if let m = Parser.match(s, "^(.+?)\\s*(이?라고)\\s*(써|쳐|입력해|타이핑해|적어)\\s*(줘|주세요)?$") { return .type(m[1]) }
         // English: "type hello world"
@@ -177,7 +181,7 @@ struct Parser {
         }
 
         // YouTube: play the first result right away
-        if let m = Parser.match(s, "^(유튜브|youtube)\\s*(에서(?=\\s)|로(?=\\s)|에(?=\\s))?\\s*(.*?)\\s*(?:검색해서|검색해 가지고|찾아서)?\\s*(틀어|재생\\s*시켜|재생해|재생|켜|보여|찾아|검색|열어)" + tail) {
+        if let m = Parser.match(s, "^(유튜브|youtube)\\s*(에다가(?=\\s)|에다(?=\\s)|에서(?=\\s)|로(?=\\s)|에(?=\\s))?\\s*(.*?)\\s*(?:검색해서|검색해 가지고|찾아서)?\\s*(틀어|재생\\s*시켜|재생해|재생|켜|보여|찾아|검색|열어)" + tail) {
             let filler: Set<String> = ["아무거나", "영상", "하나", "동영상", "거", "좀", "한", "개", "아무", "창", "화면", "페이지", "사이트", "홈", "앱", "참"]   // 참 = 창 misheard
             return .youtube(m[3].split(separator: " ").map(String.init).filter { !filler.contains($0) }.joined(separator: " "))
         }
@@ -202,7 +206,7 @@ struct Parser {
             ("아마존|amazon", "Amazon", "https://www.amazon.com/s?k=", "https://www.amazon.com/")]
         for (pat, label, url, home) in sites {
             // "쿠팡에/쿠팡의/쿠팡이 …" — a particle only when glued to the name ("쿠팡 에어팟" keeps 에어팟)
-            guard let m = Parser.match(s, "^(" + pat + ")(?:(?:에서|에|의|이|가|은|는|으로|로)(?=\\s|$))?\\s*(.*)$") else { continue }
+            guard let m = Parser.match(s, "^(" + pat + ")(?:(?:에다가|에다|에서|에|의|이|가|은|는|으로|로)(?=\\s|$))?\\s*(.*)$") else { continue }
             var q = m[2]
             // drop "홈페이지에 들어가서", "사이트에서", "에서", "가서", "접속해서" …
             for lead in ["홈페이지에 들어가서", "홈페이지 들어가서", "홈페이지에서", "홈페이지에", "사이트에 들어가서", "사이트에서", "앱에서",
@@ -229,7 +233,7 @@ struct Parser {
     /// "알았어. 그러면 유튜브에 …" → "유튜브에 …" (a reply to it, then the actual command).
     static func dropLeadIn(_ s: String) -> String {
         var t = s
-        let leads = ["알았어", "알겠어", "오케이", "좋아", "그래", "그러면", "그럼", "자", "음", "아", "okay", "ok", "so", "then"]
+        let leads = ["아니 그게 아니라", "그게 아니라", "아니야", "아니", "알았어", "알겠어", "오케이", "좋아", "그래", "그러면", "그럼", "자", "음", "아", "okay", "ok", "so", "then", "no"]
         var changed = true
         while changed {
             changed = false
@@ -267,6 +271,16 @@ struct Parser {
             for w in ok where q.hasPrefix(w) { q.removeFirst(w.count); changed = true; break }
         }
         return q.isEmpty
+    }
+    /// "창 다 꺼", "지금 켜져 있는 창들 다 꺼줘", "켜 놨던 거 다 닫아" — no particular site → what it opened.
+    static func isCloseOpened(_ s: String) -> Bool {
+        let q = squash(s)
+        guard q.count <= 30, ["꺼", "닫아", "닫어", "종료", "없애", "close"].contains(where: q.contains) else { return false }
+        let what = ["창", "탭", "켜놨던", "켜놓은", "켜둔", "열어놓은", "열어둔", "열어놨던", "띄운", "띄워놓은", "띄워둔", "windows", "tabs"]
+        let all = ["다", "전부", "모두", "싹", "all"]
+        // "썸네일 이미지들 다 꺼", "폴더 창 다 닫아" — something specific it didn't open → Claude
+        if ["이미지", "사진", "썸네일", "폴더", "파일", "문서", "미리보기", "finder", "image", "folder"].contains(where: q.contains) { return false }
+        return what.contains(where: q.contains) && all.contains(where: q.contains)
     }
     /// "다음 영상으로 넘겨", "다음 곡", "next video"
     static func isNext(_ s: String) -> Bool {

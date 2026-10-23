@@ -25,7 +25,11 @@ final class Butler {
     var spokeAt = Date.distantPast        // when it last stopped talking (finished or interrupted)
     var lastSpoken = ""                   // its last spoken answer — its echo can lead the next recording
     var lastMedia: (play: Bool, at: Date)?
-    var lastSite: (label: String, url: String, at: Date)?   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
+    var lastSite: (label: String, url: String, at: Date)?
+    // What it opened for you (this run): page hosts and apps it started — 「창 다 꺼」 closes exactly these.
+    var openedHosts: Set<String> = []
+    var openedApps: Set<String> = []
+    static let neverClose: Set<String> = ["Claude", "Finder", "Terminal", "iTerm2", "Xcode", "Visual Studio Code", "Cursor", "Mac Butler", "MacButler"]   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
     /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
     lazy var bargeAny: Bool = {
         if cfg.bargeIn == "any" { return true }
@@ -298,6 +302,9 @@ final class Butler {
         case .mediaNext:
             Hands.mediaKey(17)            // ⏭ — YouTube skips to the next video
             played(S.t("다음 영상", "Next"), "⏭")
+        case .closeOpened:
+            let n = closeOpened()
+            if n > 0 { done(S.t("닫음", "Closed"), S.t("열어 둔 것 \(n)개", "\(n) things it opened")) } else { done(S.t("닫을 게 없음", "Nothing to close"), S.t("이번에 연 창이 없어요", "Nothing opened this time")) }
         case .displayOff:
             done(S.t("화면 끔", "Display off"), "🌙")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -325,6 +332,7 @@ final class Butler {
             let n = closeTabs(host)
             if n > 0 { done(S.t("창 닫음", "Closed"), "\(label) ×\(n)") } else { done(S.t("닫을 창 없음", "Nothing to close"), label) }
         case .openApp(let spoken, let app):
+            noteOpened(app: app)
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
         case .none:
@@ -344,13 +352,61 @@ final class Butler {
         }
     }
 
+    /// What Claude should know without spending a tool call: the page in front (if a browser) and what Mac Butler opened.
+    func screenContext(_ front: String) -> String {
+        var lines: [String] = []
+        if ["Safari", "Google Chrome"].contains(front) {
+            let src = front == "Safari" ? "tell application \"Safari\" to if (count of windows) > 0 then return (name of current tab of front window) & \" | \" & (URL of current tab of front window)"
+                                        : "tell application \"Google Chrome\" to if (count of windows) > 0 then return (title of active tab of front window) & \" | \" & (URL of active tab of front window)"
+            var err: NSDictionary?
+            if let page = NSAppleScript(source: src)?.executeAndReturnError(&err).stringValue, !page.isEmpty {
+                lines.append(S.t("앞에 보이는 페이지: ", "Page in front: ") + String(page.prefix(200)))
+            }
+        }
+        if !openedHosts.isEmpty || !openedApps.isEmpty {
+            lines.append(S.t("자비스가 연 것: ", "Opened by Mac Butler: ") + (openedHosts.sorted() + openedApps.sorted()).joined(separator: ", "))
+        }
+        return lines.map { "[" + $0 + "]" }.joined(separator: "\n")
+    }
+    func noteOpened(url: String) {
+        if let h = URL(string: url)?.host, !h.isEmpty { openedHosts.insert(h) }
+    }
+    /// An app it starts (not one that was already running) — so closing it later never takes away your own window.
+    func noteOpened(app: String) {
+        guard !Butler.neverClose.contains(app), !NSWorkspace.shared.runningApplications.contains(where: { $0.localizedName == app }) else { return }
+        openedApps.insert(app)
+    }
+    /// What Claude opened in its last turn (`jax open-url …`, `jax open-app …`).
+    func noteOpened(fromBrain cmds: [String]) {
+        for c in cmds {
+            if let r = c.range(of: #"open-url\s+"?(https?://[^\s"']+)"#, options: .regularExpression) {
+                let u = String(c[r]).replacingOccurrences(of: #"open-url\s+"?"#, with: "", options: .regularExpression)
+                noteOpened(url: u)
+            }
+            if let r = c.range(of: #"open-app\s+"?([^"]+?)"?\s*$"#, options: .regularExpression) {
+                noteOpened(app: String(c[r]).replacingOccurrences(of: #"open-app\s+"?"#, with: "", options: .regularExpression).replacingOccurrences(of: "\"", with: "").trimmingCharacters(in: .whitespaces))
+            }
+        }
+    }
+    /// 「창 다 꺼」: the pages it opened (by exact host — not Gmail because it opened a Google search) and the apps it
+    /// started. Claude, Finder, terminals and editors are never touched.
+    func closeOpened() -> Int {
+        var n = 0
+        for h in openedHosts { n += closeTabs("://" + h + "/", frontFirst: false) }
+        for app in openedApps where !Butler.neverClose.contains(app) {
+            for a in NSWorkspace.shared.runningApplications where a.localizedName == app { if a.terminate() { n += 1 } }
+        }
+        log("closed what it opened: \(n) (hosts \(openedHosts.sorted()), apps \(openedApps.sorted()))")
+        openedHosts = []; openedApps = []
+        return n
+    }
     /// Closes the browser tabs on that site — the front window first; if none there, any window.
     /// (YouTube Studio and the like are left alone. Only browsers already running are touched.)
-    func closeTabs(_ host: String) -> Int {
+    func closeTabs(_ host: String, frontFirst: Bool = true) -> Int {
         var total = 0
         for (bundle, app) in [("com.google.Chrome", "Google Chrome"), ("com.apple.Safari", "Safari")]
         where !NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty {
-            for scope in ["{front window}", "windows"] {
+            for scope in frontFirst ? ["{front window}", "windows"] : ["windows"] {
                 let src = """
                 tell application "\(app)"
                   if (count of windows) is 0 then return 0
@@ -388,6 +444,7 @@ final class Butler {
     }
     func enc(_ s: String) -> String { s.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? s }
     func open(_ url: String) {
+        noteOpened(url: url)
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         p.arguments = cfg.browserApp.isEmpty ? [url] : ["-a", cfg.browserApp, url]
         try? p.run()
@@ -539,13 +596,14 @@ final class Butler {
         mode = .busy
         let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"
         hud.show(S.thinking, "…", heard: cmd, color: amber, speed: 3)
-        brain.ask(cmd, live: lastLive, frontApp: front, step: { [weak self] label in
+        brain.ask(cmd, live: lastLive, frontApp: front, context: screenContext(front), step: { [weak self] label in
             guard let self else { return }
             self.hud.show(self.S.working, label, heard: nil, color: amber, speed: 3)
         }, done: { [weak self] answer in
             guard let self else { return }
             log("brain → \(answer)")
             Memory.exchange(user: cmd, reply: answer)
+            self.noteOpened(fromBrain: self.brain.lastCommands)
             let correction = ["아니", "그게 아니", "no ", "not "].contains { cmd.lowercased().hasPrefix($0) }
             if !correction, let steps = Learning.replayable(self.brain.lastCommands) {
                 self.learnCandidate = (cmd, steps)
