@@ -7,4 +7,4 @@ First public version.
 - Quick commands (ko/en): open apps, web search, YouTube play / “the second one”, type, dictation
 - Hand tasks to a new Claude Code session in the Claude app — by Accessibility, no mouse movement
 - Barge-in, conversation mode, right-⌥ hotkey, status/permission checklist in the menu
-- Iron-Man-style boot scene, HUD orb, `--selftest`
+- Wake-up animation, HUD orb, `--selftest`

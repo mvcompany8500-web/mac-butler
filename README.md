@@ -2,22 +2,29 @@
 
 # ◉ My Jarvis
 
-**An always-listening voice assistant for macOS, with Claude Code as its brain.**
-Say “Jarvis”, then just talk — it types, presses buttons, opens apps, plays YouTube,
-and hands bigger jobs to a new Claude Code session. Korean-first, English supported.
+<img src="docs/demo.gif" width="820" alt="My Jarvis wake-up animation: a boot log types out, rings spin, “Welcome home, sir.”, then it shrinks into the on-screen orb">
 
+**Talk to your Mac. It clicks, types and hands work to Claude Code — without moving your mouse.**
+
+**No API key — uses your Claude plan** · **Audio never leaves your Mac** · **Asks before deleting, sending or paying**
+
+[![Latest release](https://img.shields.io/github/v/release/mvcompany8500-web/my-jarvis)](../../releases/latest)
+[![CI](https://github.com/mvcompany8500-web/my-jarvis/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/mvcompany8500-web/my-jarvis?style=social)](../../stargazers)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)](#requirements)
-[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%E2%80%93M4-black)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](#한국어) · [Made by turtle buff ai](#made-by)
+```bash
+git clone https://github.com/mvcompany8500-web/my-jarvis.git && cd my-jarvis && ./scripts/install.sh
+```
 
-<img src="docs/demo.gif" width="820" alt="My Jarvis wake-up animation: boot log types out, arc-reactor rings spin, “Welcome home, sir.”, then it flies into the HUD orb">
+[Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](#한국어) · [Made by turtle buff ai](#made-by)
 
 </div>
 
 ## Why
 
+An always-listening voice assistant for macOS, Korean-first with English support.
 Dictation apps like [Handy](https://github.com/cjpais/Handy) turn your voice into text. My Jarvis goes one step further:
 it keeps listening for its name, understands what you want, and **does it on your Mac** — without touching the keyboard
 and without the mouse pointer jumping around. Anything it can't do on its own goes to Claude Code, which can read the
@@ -28,7 +35,7 @@ screen, run commands and use the web.
 | You say | It does | Speed |
 |---|---|---|
 | “Jarvis” *(or tap right ⌥)* | chime → listening; keeps listening for 30 s, no wake word needed | instant |
-| “아빠 왔어” / “daddy's home” | Iron-Man-style boot scene + greeting | instant |
+| “아빠 왔어” / “daddy's home” | wake-up animation + spoken greeting | instant |
 | “크롬 열어” / “open Chrome” | opens the app | < 1 s |
 | “맥미니 가격 검색해” / “search for mac mini price” | Google search in your browser | < 1 s |
 | “유튜브 아이언맨 틀어” / “play iron man on YouTube” → “두 번째 거” / “play the second one” | plays the first result, then any other result by number | ~1 s |
@@ -173,7 +180,9 @@ Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Credits
 
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) · [Claude Code](https://docs.claude.com/en/docs/claude-code) · [cliclick](https://github.com/BlueM/cliclick) ·
-inspired by [Handy](https://github.com/cjpais/Handy) and, of course, J.A.R.V.I.S.
+inspired by [Handy](https://github.com/cjpais/Handy).
+
+*My Jarvis is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Marvel, Disney or Anthropic. “Claude” is a trademark of Anthropic.*
 
 ---
 

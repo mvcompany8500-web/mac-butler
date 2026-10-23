@@ -1,0 +1,11 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: ./build.sh
+      - name: Self-test (command grammar)
+        run: MYJARVIS_HOME=$RUNNER_TEMP/mj build/MyJarvis.app/Contents/MacOS/MyJarvis --selftest
