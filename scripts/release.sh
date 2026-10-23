@@ -17,3 +17,4 @@ if [[ -n "$NOTARY_PROFILE" && "$RELEASE_SIGN_ID" == Developer\ ID* ]]; then
 fi
 ditto -c -k --keepParent MacButler.app MacButler-$V.zip
 shasum -a 256 MacButler-$V.zip | tee MacButler-$V.zip.sha256
+cp MacButler-$V.zip MacButler.zip   # version-less copy: releases/latest/download/MacButler.zip (homepage /dl/butler)
