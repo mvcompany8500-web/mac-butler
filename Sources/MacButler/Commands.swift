@@ -118,14 +118,15 @@ struct Parser {
         // Claude: 「(세션) 클로드한테 ○○ 라고 전달해」 → relay just that; 「클로드코드한테 ○○ 해서 보내」 → whole task.
         if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|에다가|에다|창에|에|님|보고)\\s*[,，]?\\s*(.+)$") {
             var target = m[1]
-            for w in ["프로젝트", "세션", "창", "에 있는", "있는", "지금", "켜져 있는", "켜진"] { target = target.replacingOccurrences(of: w, with: "") }
+            let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는"].contains { target.contains($0) || m[3] == "창에" && target.isEmpty }
+            for w in ["프로젝트", "세션", "창", "에 있는", "있는", "지금", "켜져 있는", "켜진", "열린", "현재", "여기", "보고"] { target = target.replacingOccurrences(of: w, with: "") }
             target = target.trimmingCharacters(in: .whitespaces)
             var rest = m[4]
             for p in ["시켜서 ", "시켜 ", "얘기해서 ", "말해서 "] where rest.hasPrefix(p) { rest = String(rest.dropFirst(p.count)) }
             if let q = Parser.match(rest, "^(.+?)\\s*(이?라고)\\s*(전달|보내|말|입력|써|적어|넣어|해|얘기)" + tail) {
                 return .claude(target: target, message: q[1], newSession: false)
             }
-            return .claude(target: target, message: rest, newSession: target.isEmpty)
+            return .claude(target: target, message: rest, newSession: target.isEmpty && !here)
         }
         if let m = Parser.match(s, "^(ask|tell|have)\\s+claude(\\s+code)?\\s+(to\\s+)?(.+)$") {
             return .claude(target: "", message: m[4], newSession: m[1].lowercased() != "tell")

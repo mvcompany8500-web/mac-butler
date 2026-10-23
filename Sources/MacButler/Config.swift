@@ -33,7 +33,7 @@ struct Config: Codable {
 
     var claudePath = ""                 // empty → auto-detect `claude`
     var claudeModel = "sonnet"
-    var confirmDelegate = true          // ask “hand this to Claude?” before typing a task into the Claude app
+    var confirmDelegate = "brain"       // ask “hand this to Claude?” first: "brain" = only when the assistant itself proposes it (default), "always", "never"
     var brainAccess = "safe"            // "safe": fixed tool allowlist, no shell/file writes/web fetch · "full": any Bash (power users)
     var whisperModel = ""               // empty → ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
     var whisperServer = ""              // empty → auto-detect `whisper-server`

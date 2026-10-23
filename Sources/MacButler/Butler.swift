@@ -183,7 +183,10 @@ final class Butler {
         case .hush: converse()
         case .bye: NSSound(named: "Pop")?.play(); goIdle()
         case .type(let text): Hands.paste(text); done(S.typed, text)
-        case .claude(let target, let message, let newSession): askToDelegate(target: target, message: message, newSession: newSession)
+        case .claude(let target, let message, let newSession):
+            // Your own spoken request goes straight through (unless confirmDelegate = "always").
+            if cfg.confirmDelegate == "always" { askToDelegate(target: target, message: message, newSession: newSession) }
+            else { claudeMacro(target: target, message: message, newSession: newSession) }
         case .youtube(let q):
             if q.isEmpty { open("https://www.youtube.com/"); played(S.youtube, "YouTube") } else { youtube(q) }
         case .youtubeNth(let n):
@@ -282,7 +285,7 @@ final class Butler {
         "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.1password.1password", "com.bitwarden.desktop"]
     var pendingDelegate: (target: String, message: String, newSession: Bool)?
     func askToDelegate(target: String, message: String, newSession: Bool, speakQuestion: Bool = true) {
-        guard cfg.confirmDelegate else { claudeMacro(target: target, message: message, newSession: newSession); return }
+        guard cfg.confirmDelegate != "never" else { claudeMacro(target: target, message: message, newSession: newSession); return }
         pendingDelegate = (target, message, newSession)
         let where_ = newSession ? S.t("클로드 새 세션", "a new Claude session") : (target.isEmpty ? "Claude" : target)
         log("delegate pending: \(message)")
