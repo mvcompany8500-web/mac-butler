@@ -13,20 +13,30 @@ final class DoubleTalk {
     private var plays: [(t: TimeInterval, v: Float)] = []
     private var ratios: [Float] = []
     private var streak = 0
+    private var quiet: [Float] = []    // mic levels in the second before it started talking (a video, music, a fan…)
+    private var ambient: Float = 0
     private(set) var active = false
     private(set) var coupling: Float = {
         let v = UserDefaults.standard.float(forKey: "echoCoupling")
         return v > 0 ? v : 0.12
     }()
 
+    /// Every mic level while it isn't talking — the room's background sound right before it speaks.
+    func listen(_ mic: Float) {
+        guard !active else { return }
+        quiet.append(mic); if quiet.count > 10 { quiet.removeFirst() }
+    }
     /// Our voice started playing through an engine we can measure.
-    func begin() { lock.lock(); plays = []; lock.unlock(); ratios = []; streak = 0; active = true }
+    func begin() {
+        lock.lock(); plays = []; lock.unlock(); ratios = []; streak = 0; active = true
+        ambient = quiet.isEmpty ? 0 : quiet.sorted()[quiet.count / 2]
+    }
 
     /// Done speaking. A full sentence nobody interrupted teaches us how loud our echo is in this room.
     func end(interrupted: Bool) {
         guard active else { return }
         active = false
-        guard !interrupted, ratios.count >= 20 else { return }
+        guard !interrupted, ratios.count >= 20, ambient < 0.01 else { return }   // learn only in a quiet room
         let median = ratios.sorted()[ratios.count / 2]
         coupling = min(max(coupling * 0.7 + median * 0.3, 0.03), 0.6)
         UserDefaults.standard.set(coupling, forKey: "echoCoupling")
@@ -44,7 +54,8 @@ final class DoubleTalk {
         let now = Date().timeIntervalSinceReferenceDate
         lock.lock(); let p = plays.filter { now - $0.t < 0.3 }.map(\.v).max() ?? 0; lock.unlock()
         if p > 0.03 { ratios.append(mic / p) }
-        let loud = mic > Self.minLevel && (p <= 0.01 || mic > p * coupling * Self.k)
+        // A video playing in the room is loud too — you have to be clearly above that as well.
+        let loud = mic > max(Self.minLevel, ambient * 2.5) && (p <= 0.01 || mic > p * coupling * Self.k)
         streak = loud ? streak + 1 : 0
         return streak >= Self.need
     }

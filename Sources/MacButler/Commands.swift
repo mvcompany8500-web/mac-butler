@@ -11,6 +11,7 @@ enum Intent: Equatable {
     case search(String)
     case web(label: String, query: String, url: String)   // shopping / site search
     case remember(String)                                   // 「기억해: …」 — a long-term note
+    case media(play: Bool)                                  // pause / resume whatever video or music is playing
     case openApp(spoken: String, app: String)
     case none
 }
@@ -110,7 +111,7 @@ struct Parser {
     // MARK: the grammar
 
     func parse(_ raw: String, hasYouTubeList: Bool) -> Intent {
-        let s = Parser.clean(raw)
+        var s = Parser.clean(raw)
         let sq = Parser.squash(s)
         if s.isEmpty { return .none }
         if Parser.cancelledAtEnd(s) { return .hush }     // “…, 아니 취소” / “…, never mind” — the speaker took it back
@@ -119,6 +120,8 @@ struct Parser {
         if enterWords.contains(sq) { return .enter }
         if isHush(s) { return .hush }
         if isBye(s) { return .bye }
+        s = Parser.dropLeadIn(s)
+        if let play = Parser.mediaControl(s) { return .media(play: play) }
 
         let tail = "\\s*(해 줘|해줘|해 주세요|해|줘|좀|봐|봐 줘|봐줘|주세요)?$"
         // Korean: 「안녕하세요 라고 써 줘」
@@ -129,8 +132,8 @@ struct Parser {
         // Claude: 「(세션) 클로드한테 ○○ 라고 전달해」 → relay just that; 「클로드코드한테 ○○ 해서 보내」 → whole task.
         if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|창에다가|창에다|창에|에다가|에다|에|님|보고)\\s*[,，]?\\s*(.+)$") {
             var target = m[1]
-            let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는"].contains { target.contains($0) } || (m[3].hasPrefix("창에") && target.isEmpty)
-            for w in ["프로젝트", "세션", "창", "에 있는", "있는", "지금", "켜져 있는", "켜진", "열린", "현재", "여기", "보고"] { target = target.replacingOccurrences(of: w, with: "") }
+            let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는", "떠 있는", "떠있는", "열려 있는"].contains { target.contains($0) } || (m[3].hasPrefix("창에") && target.isEmpty)
+            for w in ["프로젝트", "세션", "창", "에 있는", "떠 있는", "떠있는", "열려 있는", "있는", "지금", "켜져 있는", "켜진", "열린", "현재", "여기", "보고"] { target = target.replacingOccurrences(of: w, with: "") }
             target = target.trimmingCharacters(in: .whitespaces)
             var rest = m[4]
             for p in ["다가 ", "다 "] where rest.hasPrefix(p) { rest = String(rest.dropFirst(p.count)) }
@@ -152,11 +155,11 @@ struct Parser {
         }
 
         // YouTube: play the first result right away
-        if let m = Parser.match(s, "^(유튜브|youtube)\\s*(에서|로|에)?\\s*(.*?)\\s*(틀어|켜|보여|찾아|검색|재생|열어)" + tail) {
+        if let m = Parser.match(s, "^(유튜브|youtube)\\s*(에서(?=\\s)|로(?=\\s)|에(?=\\s))?\\s*(.*?)\\s*(?:검색해서|검색해 가지고|찾아서)?\\s*(틀어|재생\\s*시켜|재생해|재생|켜|보여|찾아|검색|열어)" + tail) {
             let filler: Set<String> = ["아무거나", "영상", "하나", "동영상", "거", "좀", "한", "개", "아무"]
             return .youtube(m[3].split(separator: " ").map(String.init).filter { !filler.contains($0) }.joined(separator: " "))
         }
-        if let m = Parser.match(s, "^play\\s+(.+?)\\s+on\\s+youtube$") ?? Parser.match(s, "^youtube\\s+(.+)$") { return .youtube(m[1]) }
+        if let m = Parser.match(s, "^play\\s+(.+?)\\s+on\\s+youtube$") ?? Parser.match(s, "^youtube\\s+([^가-힣]+)$") { return .youtube(m[1]) }
         if hasYouTubeList {
             if let m = Parser.match(s, "^(.+?)\\s*(번째|번)\\s*(거|것|영상|꺼)?\\s*(틀어|켜|재생|열어|보여)" + tail), let n = Parser.ordinal(m[1]) { return .youtubeNth(n) }
             if let m = Parser.match(s, "^play\\s+(the\\s+)?(number\\s+)?(\\w+)(\\s+one)?$"), let n = Parser.ordinal(m[3]) { return .youtubeNth(n) }
@@ -180,7 +183,7 @@ struct Parser {
             var q = m[2]
             // drop "홈페이지에 들어가서", "사이트에서", "에서", "가서", "접속해서" …
             for lead in ["홈페이지에 들어가서", "홈페이지 들어가서", "홈페이지에서", "홈페이지에", "사이트에 들어가서", "사이트에서", "앱에서",
-                         "에 들어가서", "들어가서", "에 가서", "가서", "접속해서", "에서", "에", "으로", "로"] {
+                         "에 들어가서", "들어가서", "에 가서", "가서", "접속해서", "에서", "에", "의", "으로", "로"] {
                 if q.hasPrefix(lead) { q = String(q.dropFirst(lead.count)).trimmingCharacters(in: .whitespaces) }
             }
             q = Parser.stripAsk(q)
@@ -200,6 +203,41 @@ struct Parser {
         return .none
     }
 
+    /// "알았어. 그러면 유튜브에 …" → "유튜브에 …" (a reply to it, then the actual command).
+    static func dropLeadIn(_ s: String) -> String {
+        var t = s
+        let leads = ["알았어", "알겠어", "오케이", "좋아", "그래", "그러면", "그럼", "자", "음", "아", "okay", "ok", "so", "then"]
+        var changed = true
+        while changed {
+            changed = false
+            let low = t.lowercased()
+            for l in leads where low.hasPrefix(l) {
+                let rest = String(t.dropFirst(l.count))
+                guard let c = rest.first, c == " " || c == "," || c == "." else { continue }
+                let r = rest.trimmingCharacters(in: .whitespaces.union(.punctuationCharacters))
+                if r.count >= 2 { t = r; changed = true }
+                break
+            }
+        }
+        return t
+    }
+    /// "영상 멈춰", "유튜브 꺼", "노래 정지", "틀어져 있는 영상들 다 꺼" → pause · "다시 틀어", "이어서 재생" → play.
+    static func mediaControl(_ s: String) -> Bool? {
+        let q = squash(s)
+        guard q.count <= 24 else { return nil }
+        let things = ["영상", "동영상", "유튜브", "youtube", "음악", "노래", "재생중", "틀어져", "video", "music"]
+        let stops = ["멈춰", "멈춤", "정지", "일시정지", "중지", "꺼", "끄", "스톱", "stop", "pause"]
+        if things.contains(where: q.contains),
+           stops.contains(where: { q.hasSuffix($0) || q.hasSuffix($0 + "줘") || q.hasSuffix($0 + "봐") || q.hasPrefix($0) }) { return false }
+        if ["다시틀어", "다시재생", "이어서틀어", "이어서재생", "계속틀어", "계속재생", "resume", "playagain"].contains(where: q.contains) { return true }
+        return nil
+    }
+    /// Claude's reply says it started a video / music ("…재생했습니다", "틀었습니다", "Playing …").
+    static func startedMedia(_ answer: String) -> Bool {
+        let a = answer.lowercased()
+        return ["재생했", "재생합니다", "재생 중", "재생중", "틀었", "틀어 드렸", "틀어드렸", "now playing", "started playing", "is playing"].contains(where: a.contains)
+            && !["멈췄", "정지했", "껐", "paused", "stopped"].contains(where: a.contains)
+    }
     /// "X 멈추고 Y", "X 하고 Y", "X 그리고 Y", "X 한 다음 Y" — more than one action.
     static func isCompound(_ s: String) -> Bool {
         if [" 그리고 ", "한 다음", "하고 나서", "고 나서", "한 뒤에", "다음에 "].contains(where: { s.contains($0) }) { return true }
@@ -208,7 +246,8 @@ struct Parser {
     /// Removes a trailing ask: "찾아 줘", "검색해", "보여 줘", "알아봐", "좀".
     static func stripAsk(_ q: String) -> String {
         var t = q.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
-        let asks = ["검색해 줘", "검색해줘", "검색해", "검색", "찾아 줘", "찾아줘", "찾아 봐", "찾아봐", "찾아", "보여 줘", "보여줘", "보여", "알아봐 줘", "알아봐", "열어 줘", "열어줘", "열어", "좀"]
+        let asks = ["띄워 봐", "띄워봐", "띄워 줘", "띄워줘", "서치해 줘", "서치해줘", "서치해 봐", "서치 해 봐", "서치해봐", "서치해", "서치", "검색해 봐", "검색해봐",
+                    "검색해 줘", "검색해줘", "검색해", "검색", "찾아 줘", "찾아줘", "찾아 봐", "찾아봐", "찾아", "보여 줘", "보여줘", "보여", "알아봐 줘", "알아봐", "열어 줘", "열어줘", "열어", "좀"]
         var changed = true
         while changed {
             changed = false

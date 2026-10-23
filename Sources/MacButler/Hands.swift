@@ -12,6 +12,15 @@ enum Hands {
             e?.post(tap: .cghidEventTap)
         }
     }
+    /// The keyboard's ⏯ key: pauses / resumes whatever is "Now Playing" (YouTube in Chrome or Safari, Music…),
+    /// even when that window isn't in front.
+    static func playPause() {
+        for down in [true, false] {
+            let data1 = (16 << 16) | ((down ? 0xa : 0xb) << 8)       // NX_KEYTYPE_PLAY
+            NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: down ? 0xa00 : 0xb00),
+                               timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: data1, data2: -1)?.cgEvent?.post(tap: .cghidEventTap)
+        }
+    }
     static func paste(_ text: String) {
         let pb = NSPasteboard.general
         let old = pb.string(forType: .string)

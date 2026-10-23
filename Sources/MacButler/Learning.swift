@@ -169,7 +169,7 @@ enum Growth {
         var learned: [String] = []
         for w in Set(words(whisper)) where !liveSet.contains(w.lowercased()) && !knownSet.contains(w.lowercased()) {
             // only names / terms: Latin words, or Hangul nouns that don't end like a verb
-            let verbish = ["해", "줘", "요", "다", "고", "서", "면", "지", "까", "야", "어", "아", "게", "는", "은", "을", "를", "이", "가", "에", "도", "만"].contains(String(w.suffix(1)))
+            let verbish = ["해", "줘", "요", "다", "고", "서", "면", "지", "까", "야", "어", "아", "게", "는", "은", "을", "를", "이", "가", "에", "도", "만", "의", "로", "와", "과", "랑", "봐", "죠"].contains(String(w.suffix(1)))
             if verbish { continue }
             state.wordCounts[w, default: 0] += 1
             if state.wordCounts[w]! >= 3 { learned.append(w); state.wordsLearned.append(w); state.wordCounts[w] = nil }

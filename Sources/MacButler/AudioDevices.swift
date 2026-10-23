@@ -38,6 +38,24 @@ enum AudioDevices {
         AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
         return all().first { $0.id == id }?.name ?? ""
     }
+    /// Is some app playing sound on this speaker right now? (empty uid = system default output)
+    /// nil when we can't tell — the speaker is part of the device we listen on (USB headset), so it's always running.
+    static func outputBusy(_ uid: String, micUID: String) -> Bool? {
+        var id = device(uid: uid)?.id ?? 0
+        if id == 0 {
+            var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+            AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
+        }
+        let mic = device(uid: micUID)?.id ?? {
+            var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            var m = AudioDeviceID(0); var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+            AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &m)
+            return m
+        }()
+        if mic == id { return nil }
+        return prop(id, kAudioDevicePropertyDeviceIsRunningSomewhere, kAudioObjectPropertyScopeGlobal, UInt32(0)) != 0
+    }
     static func inputs() -> [AudioDevice] { all().filter(\.input) }
     static func outputs() -> [AudioDevice] { all().filter(\.output) }
     static func device(uid: String) -> AudioDevice? { uid.isEmpty ? nil : all().first { $0.uid == uid } }

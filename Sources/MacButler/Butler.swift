@@ -22,6 +22,8 @@ final class Butler {
     var cancelSend = false
     var lastLive = ""
     var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
+    var spokeAt = Date.distantPast        // when it last stopped talking (finished or interrupted)
+    var lastMedia: (play: Bool, at: Date)?
     /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
     lazy var bargeAny: Bool = {
         if cfg.bargeIn == "any" { return true }
@@ -60,6 +62,7 @@ final class Butler {
         ear.onLevel = { [weak self] v in
             guard let self else { return }
             self.hud.orb.level(v)
+            self.mouth.echo.listen(v)
             if self.mode == .speaking, !self.bargeAny, self.cfg.bargeIn != "wake", self.mouth.echo.isUser(v) { self.bargeInByVoice() }
         }
         ear.onPartial = { [weak self] t in self?.partial(t) }
@@ -283,7 +286,11 @@ final class Butler {
             mode = .dictation
             speak(S.dictationStart) { [weak self] in guard let self else { return }; self.mode = .dictation; self.hud.show(self.S.dictation, "", color: lime) }
         case .enter: Hands.key(Hands.enter); done(S.key, "⏎")
-        case .hush: converse()
+        case .hush:
+            // Nothing of ours to silence but a video is playing → "멈춰" means the video.
+            // (Right after it was talking, "멈춰" was meant for its voice — that's already stopped.)
+            if Date().timeIntervalSince(spokeAt) > 3, AudioDevices.outputBusy(cfg.outputDevice, micUID: cfg.inputDevice) == true { media(play: false) } else { converse() }
+        case .media(let play): media(play: play)
         case .bye: Sound.named("Pop"); goIdle()
         case .type(let text): Hands.paste(text); done(S.typed, text)
         case .claude(let target, let message, let newSession):
@@ -318,6 +325,15 @@ final class Butler {
         }
     }
 
+    /// Pause / resume the video or music that's playing (the ⏯ key, so it works whichever window is in front).
+    func media(play: Bool) {
+        // ⏯ toggles — press it only when it changes something. Can't tell (headset)? Assume it's needed,
+        // but never twice within 5 s for the same wish (a paused player can take a moment to go quiet).
+        let busy = AudioDevices.outputBusy(cfg.outputDevice, micUID: cfg.inputDevice) ?? !play
+        let repeatWish = lastMedia.map { $0.play == play && Date().timeIntervalSince($0.at) < 5 } ?? false
+        if play != busy, !repeatWish { Hands.playPause(); lastMedia = (play, Date()) }
+        if play { played(S.t("다시 재생", "Resumed"), "▶︎") } else { done(S.t("멈춤", "Paused"), "⏸") }
+    }
     func enc(_ s: String) -> String { s.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? s }
     func open(_ url: String) {
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
@@ -487,6 +503,7 @@ final class Butler {
             }
             let spoken = answer.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
             self.speak(spoken) {
+                if Parser.startedMedia(answer) { self.played(self.S.youtubePlay, spoken); return }
                 self.converse(keep: true)   // leave the answer on screen
                 if let p = self.pendingDelegate {
                     self.hud.show(self.S.t("◌ 맡길까요? 「응」 / 「아니」", "◌ Hand it over? “yes” / “no”"), p.message, heard: nil, color: amber)
@@ -528,6 +545,7 @@ final class Butler {
         mouth.speak(text) { [weak self] in
             guard let self else { return }
             self.speakingText = ""
+            self.spokeAt = Date()
             if self.bargedIn { return }
             self.ignoreUntil = Date().addingTimeInterval(self.bargeAny ? 0 : 0.6)
             self.ear.restart(); then()
@@ -537,7 +555,7 @@ final class Butler {
         guard !bargedIn else { return }
         bargedIn = true
         log("barge-in: \(t)")
-        mouth.stop()
+        mouth.stop(); spokeAt = Date()
         speakingText = ""
         ear.markSegmentNow()
         mode = .awake; awakeStarted = Date()
@@ -550,7 +568,7 @@ final class Butler {
         guard !bargedIn else { return }
         bargedIn = true
         log("barge-in: your voice over the speaker")
-        mouth.stop()
+        mouth.stop(); spokeAt = Date()
         speakingText = ""
         ear.restart(); ear.markSegmentNow(back: 1.0)     // Whisper gets the start of what you said too
         mode = .awake; awakeStarted = Date()
