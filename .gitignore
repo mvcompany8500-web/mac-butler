@@ -1,5 +1,7 @@
+*.part
+.DS_Store
+build*/
+build-local/
 build/
 local.env
-.DS_Store
-*.part
-build-local/
+local.env*
