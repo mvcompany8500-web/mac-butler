@@ -21,7 +21,8 @@ struct ElevenLabsConfig: Codable {
 }
 
 struct Config: Codable {
-    var language = "ko"                 // "ko" or "en"
+    var language = Config.systemLanguage   // "ko", "en", "ja", "zh", "es", "fr", "de", "pt", "it", "vi", "th", "id" … (default: your Mac's language)
+    var activation = "voice"            // "voice": say the wake word (or tap/hold the hotkey) · "hold": only while holding the hotkey — nothing is transcribed otherwise
     var userName = ""                   // how the assistant addresses you, e.g. "대표님", "Tony"
     var assistantName = "Jarvis"
     var wakeWords: [String] = []        // empty → language default
@@ -58,7 +59,7 @@ struct Config: Codable {
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self), z = Config()
         func v<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decode(T.self, forKey: k)) ?? def }
-        language = v(.language, z.language); userName = v(.userName, z.userName); assistantName = v(.assistantName, z.assistantName)
+        language = v(.language, z.language); activation = v(.activation, z.activation); userName = v(.userName, z.userName); assistantName = v(.assistantName, z.assistantName)
         wakeWords = v(.wakeWords, z.wakeWords); greetPhrases = v(.greetPhrases, z.greetPhrases)
         greetingText = v(.greetingText, z.greetingText); bootTitle = v(.bootTitle, z.bootTitle); bootSubtitle = v(.bootSubtitle, z.bootSubtitle)
         greetOpen = v(.greetOpen, z.greetOpen)
@@ -74,9 +75,27 @@ struct Config: Codable {
     // MARK: resolved values
 
     var ko: Bool { language.hasPrefix("ko") }
+    static let languages: [(code: String, name: String, locale: String)] = [
+        ("ko", "한국어", "ko-KR"), ("en", "English", "en-US"), ("ja", "日本語", "ja-JP"), ("zh", "中文", "zh-CN"),
+        ("es", "Español", "es-ES"), ("fr", "Français", "fr-FR"), ("de", "Deutsch", "de-DE"), ("pt", "Português", "pt-BR"),
+        ("it", "Italiano", "it-IT"), ("vi", "Tiếng Việt", "vi-VN"), ("th", "ไทย", "th-TH"), ("id", "Bahasa Indonesia", "id-ID")]
+    static var systemLanguage: String {
+        let code = String((Locale.preferredLanguages.first ?? "en").prefix(2))
+        return languages.contains { $0.code == code } ? code : "en"
+    }
+    var lang: String { String(language.prefix(2)) }
+    var languageName: String { Config.languages.first { $0.code == lang }?.name ?? "English" }
     var user: String { userName.isEmpty ? (ko ? "주인님" : "sir") : userName }
-    var locale: String { ko ? "ko-KR" : "en-US" }
-    var wakes: [String] { wakeWords.isEmpty ? (ko ? ["자비스", "헤이 자비스"] : ["jarvis", "hey jarvis"]) : wakeWords }
+    var locale: String { Config.languages.first { $0.code == lang }?.locale ?? "en-US" }
+    var wakes: [String] {
+        if !wakeWords.isEmpty { return wakeWords }
+        switch lang {
+        case "ko": return ["자비스", "헤이 자비스"]
+        case "ja": return ["ジャービス", "jarvis"]
+        case "zh": return ["贾维斯", "jarvis"]
+        default: return ["jarvis", "hey jarvis"]
+        }
+    }
     var greets: [String] {
         if !greetPhrases.isEmpty { return greetPhrases }
         return ko ? ["아빠 왔어", "아빠 왔다", "일어나 \(assistantName)", "\(assistantName) 일어나", "자비스 일어나"]

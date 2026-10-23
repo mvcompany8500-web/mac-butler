@@ -36,6 +36,7 @@ screen, run commands and use the web.
 | You say | It does | Speed |
 |---|---|---|
 | “Jarvis” — the default wake word, change it in settings *(or tap right ⌥)* | chime → listening; keeps listening for 30 s, no wake word needed | instant |
+| **Hold right ⌥ and talk**, release | push-to-talk like Handy — exact audio, runs the moment you let go | ~1 s |
 | “아빠 왔어” / “daddy's home” | wake-up animation + spoken greeting | instant |
 | “크롬 열어” / “open Chrome” | opens the app | < 1 s |
 | “맥미니 가격 검색해” / “search for mac mini price” | Google search in your browser | < 1 s |
@@ -46,7 +47,11 @@ screen, run commands and use the web.
 | “○○ 세션 클로드한테 ‘테스트’라고 전달해” | finds that session in the sidebar and sends the message | ~2 s |
 | anything else — “지금 화면에 뭐 있어?”, “이 페이지 요약해서 메모에 붙여” | Claude Code works it out (screen, apps, web) and answers out loud | 4–20 s |
 
-While it's talking, just start speaking — it stops and listens (barge-in). “됐어” / “that's all” ends the conversation.
+While it's talking — or while Claude is still working — just say the next thing: it stops and takes the new command. “됐어” / “that's all” ends the conversation.
+
+**It gets faster the more you use it.** When Claude figures out how to do something (“pause the video” → press space), Mac Butler remembers the steps and next time does it instantly, without calling Claude. Say “no / 아니” right after and it won't learn it. The menu shows today's Claude calls and tokens.
+
+**Any language.** Korean and English have built-in quick commands; Japanese, Chinese, Spanish, French, German, Portuguese, Italian, Vietnamese, Thai and Indonesian work through Claude, which answers in your language. It picks your Mac's language on first launch.
 
 ## How it works
 
@@ -89,7 +94,11 @@ Or with Homebrew (signed & notarized by Apple):
 brew install --cask mvcompany8500-web/tap/mac-butler
 ```
 
-Then look for **◉J** in the menu bar and allow the permissions below. `./scripts/install.sh --no-model` skips the 874 MB download.
+A setup window opens on first launch — it checks every permission live, links each fix, and downloads the Whisper model in-app (SHA-256 verified):
+
+<img src="docs/setup.png" width="520" alt="Setup window: permissions and dependencies with live checkmarks">
+
+Then look for **◉J** in the menu bar. `./scripts/install.sh --no-model` skips the 874 MB download.
 
 ### Permissions
 
@@ -127,7 +136,9 @@ Everything lives in `~/.macbutler/`:
   "assistantName": "자비스",
   "wakeWords": ["자비스", "헤이 자비스"],
   "greetingText": "어서 오십시오, {user}",
-  "hotkey": "rightOption",         // tap to wake: rightOption | rightCommand | none
+  "activation": "voice",           // "voice" = wake word + hotkey · "hold" = only while holding the hotkey
+  "hotkey": "rightOption",         // tap = wake, hold = push-to-talk: rightOption | rightCommand | none
+  "customWords": ["Claude", "GitHub"], // names you say often (imported from Handy automatically)
   "tts": "elevenlabs",             // or "say"
   "sayVoice": "Reed",
   "elevenLabs": { "apiKeyFile": "~/.secrets/.env", "voiceId": "…", "model": "eleven_flash_v2_5" },
@@ -170,8 +181,9 @@ Everything lives in `~/.macbutler/`:
 
 - [ ] Signed & notarized release + Homebrew tap (`brew install --cask mac-butler`)
 - [x] Settings window (no JSON editing)
-- [ ] First-run setup wizard
-- [ ] Push-to-talk mode (hold the hotkey) for open offices
+- [x] First-run setup window with in-app model download
+- [x] Push-to-talk (hold the hotkey)
+- [x] Learns what worked and replays it without Claude
 - [ ] Quick-command grammars for Japanese, Spanish, …
 - [ ] Custom wake-word engine (no Apple speech needed for the wake word)
 - [ ] Plug-in commands: drop a small script in `~/.macbutler/commands/`

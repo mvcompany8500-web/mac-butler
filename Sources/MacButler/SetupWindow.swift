@@ -1,0 +1,163 @@
+// First-run setup (menu → Setup…): live checklist of permissions and dependencies, one-click fixes,
+// and an in-app Whisper model download with progress and SHA-256 verification.
+import AppKit
+import SwiftUI
+import AVFoundation
+import Speech
+import CryptoKit
+
+final class SetupModel: NSObject, ObservableObject, URLSessionDownloadDelegate {
+    let cfg: Config
+    @Published var mic = false
+    @Published var speech = false
+    @Published var ax = false
+    @Published var screen = false
+    @Published var claude = false
+    @Published var whisperBin = false
+    @Published var model = false
+    @Published var progress: Double = -1          // -1 = not downloading
+    @Published var downloadError = ""
+    private var timer: Timer?
+    static let modelURL = URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q8_0.bin")!
+    static let modelSHA = "317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1"
+
+    init(cfg: Config) {
+        self.cfg = cfg
+        super.init()
+        refresh()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.refresh() }
+    }
+    deinit { timer?.invalidate() }
+    var allRequired: Bool { mic && speech && ax && claude }
+
+    func refresh() {
+        mic = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+        speech = SFSpeechRecognizer.authorizationStatus() == .authorized
+        ax = AXIsProcessTrusted()
+        screen = CGPreflightScreenCaptureAccess()
+        claude = cfg.claudeBinary != nil
+        whisperBin = cfg.whisperBinary != nil
+        model = FileManager.default.fileExists(atPath: cfg.whisperModelPath)
+    }
+    func openPane(_ pane: String) {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?" + pane)!)
+    }
+
+    func download() {
+        downloadError = ""; progress = 0
+        let s = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+        s.downloadTask(with: SetupModel.modelURL).resume()
+    }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten w: Int64, totalBytesExpectedToWrite t: Int64) {
+        progress = t > 0 ? Double(w) / Double(t) : 0
+    }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        // Verify before keeping it — a tampered model could transcribe whatever an attacker wants.
+        guard let h = try? FileHandle(forReadingFrom: location) else { downloadError = "read failed"; progress = -1; return }
+        var sha = SHA256()
+        while let chunk = try? h.read(upToCount: 8 << 20), !chunk.isEmpty { sha.update(data: chunk) }
+        try? h.close()
+        let hex = sha.finalize().map { String(format: "%02x", $0) }.joined()
+        guard hex == SetupModel.modelSHA else { downloadError = "checksum mismatch — discarded"; progress = -1; return }
+        let dest = URL(fileURLWithPath: cfg.whisperModelPath)
+        try? FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: dest)
+        do { try FileManager.default.moveItem(at: location, to: dest); log("whisper model downloaded and verified") }
+        catch { downloadError = error.localizedDescription }
+        progress = -1; refresh()
+    }
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error { downloadError = error.localizedDescription; progress = -1 }
+    }
+}
+
+struct SetupView: View {
+    @ObservedObject var m: SetupModel
+    let S: Strings
+    var onDone: () -> Void
+
+    @ViewBuilder func row(_ ok: Bool, _ title: String, _ why: String, required: Bool = true, @ViewBuilder action: () -> some View) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: ok ? "checkmark.circle.fill" : (required ? "xmark.circle.fill" : "minus.circle"))
+                .foregroundStyle(ok ? .green : (required ? .red : .secondary)).font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(why).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if !ok { action() }
+        }.padding(.vertical, 4)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(S.t("Mac Butler 준비", "Set up Mac Butler")).font(.largeTitle.bold())
+            Text(S.t("빨간 것만 해결하면 됩니다. 소리는 맥 밖으로 나가지 않아요.", "Fix anything red. Your audio never leaves this Mac."))
+                .foregroundStyle(.secondary)
+            GroupBox {
+                VStack(alignment: .leading) {
+                    row(m.mic, S.t("마이크", "Microphone"), S.t("부르는 말을 듣기 위해", "To hear the wake word")) {
+                        Button(S.t("허용", "Allow")) { AVCaptureDevice.requestAccess(for: .audio) { _ in }; m.openPane("Privacy_Microphone") }
+                    }
+                    row(m.speech, S.t("음성 인식", "Speech Recognition"), S.t("맥 안에서 말을 글자로", "On-device speech to text")) {
+                        Button(S.t("허용", "Allow")) { SFSpeechRecognizer.requestAuthorization { _ in }; m.openPane("Privacy_SpeechRecognition") }
+                    }
+                    row(m.ax, S.t("손쉬운 사용", "Accessibility"), S.t("글자 입력·버튼 누르기 (마우스는 안 움직임)", "Typing and pressing buttons (the mouse never moves)")) {
+                        Button(S.t("설정 열기", "Open Settings")) { m.openPane("Privacy_Accessibility") }
+                    }
+                    row(m.screen, S.t("화면 기록 (선택)", "Screen Recording (optional)"), S.t("「화면에 뭐 있어?」에 답하려면", "Only for “what's on my screen?”"), required: false) {
+                        Button(S.t("설정 열기", "Open Settings")) { CGRequestScreenCaptureAccess(); m.openPane("Privacy_ScreenCapture") }
+                    }
+                }
+            }
+            GroupBox {
+                VStack(alignment: .leading) {
+                    row(m.claude, "Claude Code", S.t("두뇌. 설치하고 터미널에서 `claude` 를 한 번 실행해 로그인하세요 (지금 쓰는 Claude 요금제 그대로).", "The brain. Install it and run `claude` once in Terminal to log in (uses your Claude plan).")) {
+                        Button(S.t("설치 방법", "How to install")) { NSWorkspace.shared.open(URL(string: "https://docs.claude.com/en/docs/claude-code/setup")!) }
+                    }
+                    row(m.whisperBin, "whisper.cpp", S.t("정확한 받아쓰기 엔진: 터미널에서 `brew install whisper-cpp`", "Accurate transcription engine: `brew install whisper-cpp` in Terminal"), required: false) {
+                        Button(S.t("명령 복사", "Copy command")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("brew install whisper-cpp cliclick", forType: .string) }
+                    }
+                    row(m.model, S.t("Whisper 모델 (874 MB)", "Whisper model (874 MB)"), m.downloadError.isEmpty ? S.t("없으면 맥 기본 인식만 씁니다(덜 정확).", "Without it, Apple's live recognition is used (less accurate).") : "⚠︎ " + m.downloadError, required: false) {
+                        if m.progress >= 0 { ProgressView(value: m.progress).frame(width: 140) }
+                        else { Button(S.t("받기", "Download")) { m.download() } }
+                    }
+                }
+            }
+            HStack {
+                Text(S.t("다 되면 「\(m.cfg.wakes.first ?? "자비스")」라고 불러 보세요 — 또는 오른쪽 ⌥ 를 누른 채 말하기.", "Then say “\((m.cfg.wakes.first ?? "Jarvis").capitalized)” — or hold right ⌥ and talk."))
+                    .font(.callout)
+                Spacer()
+                Button(m.allRequired ? S.t("시작", "Start") : S.t("나중에", "Later")) { onDone() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 620)
+    }
+}
+
+enum SetupWindow {
+    static var window: NSWindow?
+    static var flag: URL { Paths.home.appendingPathComponent(".setup-shown") }
+    /// Shown on first launch, or whenever something required is missing.
+    static func showIfNeeded(cfg: Config) {
+        let m = SetupModel(cfg: cfg)
+        if !FileManager.default.fileExists(atPath: flag.path) || !m.allRequired { show(cfg: cfg) }
+    }
+    static func show(cfg: Config) {
+        if let w = window { w.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
+        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
+        let view = SetupView(m: SetupModel(cfg: cfg), S: S) {
+            FileManager.default.createFile(atPath: flag.path, contents: Data())
+            window?.close()
+        }
+        let w = NSWindow(contentViewController: NSHostingController(rootView: view))
+        w.title = "Mac Butler"
+        w.styleMask = [.titled, .closable]
+        w.isReleasedWhenClosed = false
+        w.center()
+        window = w
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}

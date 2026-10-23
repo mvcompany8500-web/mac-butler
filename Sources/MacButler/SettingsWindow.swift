@@ -4,6 +4,7 @@ import SwiftUI
 
 final class SettingsModel: ObservableObject {
     @Published var language: String
+    @Published var activation: String
     @Published var userName: String
     @Published var assistantName: String
     @Published var wakeWords: String
@@ -18,7 +19,7 @@ final class SettingsModel: ObservableObject {
 
     init(_ c: Config) {
         cfg = c
-        language = c.ko ? "ko" : "en"; userName = c.userName; assistantName = c.assistantName
+        language = c.lang; activation = c.activation; userName = c.userName; assistantName = c.assistantName
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
@@ -28,7 +29,7 @@ final class SettingsModel: ObservableObject {
     func save() {
         let url = Paths.home.appendingPathComponent("config.json")
         var obj = (try? JSONSerialization.jsonObject(with: Data(contentsOf: url))) as? [String: Any] ?? [:]
-        obj["language"] = language; obj["userName"] = userName; obj["assistantName"] = assistantName
+        obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
         obj["claudeModel"] = claudeModel
@@ -41,14 +42,14 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    static func sayVoices(ko: Bool) -> [String] {
+    static func sayVoices(lang: String) -> [String] {
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/say"); p.arguments = ["-v", "?"]
         let out = Pipe(); p.standardOutput = out
         try? p.run(); p.waitUntilExit()
         let text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let want = ko ? "ko_KR" : "en_"
+        let want = (Config.languages.first { $0.code == lang }?.locale ?? "en-US").replacingOccurrences(of: "-", with: "_").prefix(3)
         return text.split(separator: "\n").compactMap { line in
-            guard line.contains(want), let r = line.range(of: #"\s{2,}[a-z]{2}_[A-Z]{2}"#, options: .regularExpression) else { return nil }
+            guard line.contains(String(want)), let r = line.range(of: #"\s{2,}[a-z]{2}_[A-Z]{2}"#, options: .regularExpression) else { return nil }
             return String(line[..<r.lowerBound]).trimmingCharacters(in: .whitespaces)
         }
     }
@@ -61,13 +62,17 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(S.t("기본", "Basics")) {
-                Picker(S.t("언어", "Language"), selection: $m.language) { Text("한국어").tag("ko"); Text("English").tag("en") }
+                Picker(S.t("언어", "Language"), selection: $m.language) { ForEach(Config.languages, id: \.code) { Text($0.name).tag($0.code) } }
+                Picker(S.t("부르는 방식", "How to call it"), selection: $m.activation) {
+                    Text(S.t("「자비스」 부르기 (+ 단축키)", "Say the wake word (+ hotkey)")).tag("voice")
+                    Text(S.t("단축키 누르고 말하기만", "Hold the hotkey only")).tag("hold")
+                }
                 TextField(S.t("나를 부르는 호칭", "What it calls you"), text: $m.userName, prompt: Text(S.t("예: 대표님", "e.g. Tony")))
                 TextField(S.t("비서 이름", "Assistant name"), text: $m.assistantName)
                 TextField(S.t("깨우는 말 (쉼표로 구분)", "Wake words (comma-separated)"), text: $m.wakeWords, prompt: Text(S.t("비우면 기본값", "empty = default")))
                 TextField(S.t("인사말", "Greeting"), text: $m.greetingText, prompt: Text(S.t("어서 오십시오, {user}", "Welcome home, {user}.")))
                 Picker(S.t("단축키로 부르기", "Wake hotkey"), selection: $m.hotkey) {
-                    Text(S.t("오른쪽 ⌥", "Right ⌥")).tag("rightOption"); Text(S.t("오른쪽 ⌘", "Right ⌘")).tag("rightCommand"); Text(S.t("끔", "Off")).tag("none")
+                    Text(S.t("오른쪽 ⌥ (톡=부르기, 누르고 말하기)", "Right ⌥ (tap = wake, hold = talk)")).tag("rightOption"); Text(S.t("오른쪽 ⌘", "Right ⌘")).tag("rightCommand"); Text(S.t("끔", "Off")).tag("none")
                 }
             }
             Section(S.t("목소리", "Voice")) {
@@ -75,7 +80,7 @@ struct SettingsView: View {
                 if m.tts == "say" {
                     Picker(S.t("맥 목소리", "macOS voice"), selection: $m.sayVoice) {
                         Text(S.t("시스템 기본", "System default")).tag("")
-                        ForEach(SettingsModel.sayVoices(ko: m.language == "ko"), id: \.self) { Text($0).tag($0) }
+                        ForEach(SettingsModel.sayVoices(lang: m.language), id: \.self) { Text($0).tag($0) }
                     }
                 } else {
                     TextField("ElevenLabs voice ID", text: $m.elevenVoiceId)

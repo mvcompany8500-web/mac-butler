@@ -25,6 +25,7 @@ final class Brain {
         let user = Paths.home.appendingPathComponent("prompt.md")
         let bundled = Paths.resources.appendingPathComponent("prompts/prompt.\(cfg.ko ? "ko" : "en").md")
         var s = (try? String(contentsOf: user, encoding: .utf8)) ?? (try? String(contentsOf: bundled, encoding: .utf8)) ?? "You are {assistant}, a voice assistant for {user}."
+        if !cfg.ko, cfg.lang != "en" { s += "\n\nAlways answer in \(cfg.languageName) — the language {user} speaks." }
         let scr = NSScreen.main?.frame.size ?? .zero
         s = s.replacingOccurrences(of: "{screen}", with: "\(Int(scr.width))×\(Int(scr.height))")
         return cfg.fill(s)

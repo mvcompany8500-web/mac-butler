@@ -30,7 +30,7 @@ final class Butler {
         ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + cfg.customWords + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"])).prefix(100)))
         mouth = Mouth(cfg: cfg)
         brain = Brain(cfg: cfg)
-        whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.ko ? "ko" : "en",
+        whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.lang,
                           prompt: String(((cfg.wakes + [cfg.user, "Claude", "YouTube"] + cfg.customWords).joined(separator: ", ") + ".").prefix(500)))
     }
 
@@ -77,6 +77,7 @@ final class Butler {
         case "session":   // switch the Claude app to a session by name — navigation only, nothing typed
             openClaudeSession(text)
         case "settings": if text == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: cfg) }
+        case "setup": if text == "close" { SetupWindow.window?.close() } else { SetupWindow.show(cfg: cfg) }
         case "say":   // text instead of voice — for testing and screen recordings
             log("text command: \(text)")
             if parser.isGreeting(text) { greet(); return }
@@ -127,7 +128,7 @@ final class Butler {
     }
 
     func partial(_ t: String) {
-        guard enabled else { return }
+        guard enabled, cfg.activation != "hold" || ear.holding || mode == .speaking || mode == .dictation else { return }
         switch mode {
         case .idle:
             if parser.isGreeting(t) { greet(); return }
@@ -156,6 +157,7 @@ final class Butler {
 
     func utterance(_ t: String, audio: [Float]) {
         guard enabled, !ear.holding else { return }   // push-to-talk delivers its own utterance on release
+        if cfg.activation == "hold", mode != .dictation, mode != .speaking { return }   // hold-only: nothing is acted on without the key
         log("heard[\(mode)]: \(t)")
         switch mode {
         case .idle:

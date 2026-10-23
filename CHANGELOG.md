@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — 2026-10-23
+- **Push-to-talk:** hold right ⌥ and talk, release to run (exact audio, like Handy); tap still wakes. New `activation: "hold"` = hotkey only, nothing transcribed otherwise
+- **Setup window** on first launch: live permission checklist, one-click fixes, in-app Whisper download with SHA-256 check
+- **Learns:** steps Claude found once are replayed instantly next time (no Claude call); “아니/no” right after = don't learn; menu shows today's calls/tokens and can forget everything
+- **Interrupt anytime:** a new command while Claude works replaces the old one; trailing 「아니 취소」 cancels; 0.8 s cancel window before sending to Claude; pasting instead of slow typing
+- **Recognition:** mic restarts automatically after audio changes (the “stops responding after a while” bug), VAD utterance start, Whisper hallucination/unrelated-text filter, Handy vocabulary import, filler removal
+- **12 languages:** ko, en, ja, zh, es, fr, de, pt, it, vi, th, id (Claude answers in your language); defaults to the Mac's language
+- Spoken Claude hand-offs go straight through; confirmation only when the assistant proposes one; 「지금 켜진 클로드 창에」 targets the current session; `butler session`
+
 ## 0.4.0 — 2026-10-23 · security hardening
 - **Safe mode (default):** Claude gets a fixed tool allowlist — no arbitrary shell, file writes, URL fetching or MCP; user Claude settings aren't loaded (`brainAccess: "full"` to opt out)
 - `jax`/`jtype` refuse to press/type/click in terminals, code editors, Claude, System Settings, Keychain, password managers and permission prompts; `jax open-app`, `open-url` (http/s only), `screenshot`, `click`, `key`, `volume`, `front`

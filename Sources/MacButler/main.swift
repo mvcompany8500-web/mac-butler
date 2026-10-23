@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(withTitle: S.menuToggle(), action: #selector(toggle), keyEquivalent: "")
         menu.addItem(withTitle: S.menuGreet(), action: #selector(greet), keyEquivalent: "")
         menu.addItem(withTitle: S.t("설정…", "Settings…"), action: #selector(openSettings), keyEquivalent: ",")
+        menu.addItem(withTitle: S.t("준비 화면…", "Setup…"), action: #selector(openSetup), keyEquivalent: "")
         menu.addItem(withTitle: S.menuFolder(), action: #selector(openFolder), keyEquivalent: "")
         menu.addItem(.separator())
         let head = NSMenuItem(title: S.menuStatus, action: nil, keyEquivalent: ""); head.isEnabled = false
@@ -52,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     let j = Butler(cfg: cfg)
                     self.butler = j
                     j.start()
+                    SetupWindow.showIfNeeded(cfg: cfg)
                 }
             }
         }
@@ -129,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     @objc func greet() { butler?.greet() }
     @objc func forgetLearned() { Learning.store = [:]; Learning.save(); log("learned commands cleared") }
+    @objc func openSetup() { SetupWindow.show(cfg: cfg) }
     @objc func openSettings() { SettingsWindow.show(cfg: cfg) }
     @objc func openFolder() { NSWorkspace.shared.open(Paths.home) }
     @objc func quit() { NSApp.terminate(nil) }
