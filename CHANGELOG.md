@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.6.3 — 2026-10-23
+- Opens links in **Safari** by default (every Mac has it; set `browserApp` for Chrome). If Safari's autoplay block leaves a YouTube video paused, it presses play once
 - The orb & card now sit in the bottom-right corner by default (out of the way of what you're doing); bottom-left / top in Settings → Basics
 
 ## 0.6.2 — 2026-10-23

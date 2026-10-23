@@ -47,7 +47,7 @@ struct Config: Codable {
     var inputDevice = ""                // microphone (Core Audio UID); empty = system default
     var outputDevice = ""               // speaker for voice & sounds (Core Audio UID); empty = system default
     var bargeIn = "auto"                // interrupting while it talks: "any" (headphones) · "wake" (speakers: only the wake word / stop words / hotkey) · "auto"
-    var browserApp = "Google Chrome"
+    var browserApp = "Safari"           // every Mac has it; "Google Chrome" etc. also work · "" = your default browser
     var apps: [String: String] = [:]    // extra spoken name → app name, e.g. {"브루": "Vrew"}
     var customWords: [String] = []     // names & jargon you say often — boosts both recognizers (Handy's list is imported automatically)
     var fillerWords: [String] = []     // dropped from dictation; empty → language default

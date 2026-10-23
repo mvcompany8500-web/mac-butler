@@ -313,7 +313,7 @@ final class Butler {
             if q.isEmpty { open("https://www.youtube.com/"); played(S.youtube, "YouTube") } else { youtube(q) }
         case .youtubeNth(let n):
             guard n >= 1, n <= ytList.count else { ask(cmd); return }
-            open("https://www.youtube.com/watch?v=" + ytList[n - 1].id); played("\(S.youtube) #\(n)", ytList[n - 1].title)
+            open("https://www.youtube.com/watch?v=" + ytList[n - 1].id); played("\(S.youtube) #\(n)", ytList[n - 1].title); ensurePlaying()
         case .search(let q) where lastSite.map({ Date().timeIntervalSince($0.at) < 120 }) == true:
             let s = lastSite!; lastSite = (s.label, s.url, Date()); open(s.url + enc(q)); done(s.label, q)
         case .search(let q): open((cfg.ko ? "https://www.google.com/search?hl=ko&q=" : "https://www.google.com/search?q=") + enc(q)); done(S.searched, q)
@@ -405,7 +405,7 @@ final class Butler {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.ytList = list
-                if let v = list.first { self.open("https://www.youtube.com/watch?v=" + v.id); self.played(self.S.youtubePlay, v.title) }
+                if let v = list.first { self.open("https://www.youtube.com/watch?v=" + v.id); self.played(self.S.youtubePlay, v.title); self.ensurePlaying() }
                 else { self.open("https://www.youtube.com/results?search_query=" + self.enc(q)); self.done(self.S.youtube, q) }
             }
         }.resume()
@@ -660,6 +660,17 @@ final class Butler {
         hud.show("▶ \(kind)", body, color: lime)
         mode = .idle
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in if self?.mode == .idle { self?.hud.idle() } }
+    }
+    /// Safari blocks autoplay with sound by default, so a YouTube page can open paused. If nothing is playing
+    /// after 3 s and the browser is in front, press YouTube's play key (k) — once, never when it's already playing.
+    func ensurePlaying() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            guard let self, AudioDevices.outputBusy(self.cfg.outputDevice, micUID: self.cfg.inputDevice) == false,
+                  let front = NSWorkspace.shared.frontmostApplication?.localizedName,
+                  front == (self.cfg.browserApp.isEmpty ? front : self.cfg.browserApp) || ["Safari", "Google Chrome"].contains(front) else { return }
+            log("video didn't start (autoplay blocked?) → pressing play")
+            Hands.key(40)      // k = YouTube play/pause
+        }
     }
     func goIdle() { mode = .idle; hud.idle() }
     func shutdown() { whisper.stop(); brain.stop(); mouth.stop(); control.stop() }

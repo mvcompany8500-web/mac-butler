@@ -156,7 +156,7 @@ Everything lives in `~/.macbutler/`:
   "elevenLabs": { "apiKeyFile": "~/.secrets/.env", "voiceId": "…", "model": "eleven_flash_v2_5" },
   "claudeModel": "sonnet",
   "whisperModel": "",              // default ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
-  "browserApp": "Google Chrome",
+  "browserApp": "Safari",           // default · "Google Chrome" etc. · "" = your default browser
   "apps": { "브루": "Vrew" },       // extra spoken app names
   "silenceSec": 1.8, "followUpSec": 30
 }
