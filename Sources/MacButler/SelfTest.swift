@@ -56,6 +56,11 @@ enum SelfTest {
         check(pe, "daddy's home", .greet)
         checkBool("en wake strip", pe.stripWake("Hey Jarvis, open chrome") == "open chrome")
 
+        // Whisper sanity
+        checkBool("whisper drops subtitle line", Whisper.clean("한글자막 by 한효정\n 헤이 자비스 지금 몇 시야?", apple: "헤이 자비스 지금 몇 시야") == "헤이 자비스 지금 몇 시야?")
+        checkBool("whisper unrelated rejected", !Whisper.related("자비스, 이거 지금, 고맙습니다.", "됐어"))
+        checkBool("whisper related kept", Whisper.related("한글 인식 자체가 생각보다 많이 안 돼.", "한글 이진식 자체가 생각보다 많이 안 돼"))
+
         // YouTube parser
         let html = #""videoRenderer":{"videoId":"abcdefghijk","thumbnail":{},"title":{"runs":[{"text":"First video"}]}"#
         checkBool("youtube parse", Butler.parseYouTube(html).first?.id == "abcdefghijk")

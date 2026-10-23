@@ -29,3 +29,4 @@ func butlerSend(_ cmd: String, _ text: String) -> Bool {
 let a = CommandLine.arguments
 guard a.count >= 2, ["say", "type", "delegate", "settings"].contains(a[1]) else { print("usage: butler <say|type|delegate|settings> [text]"); exit(1) }
 if !butlerSend(a[1], a.dropFirst(2).joined(separator: " ")) { print("Mac Butler is not running"); exit(2) }
+if a[1] == "delegate" { print("pending — Mac Butler holds the task until the user says yes. In your answer, ASK whether to hand it over; do not say it was done.") }

@@ -45,7 +45,9 @@ struct Config: Codable {
 
     var browserApp = "Google Chrome"
     var apps: [String: String] = [:]    // extra spoken name → app name, e.g. {"브루": "Vrew"}
-    var silenceSec = 1.8
+    var customWords: [String] = []     // names & jargon you say often — boosts both recognizers (Handy's list is imported automatically)
+    var fillerWords: [String] = []     // dropped from dictation; empty → language default
+    var silenceSec = 1.5
     var followUpSec = 30.0
     var maxUtteranceSec = 25.0
     var chime = "Tink"
@@ -64,6 +66,7 @@ struct Config: Codable {
         whisperModel = v(.whisperModel, z.whisperModel); whisperServer = v(.whisperServer, z.whisperServer)
         tts = v(.tts, z.tts); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)
         browserApp = v(.browserApp, z.browserApp); apps = v(.apps, z.apps)
+        customWords = v(.customWords, z.customWords); fillerWords = v(.fillerWords, z.fillerWords)
         silenceSec = v(.silenceSec, z.silenceSec); followUpSec = v(.followUpSec, z.followUpSec); maxUtteranceSec = v(.maxUtteranceSec, z.maxUtteranceSec)
         chime = v(.chime, z.chime); showIdleOrb = v(.showIdleOrb, z.showIdleOrb); hotkey = v(.hotkey, z.hotkey)
     }
@@ -91,10 +94,31 @@ struct Config: Codable {
     var claudeBinary: String? { claudePath.isEmpty ? Paths.which("claude", extra: ["~/.claude/local/claude", "~/.local/bin/claude"]) : (claudePath as NSString).expandingTildeInPath }
     var whisperBinary: String? { whisperServer.isEmpty ? Paths.which("whisper-server") : (whisperServer as NSString).expandingTildeInPath }
 
+    var fillers: [String] { fillerWords.isEmpty ? (ko ? ["음", "으음", "어어", "음음"] : ["um", "uh", "erm"]) : fillerWords }
+
+    /// Custom words and filler words from Handy (cjpais/Handy) if it is installed — your vocabulary carries over.
+    static func handyVocabulary() -> (words: [String], fillers: [String])? {
+        let p = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/com.pais.handy/settings_store.json")
+        guard let d = try? Data(contentsOf: p), let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return nil }
+        let s = (obj["settings"] as? [String: Any]) ?? obj
+        let w = s["custom_words"] as? [String] ?? [], f = s["custom_filler_words"] as? [String] ?? []
+        return w.isEmpty && f.isEmpty ? nil : (w, f)
+    }
+
     static func load() -> Config {
         let url = Paths.home.appendingPathComponent("config.json")
         if let d = try? Data(contentsOf: url) {
-            do { return try JSONDecoder().decode(Config.self, from: d) } catch { log("config.json unreadable, using defaults: \(error)") }
+            do {
+                var c = try JSONDecoder().decode(Config.self, from: d)
+                // First run after this feature: bring over Handy's vocabulary once.
+                if let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any], obj["customWords"] == nil, let h = handyVocabulary() {
+                    c.customWords = h.words; c.fillerWords = h.fillers.isEmpty ? c.fillerWords : h.fillers
+                    var o = obj; o["customWords"] = c.customWords; o["fillerWords"] = c.fillerWords
+                    if let out = try? JSONSerialization.data(withJSONObject: o, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) { try? out.write(to: url) }
+                    log("imported \(c.customWords.count) custom words from Handy")
+                }
+                return c
+            } catch { log("config.json unreadable, using defaults: \(error)") }
             return Config()
         }
         let c = Config()

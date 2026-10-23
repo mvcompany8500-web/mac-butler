@@ -56,8 +56,9 @@ final class Whisper {
         let wav = Whisper.wav(audio)
         attempt(wav, tries: 30) { [weak self] text in
             guard let self else { return }
-            var t = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            var t = Whisper.clean(text ?? "", apple: fallback)
             if Whisper.isHallucination(t, apple: fallback) { t = "" }
+            if !t.isEmpty, !Whisper.related(t, fallback) { log("whisper ignored (unrelated to what was heard): \(t)"); t = "" }
             if self.language == "ko", !t.isEmpty, Whisper.hangulRatio(fallback) > 0.5, Whisper.hangulRatio(t) < 0.5 { t = "" }
             log("whisper: \(t.isEmpty ? "(using Apple text)" : t)")
             done(t.isEmpty ? fallback : t)
@@ -92,6 +93,22 @@ final class Whisper {
     static func processName(_ pid: pid_t) -> String? {
         var buf = [CChar](repeating: 0, count: 4096)
         return proc_pidpath(pid, &buf, UInt32(buf.count)) > 0 ? String(cString: buf) : nil
+    }
+    /// Line by line: removes the classic subtitle/thanks hallucinations Whisper adds on noise.
+    static func clean(_ raw: String, apple: String) -> String {
+        let bad = ["자막", "시청해", "구독", "좋아요", "MBC", "KBS", "SBS", "by ", "Thanks for watching", "Subtitles"]
+        return raw.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { line in !line.isEmpty && !bad.contains { line.contains($0) && !apple.contains($0) } }
+            .joined(separator: " ")
+    }
+    /// Whisper's text should share most of its characters with what Apple heard live; if not, the audio was
+    /// probably cut wrong (old speech, our own voice) — better to trust the live text.
+    static func related(_ w: String, _ apple: String) -> Bool {
+        let a = apple.filter { $0.isLetter || $0.isNumber }.lowercased(), b = w.filter { $0.isLetter || $0.isNumber }.lowercased()
+        guard a.count >= 3 else { return b.count <= max(8, a.count * 4) }
+        let bag = Set(b)
+        let hit = a.filter { bag.contains($0) }.count
+        return Double(hit) / Double(a.count) >= 0.45 && b.count <= a.count * 3 + 10
     }
     static func hangulRatio(_ x: String) -> Double {
         Double(x.unicodeScalars.filter { $0.value >= 0xAC00 && $0.value <= 0xD7A3 }.count) / Double(max(x.filter { $0.isLetter }.count, 1))

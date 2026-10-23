@@ -3,7 +3,8 @@ import AppKit
 
 final class Butler {
     enum Mode { case idle, awake, dictation, busy, speaking }
-    var mode: Mode = .idle
+    var mode: Mode = .idle { didSet { if mode != oldValue { modeSince = Date() } } }
+    var modeSince = Date()
     let cfg: Config
     let S: Strings
     let parser: Parser
@@ -24,11 +25,11 @@ final class Butler {
         self.cfg = cfg
         S = Strings(ko: cfg.ko, name: cfg.assistantName)
         parser = Parser(cfg: cfg)
-        ear = Ear(locale: cfg.locale, hints: cfg.wakes + cfg.greets + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"]))
+        ear = Ear(locale: cfg.locale, hints: Array((cfg.wakes + cfg.greets + cfg.customWords + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"])).prefix(100)))
         mouth = Mouth(cfg: cfg)
         brain = Brain(cfg: cfg)
         whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.ko ? "ko" : "en",
-                          prompt: (cfg.wakes + [cfg.user, "Claude", "YouTube"]).joined(separator: ", ") + ".")
+                          prompt: String(((cfg.wakes + [cfg.user, "Claude", "YouTube"] + cfg.customWords).joined(separator: ", ") + ".").prefix(500)))
     }
 
     func start() {
@@ -47,6 +48,13 @@ final class Butler {
             if self.awakeStarted.map({ Date().timeIntervalSince($0) > self.cfg.maxUtteranceSec }) == true { self.awakeStarted = nil; self.ear.forceFlush() }
             if Date() > self.awakeUntil { self.goIdle() }
         }
+        // Never get stuck: a voice reply or a Claude task that hangs must not leave it deaf.
+        Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let age = Date().timeIntervalSince(self.modeSince)
+            if self.mode == .speaking, age > 90 { log("watchdog: stuck speaking → idle"); self.mouth.stop(); self.speakingText = ""; self.ear.muted = false; self.ear.restart(); self.goIdle() }
+            if self.mode == .busy, age > 180 { log("watchdog: task took too long → stop"); self.brain.cancel(); self.goIdle() }
+        }
     }
 
     /// Commands from the bundled tools (`butler`, `jax field`) over the private control socket (see ControlSocket).
@@ -59,10 +67,10 @@ final class Butler {
                 log("blocked typing into protected app \(b)"); return
             }
             DispatchQueue.global().async { Hands.typeVisible(text) }
-        case "delegate":
+        case "delegate":   // from the brain: it asks the question in its own answer, we just hold the task
             let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2, !parts[1].isEmpty else { return }
-            askToDelegate(target: parts[0], message: parts[1], newSession: parts[0].isEmpty)
+            askToDelegate(target: parts[0], message: parts[1], newSession: parts[0].isEmpty, speakQuestion: false)
         case "settings": if text == "close" { SettingsWindow.window?.close() } else { SettingsWindow.show(cfg: cfg) }
         case "say":   // text instead of voice — for testing and screen recordings
             log("text command: \(text)")
@@ -273,11 +281,12 @@ final class Butler {
         "com.apple.dt.Xcode", "com.apple.Console", "com.anthropic.claudefordesktop", "com.microsoft.VSCode",
         "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.1password.1password", "com.bitwarden.desktop"]
     var pendingDelegate: (target: String, message: String, newSession: Bool)?
-    func askToDelegate(target: String, message: String, newSession: Bool) {
+    func askToDelegate(target: String, message: String, newSession: Bool, speakQuestion: Bool = true) {
         guard cfg.confirmDelegate else { claudeMacro(target: target, message: message, newSession: newSession); return }
         pendingDelegate = (target, message, newSession)
         let where_ = newSession ? S.t("클로드 새 세션", "a new Claude session") : (target.isEmpty ? "Claude" : target)
         log("delegate pending: \(message)")
+        guard speakQuestion else { return }
         speak(S.t("\(where_)에 맡길까요?", "Hand this to \(where_)?")) { [weak self] in
             guard let self else { return }
             self.converse(keep: true)
@@ -307,7 +316,7 @@ final class Butler {
         if parser.isBye(t) || parser.isHush(t) || ["그만", "끝", "받아쓰기끝"].contains(s) { NSSound(named: "Pop")?.play(); converse(); return }
         if ["엔터", "보내", "전송", "줄바꿈", "enter", "newline", "send"].contains(s) { Hands.key(Hands.enter); hud.body("⏎"); return }
         if ["지워", "취소", "되돌려", "undo", "deletethat"].contains(s) { Hands.key(6, .maskCommand); hud.body("↶"); return }
-        var text = t.trimmingCharacters(in: .whitespaces)
+        var text = t.split(separator: " ").filter { w in !cfg.fillers.contains(w.trimmingCharacters(in: .punctuationCharacters)) }.joined(separator: " ")
         var enter = false
         for suf in [" 엔터", " 보내", " enter", " send"] where text.lowercased().hasSuffix(suf) { text = String(text.dropLast(suf.count)); enter = true }
         Hands.paste(text + " ")
@@ -326,7 +335,15 @@ final class Butler {
             guard let self else { return }
             log("brain → \(answer)")
             let spoken = answer.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
-            self.speak(spoken) { self.converse(keep: true) }   // leave the answer on screen
+            self.speak(spoken) {
+                self.converse(keep: true)   // leave the answer on screen
+                if let p = self.pendingDelegate {
+                    self.hud.show(self.S.t("◌ 맡길까요? 「응」 / 「아니」", "◌ Hand it over? “yes” / “no”"), p.message, heard: nil, color: amber)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+                        if self?.pendingDelegate?.message == p.message { self?.pendingDelegate = nil; log("delegate expired") }
+                    }
+                }
+            }
         })
     }
 

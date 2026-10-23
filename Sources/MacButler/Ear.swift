@@ -36,16 +36,46 @@ final class Ear {
 
     private func segment() -> [Float] {
         lock.lock(); defer { lock.unlock() }
-        let a = max(segStart - ringBase, 0)
+        let a = max(max(segStart, speechOnset) - ringBase, 0)
         return a < ring.count ? Array(ring[a...]) : []
     }
 
+    private var lastBuffer = Date()
+    private var speechOnset = 0                 // absolute sample where the current utterance began (VAD)
+    private var engineObserver: NSObjectProtocol?
+
     func start() throws {
+        try startEngine()
+        restart()
+        Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
+        // The mic stops when another app (e.g. a dictation app) or a device change reconfigures audio.
+        // Restart on Apple's notification, and as a watchdog if no audio arrived for 3 s.
+        engineObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            log("ear: audio configuration changed → restarting mic"); self?.restartEngine()
+        }
+        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.lock.lock(); let last = self.lastBuffer; self.lock.unlock()
+            if Date().timeIntervalSince(last) > 3 { log("ear: no audio for 3 s → restarting mic"); self.restartEngine() }
+        }
+        log("ear on: on-device=\(recognizer.supportsOnDeviceRecognition)")
+    }
+
+    private func restartEngine() {
+        engine.stop()
+        engine.inputNode.removeTap(onBus: 0)
+        lock.lock(); lastBuffer = Date(); lock.unlock()   // give it a moment before the watchdog fires again
+        do { try startEngine(); restart() } catch { log("ear: mic restart failed: \(error)") }
+    }
+
+    private func startEngine() throws {
         let input = engine.inputNode
         let fmt = input.outputFormat(forBus: 0)
+        guard fmt.sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
         converter = AVAudioConverter(from: fmt, to: target)
         input.installTap(onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
             guard let self else { return }
+            self.lock.lock(); self.lastBuffer = Date(); self.lock.unlock()
             if let conv = self.converter {
                 let cap = AVAudioFrameCount(Double(buf.frameLength) * 16000 / fmt.sampleRate) + 32
                 if let out = AVAudioPCMBuffer(pcmFormat: self.target, frameCapacity: cap) {
@@ -71,7 +101,13 @@ final class Ear {
                 DispatchQueue.main.async {
                     if !self.muted {
                         self.floor = rms < self.floor ? rms : self.floor * 0.998 + rms * 0.002
-                        if rms > max(self.floor * 3.5, 0.003) { self.lastLoud = Date() }
+                        if rms > max(self.floor * 3.5, 0.003) {
+                            // Voice after a real pause = a new utterance starts here (keep 0.4 s of lead-in).
+                            if Date().timeIntervalSince(self.lastLoud) > self.silenceSec {
+                                self.lock.lock(); self.speechOnset = max(self.ringEnd - 6400, self.ringBase); self.lock.unlock()
+                            }
+                            self.lastLoud = Date()
+                        }
                     }
                     self.onLevel(self.muted ? 0 : rms)
                 }
@@ -82,9 +118,6 @@ final class Ear {
         }
         engine.prepare()
         try engine.start()
-        restart()
-        Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
-        log("ear on: on-device=\(recognizer.supportsOnDeviceRecognition)")
     }
 
     func restart() {
