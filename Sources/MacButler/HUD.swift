@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 
-// The face: a glowing orb + a card at the top of the screen (or a bottom corner — config hudPosition). Click-through, on every Space.
+// The face: a glowing orb + a card at the top of the bottom-right corner (or bottom-left / top — config hudPosition). Click-through, on every Space.
 
 let cyan = NSColor(calibratedRed: 0.30, green: 0.85, blue: 1.0, alpha: 1)
 let amber = NSColor(calibratedRed: 1.0, green: 0.72, blue: 0.25, alpha: 1)

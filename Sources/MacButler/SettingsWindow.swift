@@ -82,7 +82,7 @@ struct SettingsView: View {
                     Text(S.t("오른쪽 ⌥ (톡=부르기, 누르고 말하기)", "Right ⌥ (tap = wake, hold = talk)")).tag("rightOption"); Text(S.t("오른쪽 ⌘", "Right ⌘")).tag("rightCommand"); Text(S.t("끔", "Off")).tag("none")
                 }
                 Picker(S.t("화면 위치", "On-screen position"), selection: $m.hudPosition) {
-                    Text(S.t("위 가운데", "Top center")).tag("top"); Text(S.t("오른쪽 아래", "Bottom right")).tag("bottomRight"); Text(S.t("왼쪽 아래", "Bottom left")).tag("bottomLeft")
+                    Text(S.t("오른쪽 아래 (기본)", "Bottom right (default)")).tag("bottomRight"); Text(S.t("왼쪽 아래", "Bottom left")).tag("bottomLeft"); Text(S.t("위 가운데", "Top center")).tag("top")
                 }
             }
             Section(S.t("마이크·스피커", "Microphone & speaker")) {

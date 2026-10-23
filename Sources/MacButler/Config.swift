@@ -57,7 +57,7 @@ struct Config: Codable {
     var chime = "Tink"
     var keepAudio = false               // keep the last 30 utterances (audio + text) locally to check recognition
     var showIdleOrb = true
-    var hudPosition = "top"             // where the orb & card sit: "top" · "bottomRight" · "bottomLeft"
+    var hudPosition = "bottomRight"     // where the orb & card sit: "bottomRight" (default) · "bottomLeft" · "top"
     var hotkey = "rightOption"          // tap to wake without speaking: "rightOption", "rightCommand", "none"
 
     init() {}

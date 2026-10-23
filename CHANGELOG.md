@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.3 — 2026-10-23
+- The orb & card now sit in the bottom-right corner by default (out of the way of what you're doing); bottom-left / top in Settings → Basics
+
 ## 0.6.2 — 2026-10-23
 - Fix: breathing into the mic stopped it mid-answer. Cutting in now also needs a voice-like pitch (breath, a bump or a puff on the mic don't have one) — checked on 1,391 chunks of real speech vs. noise
 
