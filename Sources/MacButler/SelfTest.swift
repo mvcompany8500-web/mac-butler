@@ -38,7 +38,7 @@ enum SelfTest {
         check(pk, "쿠팡 홈페이지에 들어가서 맥미니 가격", .web(label: "쿠팡", query: "맥미니 가격", url: "https://www.coupang.com/np/search?q="))
         check(pk, "쿠팡 들어가서 무선 이어폰 찾아 줘", .web(label: "쿠팡", query: "무선 이어폰", url: "https://www.coupang.com/np/search?q="))
         check(pk, "쿠팡 열어", .web(label: "쿠팡", query: "", url: "https://www.coupang.com/"))
-        check(pk, "영상 멈추고 쿠팡에서 맥미니 찾아 줘", .none)
+        check(pk, "영상 멈추고 쿠팡에서 맥미니 찾아 줘", .multi(["영상 멈춰", "쿠팡에서 맥미니 찾아 줘"]))   // 10/23: quick parts run in order
         checkBool("영상 멈춰 is not hush", !pk.isHush("이거 영상 멈춰"))
         check(pk, "클로드한테 얘기해. 애플 인증서 받는 게 좋은지", .claude(target: "", message: "애플 인증서 받는 게 좋은지", newSession: true))
         check(pk, "그래 다 꺼", .closeOpened)   // 10/23: 「다 꺼」 = close what it opened
@@ -89,6 +89,10 @@ enum SelfTest {
                              ("지금 켜져 있는 창들 다 꺼줘.", "closeOpened"), ("창 다 꺼", "closeOpened"), ("아니 취소", "hush"),
                              ("지금 켜져 있는 유튜브 뒤로 가기 누르라고", "browser(\"back\")"), ("소리 키워", "volume(set: nil, delta: 15"), ("볼륨 30으로 해", "volume(set: Optional(30)"),
                              ("몇 시야", "clock(date: false)"), ("오늘 며칠이야", "clock(date: true)"), ("다 끄라고", "closeOpened"),
+                             ("라면 3분", "timer(seconds: 180, label: \"라면\")"), ("10분 뒤에 알려 줘", "timer(seconds: 600"), ("1시간 30분 후에 회의라고 알려 줘", "timer(seconds: 5400, label: \"회의\")"),
+                             ("3분짜리 영상 찾아 줘", "search("), ("타이머 취소", "cancelTimers"), ("강남역 가는 길", "map(\"강남역\")"), ("지금 어디야", "none"),
+                             ("로파이 틀고 소리 줄이고 화면 꺼", "multi([\"로파이 틀어\", \"소리 줄여\", \"화면 꺼\"])"), ("로파이 틀어", "youtube(\"로파이\")"),
+                             ("쿠팡 열고 클로드에 버그 고치라고 해", "none"),
                              ("지금 떠있는 클로드 창에 이제 시작한다고 말해줘", "claude(target: \"\", message: \"이제 시작한다고 말해줘\", newSession: false)")] {
             checkBool("parse: \(said)", "\(pk.parse(pk.stripWake(said), hasYouTubeList: true))".hasPrefix(want))
         }

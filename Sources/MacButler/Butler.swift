@@ -79,6 +79,8 @@ final class Butler {
         ear.onUtterance = { [weak self] t, a in self?.utterance(t, audio: a) }
         brain.warm()
         Growth.sweep()
+        Timers.onFire = { [weak self] label in self?.timerFired(label) }
+        Timers.restore()
         listenForSignals()
         do { try ear.start() } catch { log("mic failed: \(error)"); hud.show("⚠︎", S.micError, color: amber) }
         if !brain.installed { hud.show("⚠︎", S.noClaude, color: amber) }
@@ -327,6 +329,23 @@ final class Butler {
             f.dateFormat = date ? (cfg.ko ? "M월 d일 EEEE" : "EEEE, MMMM d") : (cfg.ko ? "a h시 m분" : "h:mm a")
             let line = cfg.ko ? "\(cfg.user.isEmpty ? "" : cfg.user + ", ")\(date ? "오늘은 " : "지금은 ")\(f.string(from: Date()))입니다." : (date ? "Today is " : "It's ") + f.string(from: Date()) + "."
             speak(line) { [weak self] in self?.converse(keep: true) }
+        case .timer(let secs, let label):
+            let at = Date().addingTimeInterval(TimeInterval(secs))
+            Timers.add(at: at, label: label)
+            let f = DateFormatter(); f.locale = Locale(identifier: cfg.locale); f.dateFormat = cfg.ko ? "a h:mm" : "h:mm a"
+            let span = secs < 3600 ? (secs % 60 == 0 ? S.t("\(secs / 60)분", "\(secs / 60) min") : S.t("\(secs / 60)분 \(secs % 60)초", "\(secs / 60)m \(secs % 60)s")) : f.string(from: at)
+            Sound.named("Pop")
+            done(S.t("타이머", "Timer"), (label.isEmpty ? "" : label + " · ") + span + S.t(" 뒤에 알려 드릴게요", " — I'll tell you"))
+        case .cancelTimers:
+            let n = Timers.cancelAll(); done(S.t("타이머", "Timer"), S.t("\(n)개 취소", "\(n) cancelled"))
+        case .map(let place):
+            open("https://map.naver.com/p/search/" + enc(place)); done(S.t("지도", "Map"), place)
+        case .multi(let parts):
+            log("multi: \(parts)")
+            hud.show(S.t("◉ 차례로 하는 중", "◉ Doing them in order"), parts.joined(separator: " → "), heard: nil, color: amber, speed: 3)
+            for (i, p) in parts.enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 1.6) { [weak self] in self?.handle(p) }
+            }
         case .closeOpened:
             let n = closeOpened()
             if n == 0, AudioDevices.outputBusy(cfg.outputDevice, micUID: cfg.inputDevice) == true { media(play: false); return }   // nothing of ours open, but something's playing
@@ -756,6 +775,15 @@ final class Butler {
             log("video didn't start (autoplay blocked?) → pressing play")
             Hands.key(40)      // k = YouTube play/pause
         }
+    }
+    /// A timer went off: chime, card, and say it — unless it's busy talking or working, then just chime and show it.
+    func timerFired(_ label: String) {
+        Sound.named("Glass"); DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { Sound.named("Glass") }
+        let line = cfg.ko ? "\(cfg.user.isEmpty ? "" : cfg.user + ", ")\(label.isEmpty ? "시간 됐습니다." : label + " 시간입니다.")"
+                          : (label.isEmpty ? "Time's up." : "Time for \(label).")
+        hud.show(S.t("⏰ 타이머", "⏰ Timer"), line, heard: "", color: amber, speed: 2)
+        guard mode == .idle || mode == .awake else { return }
+        speak(line) { [weak self] in self?.goIdle() }
     }
     func goIdle() { mode = .idle; hud.idle() }
     func shutdown() { whisper.stop(); brain.stop(); mouth.stop(); control.stop() }

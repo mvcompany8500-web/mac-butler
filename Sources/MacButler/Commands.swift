@@ -19,6 +19,10 @@ enum Intent: Equatable {
     case browser(String)                                    // 「뒤로 가」「앞으로」「새로고침」 in the browser in front: back / forward / reload
     case volume(set: Int?, delta: Int, mute: Bool)          // 「소리 키워」「볼륨 30」「음소거」
     case clock(date: Bool)                                  // 「몇 시야」「오늘 며칠이야」 — answered on the Mac, no Claude
+    case timer(seconds: Int, label: String)                 // 「라면 3분」「10분 뒤에 알려 줘」「5시에 회의 알려 줘」
+    case cancelTimers                                       // 「타이머 취소」
+    case map(String)                                        // 「강남역 가는 길」 → Naver Map
+    case multi([String])                                    // 「로파이 틀고 소리 줄이고 화면 꺼」 — each part is a quick command
     case openApp(spoken: String, app: String)
     case none
 }
@@ -133,6 +137,7 @@ struct Parser {
         var s = Parser.clean(raw)
         let sq = Parser.squash(s)
         if s.isEmpty { return .none }
+        if Parser.isCancelTimers(s) { return .cancelTimers }
         if Parser.cancelledAtEnd(s) { return .hush }     // “…, 아니 취소” / “…, never mind” — the speaker took it back
         if isGreeting(s) { return .greet }
         if ["받아써", "받아적어", "받아쓰기", "타이핑모드", "말하는대로써", "takedictation", "dictationmode", "startdictation"].contains(where: sq.contains) { return .dictation }
@@ -142,11 +147,21 @@ struct Parser {
         s = Parser.dropLeadIn(s)
         // "쿠팡 말고 유튜브 터틀메이커 검색해봐" — the part after 말고 is what you want
         if let r = s.range(of: #"\s말고[,\s]+"#, options: .regularExpression), s[r.upperBound...].count >= 2 { s = String(s[r.upperBound...]) }
+        if Parser.isCompound(s), !s.contains("클로드"), !s.lowercased().contains("claude") {
+            // Every part a quick command → do them in order right away; otherwise Claude takes the whole sentence.
+            if let parts = Parser.splitCommands(s), parts.count >= 2,
+               parts.allSatisfy({ p in let i = parse(p, hasYouTubeList: hasYouTubeList); if case .multi = i { return false }; if case .claude = i { return false }; return i != .none && i != .dictation }) {
+                return .multi(parts)
+            }
+            return .none
+        }
         if let c = Parser.closeTabs(s) { return .closeTabs(label: c.0, host: c.1) }
         if Parser.isCloseOpened(s) { return .closeOpened }
         if let b = Parser.browserNav(s) { return .browser(b) }
         if let v = Parser.volume(s) { return .volume(set: v.0, delta: v.1, mute: v.2) }
         if let d = Parser.clock(s) { return .clock(date: d) }
+        if let t = Parser.timer(s) { return .timer(seconds: t.0, label: t.1) }
+        if let place = Parser.mapPlace(s) { return .map(place) }
         if Parser.isDisplayOff(s) { return .displayOff }
         if Parser.isNext(s) { return .mediaNext }
         if let play = Parser.mediaControl(s) { return .media(play: play) }
@@ -160,6 +175,8 @@ struct Parser {
         // Claude: 「(세션) 클로드한테 ○○ 라고 전달해」 → relay just that; 「클로드코드한테 ○○ 해서 보내」 → whole task.
         if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|창에다가|창에다|창에|에다가|에다|에|님|보고)\\s*[,，]?\\s*(.+)$") {
             var target = m[1]
+            // "쿠팡 열고 클로드에 …" — another action before the hand-off → Claude (the brain) takes the whole sentence
+            if target.split(separator: " ").contains(where: { ["열고", "틀고", "켜고", "끄고", "찾고", "하고", "멈추고", "닫고", "검색하고"].contains(String($0)) }) { return .none }
             let here = ["지금", "현재", "여기", "이 창", "열린", "켜진", "켜져 있는", "보고 있는", "떠 있는", "떠있는", "열려 있는"].contains { target.contains($0) } || (m[3].hasPrefix("창에") && target.isEmpty)
             for w in ["프로젝트", "세션", "창", "에 있는", "떠 있는", "떠있는", "열려 있는", "있는", "지금", "켜져 있는", "켜진", "열린", "현재", "여기", "보고"] { target = target.replacingOccurrences(of: w, with: "") }
             target = target.trimmingCharacters(in: .whitespaces.union(.punctuationCharacters))
@@ -197,6 +214,12 @@ struct Parser {
             if let m = Parser.match(s, "^play\\s+(the\\s+)?(number\\s+)?(\\w+)(\\s+one)?$"), let n = Parser.ordinal(m[3]) { return .youtubeNth(n) }
         }
 
+        // 「로파이 틀어」「아이유 노래 틀어 줘」 — playing something with no site named means YouTube
+        if let m = Parser.match(s, "^(.+?)\\s*(?:검색해서|찾아서)?\\s*(틀어|재생해|재생 해|틀어 봐|틀어봐)" + tail), app(m[1]) == nil,
+           Parser.match(m[1], "(번째|번)\\s*(거|것|영상|꺼)?$") == nil,
+           !["영상", "다시", "이어서", "계속", "음악", "노래"].contains(m[1].trimmingCharacters(in: .whitespaces)) {
+            return .youtube(m[1])
+        }
         // Two things in one breath ("영상 멈추고 쿠팡에서 …", "X 하고 Y") → Claude does them in order.
         if let m = Parser.match(s, "^(기억해|기억해 둬|기억해둬|메모해|remember(?: that)?)\\s*[:,]?\\s*(.+)$") { return .remember(m[2]) }
         if let m = Parser.match(s, "^(.+?)\\s*(이?라고|라는 거|라는 걸)?\\s*(기억해 둬|기억해둬|기억해)$"), m[1].count >= 2 { return .remember(m[1]) }
@@ -317,6 +340,83 @@ struct Parser {
         if ["며칠", "몇일", "무슨요일", "오늘날짜", "whatday", "date"].contains(where: q.contains) { return true }
         return nil
     }
+    static let nativeNum: [String: Int] = ["한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10, "열한": 11, "열두": 12,
+                                           "일": 1, "이": 2, "삼": 3, "사": 4, "오": 5, "육": 6, "칠": 7, "팔": 8, "구": 9, "십": 10, "십오": 15, "이십": 20, "삼십": 30]
+    static func num(_ w: String) -> Int? { Int(w) ?? nativeNum[w] }
+    /// 「라면 3분」「3분 타이머」「10분 뒤에 알려 줘」「1시간 30분 후에 알려 줘」「30초」 · 「5시에 회의 알려 줘」「오후 3시 반에 알려 줘」
+    static func timer(_ s: String) -> (Int, String)? {
+        let t = s.replacingOccurrences(of: ",", with: " ").replacingOccurrences(of: ".", with: " ")
+        // At a clock time: (오전|오후)? N시 (M분|반)? 에 …
+        if let m = match(t, "^(?:(오전|오후|아침|저녁|밤|새벽)\\s*)?(\\S+?)\\s*시\\s*(?:(\\S+?)\\s*분|(반))?\\s*에\\s*(.*?)\\s*(?:알려|깨워|불러|말해)\\s*(?:줘|주세요|줄래)?$"),
+           let h = num(m[2]), (0...24).contains(h) {
+            let minute = m[4] == "반" ? 30 : (num(m[3]) ?? 0)
+            var label = m[5].replacingOccurrences(of: "라고", with: "").trimmingCharacters(in: .whitespaces)
+            for suffix in ["이라고", "고", "을", "를", "있다고", "있는 거"] where label.hasSuffix(suffix) { label = String(label.dropLast(suffix.count)) }
+            let cal = Calendar.current, now = Date()
+            var best: Date?
+            let hours = m[1].isEmpty ? ((1...6).contains(h) ? [h + 12] : h <= 12 ? [h, h + 12] : [h])
+                                     : (["오후", "저녁", "밤"].contains(m[1]) && h < 12 ? [h + 12] : [h])
+            for day in 0...1 { for hh in hours where hh < 24 {
+                if var d = cal.date(bySettingHour: hh, minute: minute, second: 0, of: now) {
+                    if day == 1 { d = cal.date(byAdding: .day, value: 1, to: d)! }
+                    if d > now, best == nil || d < best! { best = d }
+                } } }
+            guard let at = best else { return nil }
+            return (Int(at.timeIntervalSince(now).rounded()), label.trimmingCharacters(in: .whitespaces))
+        }
+        // A duration: [label] N시간 N분 N초 [타이머|뒤에|후에 …] [label] [알려 줘]
+        guard let re = try? NSRegularExpression(pattern: "(\\d+|[가-힣]{1,2})\\s*(시간|분|초)(?![가-힣])|(\\d+|[가-힣]{1,2})\\s*(시간|분|초)(?=\\s*(타이머|알람|뒤|후|있다가|지나면))") else { return nil }
+        let ns = t as NSString
+        let hits = re.matches(in: t, range: NSRange(location: 0, length: ns.length))
+        guard !hits.isEmpty else { return nil }
+        var secs = 0
+        for h in hits {
+            let gi = h.range(at: 1).location != NSNotFound ? 1 : 3
+            guard let n = num(ns.substring(with: h.range(at: gi))) else { return nil }
+            switch ns.substring(with: h.range(at: gi + 1)) { case "시간": secs += n * 3600; case "분": secs += n * 60; default: secs += n }
+        }
+        guard secs > 0, secs <= 24 * 3600 else { return nil }
+        var label = ns.substring(to: hits[0].range.location).trimmingCharacters(in: .whitespaces)
+        var rest = ns.substring(from: NSMaxRange(hits.last!.range)).trimmingCharacters(in: .whitespaces)
+        var keyword = false
+        for k in ["타이머", "알람", "뒤에", "후에", "뒤", "후", "있다가", "지나면"] where rest.hasPrefix(k) { rest = String(rest.dropFirst(k.count)).trimmingCharacters(in: .whitespaces); keyword = true; break }
+        let ask = #"^(?:(.*?)\s*(?:(?:이)?라고|고)?\s*)?(알려|깨워|불러|말해|맞춰|재|해)\s*(줘|주세요|줄래|봐)?$"#
+        if !rest.isEmpty {
+            guard let m = Parser.match(rest, ask) else { return nil }        // "3분짜리 영상 찾아 줘" is not a timer
+            if label.isEmpty { label = m[1] }
+        } else if !keyword, label.split(separator: " ").count > 2 { return nil }   // "…를 3분" in a longer sentence — leave it
+        if ["지금", "한", "타이머", "알람"].contains(label) { label = "" }
+        return (secs, label.trimmingCharacters(in: .whitespaces))
+    }
+    static func isCancelTimers(_ s: String) -> Bool {
+        let q = squash(s)
+        return q.count <= 14 && ["타이머", "알람", "알림"].contains(where: q.contains) && ["취소", "꺼", "지워", "없애", "그만", "cancel"].contains(where: q.contains)
+    }
+    /// 「강남역 가는 길」「서울역 어떻게 가」「롯데월드 길 찾아 줘」「스타벅스 강남점 어디야」 → place
+    static func mapPlace(_ s: String) -> String? {
+        guard let m = match(s, "^(.+?)\\s*(?:까지\\s*)?(가는\\s*길|길\\s*찾아|길찾기|어떻게\\s*가|위치\\s*알려|위치|어디야|어디\\s*있어|지도)\\s*(?:좀|줘|알려\\s*줘|보여\\s*줘|찾아\\s*줘|봐)?$") else { return nil }
+        var place = m[1]
+        for p in ["으로", "로", "에", "까지"] where place.hasSuffix(p) && place.count > p.count + 1 { place = String(place.dropLast(p.count)) }
+        let q = squash(place)
+        guard q.count >= 2, !["지금", "여기", "너", "나", "자비스", "클로드", "그거", "이거", "파일", "폴더", "설정"].contains(where: { q == $0 || q.hasPrefix($0) && q.count <= $0.count + 1 }) else { return nil }
+        return place
+    }
+    /// 「로파이 틀고 소리 줄이고 화면 꺼」 → ["로파이 틀어", "소리 줄여", "화면 꺼"]
+    static func splitCommands(_ s: String) -> [String]? {
+        let joints: [String: String] = ["틀고": "틀어", "켜고": "켜", "끄고": "꺼", "열고": "열어", "닫고": "닫아", "멈추고": "멈춰", "줄이고": "줄여",
+                                        "키우고": "키워", "하고": "해", "찾고": "찾아", "올리고": "올려", "내리고": "내려", "누르고": "눌러", "넘기고": "넘겨",
+                                        "검색하고": "검색해", "재생하고": "재생해", "맞추고": "맞춰", "알려주고": "알려 줘"]
+        var parts: [String] = [], cur: [String] = []
+        for raw in s.split(separator: " ").map(String.init) {
+            let w = raw.trimmingCharacters(in: .punctuationCharacters)
+            if ["그리고", "다음에", "그다음에", "그다음", "그러고"].contains(w) { if !cur.isEmpty { parts.append(cur.joined(separator: " ")); cur = [] }; continue }
+            if let v = joints[w] { cur.append(v); parts.append(cur.joined(separator: " ")); cur = []; continue }
+            cur.append(w)
+            if raw.hasSuffix(",") { parts.append(cur.joined(separator: " ")); cur = [] }
+        }
+        if !cur.isEmpty { parts.append(cur.joined(separator: " ")) }
+        return parts.count >= 2 ? parts : nil
+    }
     /// "다음 영상으로 넘겨", "다음 곡", "next video"
     static func isNext(_ s: String) -> Bool {
         let q = squash(s)
@@ -342,7 +442,7 @@ struct Parser {
     /// "X 멈추고 Y", "X 하고 Y", "X 그리고 Y", "X 한 다음 Y" — more than one action.
     static func isCompound(_ s: String) -> Bool {
         if [" 그리고 ", "한 다음", "하고 나서", "고 나서", "한 뒤에", "다음에 "].contains(where: { s.contains($0) }) { return true }
-        return match(s, "(멈추|끄|켜|열|닫|틀|누르|찾|가|보|치|하)고\\s+\\S+.*(해|줘|봐|켜|열어|틀어|찾아|검색|보여)") != nil
+        return match(s, "(멈추|끄|켜|열|닫|틀|누르|찾|가|보|치|하|줄이|키우|올리|내리|넘기|맞추)고\\s+\\S+.*(해|줘|봐|켜|꺼|열어|틀어|찾아|검색|보여|줄여|키워|넘겨|올려|내려)") != nil
     }
     /// Removes a trailing ask: "찾아 줘", "검색해", "보여 줘", "알아봐", "좀".
     static func stripAsk(_ q: String) -> String {
