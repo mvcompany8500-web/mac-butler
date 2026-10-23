@@ -17,7 +17,7 @@ Small chores happen on your Mac in a second; real coding goes to Claude Code. Vo
 [![CI](https://github.com/mvcompany8500-web/mac-butler/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/mvcompany8500-web/mac-butler?style=social)](../../stargazers)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)](#requirements)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 ```bash
 git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler && ./scripts/install.sh
@@ -285,4 +285,4 @@ This project is built and used daily on camera: [YouTube @turtle_buff](https://w
 
 If it's useful, a ⭐ helps others find it.
 
-MIT License © 2026 MV Co., Ltd. (turtle buff ai)
+AGPL-3.0 © 2026 MV Co., Ltd. (turtle buff ai) — versions up to 0.6.7 were MIT. The name "Mac Butler" and its logo are not part of the license: see [TRADEMARK.md](TRADEMARK.md) and [NOTICE.md](NOTICE.md).

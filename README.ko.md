@@ -9,7 +9,7 @@
 
 <img src="docs/demo.gif" width="760" alt="실제 화면: 말하면 오른쪽 아래 구슬과 카드가 알아듣고 바로 실행, 통화·핸디 중엔 알아서 쉼">
 
-**[소개 페이지](https://mvcompany8500-web.github.io/mac-butler/)** · [English](README.md) · 무료 · 오픈소스(MIT)
+**[소개 페이지](https://mvcompany8500-web.github.io/mac-butler/)** · [English](README.md) · 무료 · 오픈소스(AGPL-3.0)
 
 </div>
 
@@ -96,3 +96,5 @@ brew install --cask mvcompany8500-web/tap/mac-butler
 ---
 
 만든 사람: **turtle buff ai** — [YouTube @turtle_buff](https://www.youtube.com/@turtle_buff) · [turtle-buff.com](https://turtle-buff.com)
+
+라이선스: AGPL-3.0(0.6.7까지는 MIT). 「Mac Butler」 이름과 로고는 주식회사 엠브이 소유 — [TRADEMARK.md](TRADEMARK.md)
