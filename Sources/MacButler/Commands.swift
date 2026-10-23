@@ -24,6 +24,7 @@ enum Intent: Equatable {
     case map(String)                                        // 「강남역 가는 길」 → Naver Map
     case multi([String])                                    // 「로파이 틀고 소리 줄이고 화면 꺼」 — each part is a quick command
     case routine(String)                                    // a routine's name was said → run its steps
+    case rewrite(String)                                    // 「이거 존댓말로 바꿔」 — rewrite the selected text (style)
     case makeRoutine(name: String, steps: [String])         // 「앞으로 '작업 시작' 하면 A하고 B해」 (steps = quick commands only)
     case badRoutine(String)                                 // tried to put something that isn't a quick command in a routine
     case forgetRoutine(String)                              // 「작업 시작 루틴 지워」
@@ -150,6 +151,7 @@ struct Parser {
         if isBye(s) { return .bye }
         s = Parser.dropLeadIn(s)
         if let r = Routines.match(s) { return .routine(r) }
+        if let st = Parser.rewriteStyle(s) { return .rewrite(st) }
         if let m = Parser.match(s, "^(.+?)\\s*루틴\\s*(지워|삭제|없애)"), let r = Routines.match(m[1]) { return .forgetRoutine(r) }
         // 「앞으로 작업 시작 하면 클로드 열고 로파이 틀어」「작업 시작이라고 하면 …」
         if let m = Parser.match(s, "^(?:앞으로\\s+|이제부터\\s+)?[\"'「]?(.+?)[\"'」]?\\s*(?:이?라고\\s*하면|라고\\s*말하면|하면은|하면)\\s*[,]?\\s*(.+)$"),
@@ -158,7 +160,7 @@ struct Parser {
             let steps = Parser.splitCommands(m[2]) ?? [m[2]]
             let ok = steps.allSatisfy { p in
                 let i = parse(p, hasYouTubeList: false)
-                switch i { case .none, .claude, .type, .dictation, .multi, .routine, .makeRoutine, .badRoutine, .forgetRoutine, .remember, .bye, .hush, .greet: return false
+                switch i { case .none, .claude, .type, .dictation, .multi, .routine, .makeRoutine, .badRoutine, .forgetRoutine, .remember, .bye, .hush, .greet, .rewrite: return false
                            default: return true }
             }
             return ok && !name.isEmpty ? .makeRoutine(name: name, steps: steps) : .badRoutine(name)
@@ -357,6 +359,20 @@ struct Parser {
         if ["몇시", "whattime", "시간알려"].contains(where: q.contains) { return false }
         if ["며칠", "몇일", "무슨요일", "오늘날짜", "whatday", "date"].contains(where: q.contains) { return true }
         return nil
+    }
+    /// 「이거 존댓말로 바꿔」「선택한 거 영어로 번역해」「이 글 짧게 줄여 줘」「맞춤법 고쳐 줘」「좀 다듬어 줘」
+    static func rewriteStyle(_ s: String) -> String? {
+        let q = squash(s)
+        guard q.count <= 22 else { return nil }
+        let pointed = ["이거", "이글", "이문장", "선택한", "방금쓴", "쓴거", "이내용", "이메시지"].contains(where: q.contains)
+        let verb = ["바꿔", "고쳐", "번역", "줄여", "늘려", "다듬", "만들어", "써줘", "해줘", "바꿔줘"].contains(where: q.contains)
+        let styles: [(String, [String])] = [("polite", ["존댓말", "공손", "정중", "높임말"]), ("casual", ["반말"]), ("en", ["영어", "english"]),
+            ("ja", ["일본어"]), ("zh", ["중국어"]), ("ko", ["한국어로", "한글로"]), ("spell", ["맞춤법", "오타", "띄어쓰기"]),
+            ("short", ["짧게", "간단히", "요약"]), ("long", ["길게", "자세히", "늘려"]), ("polish", ["다듬", "자연스럽게", "매끄럽게"])]
+        guard let st = styles.first(where: { $0.1.contains(where: q.contains) })?.0 else { return nil }
+        // 「맞춤법 고쳐」「다듬어 줘」 are clear on their own; others need 「이거/선택한 …」 + a verb
+        if ["spell", "polish"].contains(st), verb { return st }
+        return pointed && verb ? st : nil
     }
     static let nativeNum: [String: Int] = ["한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10, "열한": 11, "열두": 12,
                                            "일": 1, "이": 2, "삼": 3, "사": 4, "오": 5, "육": 6, "칠": 7, "팔": 8, "구": 9, "십": 10, "십오": 15, "이십": 20, "삼십": 30]

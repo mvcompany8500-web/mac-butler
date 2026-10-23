@@ -49,6 +49,7 @@ screen, run commands and use the web.
 | “강남역 가는 길”, “몇 시야”, “소리 30” | Naver Map, time/date, volume | instant |
 | “로파이 틀고 소리 줄이고 화면 꺼” | several quick commands in one sentence, in order | instant |
 | “앞으로 ‘작업 시작’ 하면 클로드 열고 로파이 틀어” | your own routine by voice → next time just “작업 시작” | instant |
+| (select text) “이거 존댓말로 바꿔”, “영어로”, “맞춤법 고쳐” | rewrites just the selection — never presses send, ⌘Z undoes | ~4 s |
 | anything else — “지금 화면에 뭐 있어?”, “이 페이지 요약해서 메모에 붙여” | Claude Code works it out (screen, apps, web) and answers out loud | 4–20 s |
 
 While it's talking — or while Claude is still working — just say the next thing: it stops and takes the new command. “됐어” / “that's all” ends the conversation.

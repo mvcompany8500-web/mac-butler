@@ -351,6 +351,19 @@ final class Butler {
             let n = Timers.cancelAll(); done(S.t("타이머", "Timer"), S.t("\(n)개 취소", "\(n) cancelled"))
         case .map(let place):
             open("https://map.naver.com/p/search/" + enc(place)); done(S.t("지도", "Map"), place)
+        case .rewrite(let style):
+            let (text, refused) = Writer.selection()
+            if let refused { done(S.t("못 바꿈", "Can't"), S.t("\(refused)에서는 글을 바꾸지 않아요", "Not in \(refused)")); return }
+            guard let text, text.count <= 3000 else { routeOrAsk(cmd); return }   // nothing selected → 「이거 요약해 줘」 likely means the page: the brain looks
+            hud.show(S.t("✎ 글 바꾸는 중", "✎ Rewriting"), String(text.prefix(80)), heard: nil, color: amber, speed: 3)
+            Sound.soft("Purr")
+            Writer.rewrite(text, style: style, cfg: cfg) { [weak self] out in
+                guard let self else { return }
+                guard let out else { self.done(self.S.t("못 바꿈", "Failed"), self.S.t("다시 말씀해 주세요", "Try again")); return }
+                Hands.paste(out)                  // replaces the selection; never presses send — ⌘Z undoes it
+                log("rewrite[\(style)] \(text.count) → \(out.count) chars")
+                self.done(self.S.t("바꿈 (⌘Z 되돌리기)", "Rewritten (⌘Z to undo)"), String(out.prefix(120)))
+            }
         case .routine(let name):
             let steps = Routines.all[name] ?? []
             log("routine \(name): \(steps)")
@@ -519,7 +532,7 @@ final class Butler {
     /// Quick commands only — what the router / aliases may trigger.
     func isQuick(_ canon: String) -> Bool {
         switch parser.parse(canon, hasYouTubeList: !ytList.isEmpty) {
-        case .none, .claude, .type, .dictation, .remember, .makeRoutine, .badRoutine, .forgetRoutine, .greet, .bye, .hush, .enter: return false
+        case .none, .claude, .type, .dictation, .remember, .makeRoutine, .badRoutine, .forgetRoutine, .greet, .bye, .hush, .enter, .rewrite: return false
         default: return true
         }
     }
