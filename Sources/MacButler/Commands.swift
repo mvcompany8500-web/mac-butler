@@ -1,4 +1,4 @@
-// Turns a spoken sentence into an intent. Pure functions — covered by `MyJarvis --selftest`.
+// Turns a spoken sentence into an intent. Pure functions — covered by `MacButler --selftest`.
 // Anything that isn't matched here goes to Claude.
 import Foundation
 

@@ -1,15 +1,15 @@
 # Contributing
 
-Thanks for helping! My Jarvis is a small, single-target Swift app — no Xcode project, no package manager.
+Thanks for helping! Mac Butler is a small, single-target Swift app — no Xcode project, no package manager.
 
 ```bash
-./build.sh                                            # build/MyJarvis.app
-build/MyJarvis.app/Contents/MacOS/MyJarvis --selftest # grammar tests, no mic needed
-MYJARVIS_HOME=/tmp/mj open -n build/MyJarvis.app      # run with a throwaway settings folder
-build/MyJarvis.app/Contents/Resources/bin/jarvis-ping say "open chrome"   # talk to it in text
+./build.sh                                            # build/MacButler.app
+build/MacButler.app/Contents/MacOS/MacButler --selftest # grammar tests, no mic needed
+MACBUTLER_HOME=/tmp/mj open -n build/MacButler.app      # run with a throwaway settings folder
+build/MacButler.app/Contents/Resources/bin/butler say "open chrome"   # talk to it in text
 ```
 
-* **New quick command or language** → `Sources/MyJarvis/Commands.swift` (`Parser.parse`) + a case in `SelfTest.swift`.
+* **New quick command or language** → `Sources/MacButler/Commands.swift` (`Parser.parse`) + a case in `SelfTest.swift`.
 * **Behaviour of the assistant** → `Resources/prompts/prompt.<lang>.md`.
 * **UI** → `HUD.swift`, `BootScene.swift`.
 * Keep it private by default: nothing new should leave the Mac without being explained in the README's *Privacy & safety*.

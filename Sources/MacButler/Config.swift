@@ -1,4 +1,4 @@
-// Settings live in ~/.myjarvis/config.json (override the folder with MYJARVIS_HOME).
+// Settings live in ~/.macbutler/config.json (override the folder with MACBUTLER_HOME).
 // Every key is optional — missing keys fall back to the defaults below.
 import Foundation
 
@@ -27,13 +27,13 @@ struct Config: Codable {
     var wakeWords: [String] = []        // empty → language default
     var greetPhrases: [String] = []     // empty → language default ("아빠 왔어", "daddy's home" …)
     var greetingText = ""               // empty → "어서 오십시오, {user}" / "Welcome home, {user}."
-    var bootTitle = "J . A . R . V . I . S ."
+    var bootTitle = "M A C   B U T L E R"
     var bootSubtitle = ""               // empty → "{user}의 개인 비서" / "Personal assistant of {user}" (or a generic line)
     var greetOpen: [String] = []        // URLs to open when greeted
 
     var claudePath = ""                 // empty → auto-detect `claude`
     var claudeModel = "sonnet"
-    var whisperModel = ""               // empty → ~/.myjarvis/models/ggml-large-v3-turbo-q8_0.bin
+    var whisperModel = ""               // empty → ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
     var whisperServer = ""              // empty → auto-detect `whisper-server`
 
     var tts = "say"                     // "say" (macOS voices) or "elevenlabs"
@@ -104,9 +104,12 @@ struct Config: Codable {
 
 enum Paths {
     static let home: URL = {
-        let env = ProcessInfo.processInfo.environment["MYJARVIS_HOME"]
-        let u = env.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".myjarvis")
+        let env = ProcessInfo.processInfo.environment["MACBUTLER_HOME"]
+        let fm = FileManager.default
+        let def = fm.homeDirectoryForCurrentUser.appendingPathComponent(".macbutler")
+        let old = fm.homeDirectoryForCurrentUser.appendingPathComponent(".myjarvis")   // name before 0.2
+        if env == nil, !fm.fileExists(atPath: def.path), fm.fileExists(atPath: old.path) { try? fm.moveItem(at: old, to: def) }
+        let u = env.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) } ?? def
         for sub in ["", "logs", "work", "voice", "models"] {
             try? FileManager.default.createDirectory(at: u.appendingPathComponent(sub), withIntermediateDirectories: true)
         }
@@ -136,7 +139,7 @@ enum Paths {
 func log(_ s: String) {
     let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm:ss"
     let line = "\(f.string(from: Date())) \(s)\n"
-    let url = Paths.home.appendingPathComponent("logs/jarvis.log")
+    let url = Paths.home.appendingPathComponent("logs/butler.log")
     if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close() }
     else { try? line.data(using: .utf8)!.write(to: url) }
 }

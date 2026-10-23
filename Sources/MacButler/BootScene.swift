@@ -189,7 +189,7 @@ final class BootScene {
         // Left: boot log with real numbers
         let mem = SysInfo.memory(), disk = SysInfo.diskFreeGB()
         let mono = NSFont.monospacedSystemFont(ofSize: 23, weight: .medium)
-        let log: [String] = ["MY J.A.R.V.I.S. · BOOT SEQUENCE", "────────────────────────────────"] + text.strings.bootLines + [
+        let log: [String] = [text.title.replacingOccurrences(of: "   ", with: "\u{1}").replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "\u{1}", with: " ") + " · BOOT SEQUENCE", "────────────────────────────────"] + text.strings.bootLines + [
             String(format: text.strings.bootMemory, mem.used, mem.total),
             String(format: text.strings.bootDisk, disk),
             "> " + SysInfo.model(),

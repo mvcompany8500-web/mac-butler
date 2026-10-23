@@ -1,4 +1,4 @@
-// Grammar tests: `MyJarvis.app/Contents/MacOS/MyJarvis --selftest`
+// Grammar tests: `MacButler.app/Contents/MacOS/MacButler --selftest`
 import Foundation
 
 enum SelfTest {
@@ -53,7 +53,7 @@ enum SelfTest {
 
         // YouTube parser
         let html = #""videoRenderer":{"videoId":"abcdefghijk","thumbnail":{},"title":{"runs":[{"text":"First video"}]}"#
-        checkBool("youtube parse", Jarvis.parseYouTube(html).first?.id == "abcdefghijk")
+        checkBool("youtube parse", Butler.parseYouTube(html).first?.id == "abcdefghijk")
 
         print(fails == 0 ? "selftest: all \(total) passed" : "selftest: \(fails)/\(total) failed")
         return fails == 0

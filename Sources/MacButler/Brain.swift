@@ -14,11 +14,11 @@ final class Brain {
     private var pendingText: String?
     private var sent = 0, received = 0
     private var lastUse = Date()
-    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko) }
+    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.assistantName) }
     var busy: Bool { done != nil }
     var installed: Bool { cfg.claudeBinary != nil }
 
-    /// System prompt: ~/.myjarvis/prompt.md if present, otherwise the bundled template for the language.
+    /// System prompt: ~/.macbutler/prompt.md if present, otherwise the bundled template for the language.
     func systemPrompt() -> String {
         let user = Paths.home.appendingPathComponent("prompt.md")
         let bundled = Paths.resources.appendingPathComponent("prompts/prompt.\(cfg.ko ? "ko" : "en").md")

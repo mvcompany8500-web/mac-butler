@@ -5,8 +5,8 @@
 set -e
 cd "${0:a:h}/.."
 [[ -f local.env ]] && source local.env
-APP_NAME=${APP_NAME:-MyJarvis}; BUNDLE_ID=${BUNDLE_ID:-com.myjarvis.app}
-HOME_DIR=${MYJARVIS_HOME:-$HOME/.myjarvis}
+APP_NAME=${APP_NAME:-MacButler}; BUNDLE_ID=${BUNDLE_ID:-com.macbutler.app}
+HOME_DIR=${MACBUTLER_HOME:-$HOME/.macbutler}
 
 say_step() { print -P "%F{cyan}›%f $1"; }
 
@@ -45,4 +45,4 @@ launchctl bootstrap gui/$(id -u) $PL || { sleep 2; launchctl bootstrap gui/$(id 
 echo
 echo "✓ Installed. Look for ◉J in the menu bar."
 echo "  First run: allow Microphone, Speech Recognition, Accessibility and Screen Recording."
-echo "  Settings: $HOME_DIR/config.json   ·   Logs: $HOME_DIR/logs/jarvis.log"
+echo "  Settings: $HOME_DIR/config.json   ·   Logs: $HOME_DIR/logs/butler.log"

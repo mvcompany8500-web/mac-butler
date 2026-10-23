@@ -6,7 +6,7 @@ body:
     attributes: { label: What happened?, description: "What you said, what you expected, what it did." }
     validations: { required: true }
   - type: textarea
-    attributes: { label: Log, description: "Relevant lines from ~/.myjarvis/logs/jarvis.log (remove anything private).", render: text }
+    attributes: { label: Log, description: "Relevant lines from ~/.macbutler/logs/butler.log (remove anything private).", render: text }
   - type: input
     attributes: { label: macOS version and Mac model, placeholder: "macOS 15.3, MacBook Air M2" }
     validations: { required: true }

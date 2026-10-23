@@ -1,21 +1,21 @@
 <div align="center">
 
-# ◉ My Jarvis
+# ◉ Mac Butler
 
-<img src="docs/demo.gif" width="820" alt="My Jarvis wake-up animation: a boot log types out, rings spin, “Welcome home, sir.”, then it shrinks into the on-screen orb">
+<img src="docs/demo.gif" width="820" alt="Mac Butler wake-up animation: a boot log types out, rings spin, “Welcome home, sir.”, then it shrinks into the on-screen orb">
 
 **Talk to your Mac. It clicks, types and hands work to Claude Code — without moving your mouse.**
 
 **No API key — uses your Claude plan** · **Audio never leaves your Mac** · **Asks before deleting, sending or paying**
 
-[![Latest release](https://img.shields.io/github/v/release/mvcompany8500-web/my-jarvis)](../../releases/latest)
-[![CI](https://github.com/mvcompany8500-web/my-jarvis/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
-[![Stars](https://img.shields.io/github/stars/mvcompany8500-web/my-jarvis?style=social)](../../stargazers)
+[![Latest release](https://img.shields.io/github/v/release/mvcompany8500-web/mac-butler)](../../releases/latest)
+[![CI](https://github.com/mvcompany8500-web/mac-butler/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/mvcompany8500-web/mac-butler?style=social)](../../stargazers)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ```bash
-git clone https://github.com/mvcompany8500-web/my-jarvis.git && cd my-jarvis && ./scripts/install.sh
+git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler && ./scripts/install.sh
 ```
 
 [Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](#한국어) · [Made by turtle buff ai](#made-by)
@@ -24,8 +24,8 @@ git clone https://github.com/mvcompany8500-web/my-jarvis.git && cd my-jarvis && 
 
 ## Why
 
-An always-listening voice assistant for macOS, Korean-first with English support.
-Dictation apps like [Handy](https://github.com/cjpais/Handy) turn your voice into text. My Jarvis goes one step further:
+An always-listening voice assistant for macOS, Korean-first with English support. It answers to “Jarvis” by default — pick any name you like.
+Dictation apps like [Handy](https://github.com/cjpais/Handy) turn your voice into text. Mac Butler goes one step further:
 it keeps listening for its name, understands what you want, and **does it on your Mac** — without touching the keyboard
 and without the mouse pointer jumping around. Anything it can't do on its own goes to Claude Code, which can read the
 screen, run commands and use the web.
@@ -34,7 +34,7 @@ screen, run commands and use the web.
 
 | You say | It does | Speed |
 |---|---|---|
-| “Jarvis” *(or tap right ⌥)* | chime → listening; keeps listening for 30 s, no wake word needed | instant |
+| “Jarvis” — the default wake word, change it in settings *(or tap right ⌥)* | chime → listening; keeps listening for 30 s, no wake word needed | instant |
 | “아빠 왔어” / “daddy's home” | wake-up animation + spoken greeting | instant |
 | “크롬 열어” / “open Chrome” | opens the app | < 1 s |
 | “맥미니 가격 검색해” / “search for mac mini price” | Google search in your browser | < 1 s |
@@ -77,15 +77,15 @@ mic ──► Apple on-device speech ──► wake word / live text on the HUD
 ## Install
 
 ```bash
-git clone https://github.com/mvcompany8500-web/my-jarvis.git
-cd my-jarvis
+git clone https://github.com/mvcompany8500-web/mac-butler.git
+cd mac-butler
 ./scripts/install.sh            # deps → Whisper model → build → ~/Applications → start at login
 ```
 
 Or with Homebrew (prebuilt, ad-hoc signed):
 
 ```bash
-brew install --cask mvcompany8500-web/tap/my-jarvis
+brew install --cask mvcompany8500-web/tap/mac-butler
 ```
 
 Then look for **◉J** in the menu bar and allow the permissions below. `./scripts/install.sh --no-model` skips the 874 MB download.
@@ -106,14 +106,14 @@ Open the **◉J** menu → *Status*. Each ✗ opens the right System Settings pa
 
 ## Configuration
 
-Everything lives in `~/.myjarvis/` (menu → *Open settings folder*):
+Everything lives in `~/.macbutler/` (menu → *Open settings folder*):
 
 | File | |
 |---|---|
 | `config.json` | all settings (below); restart from the menu after editing |
 | `prompt.md` | optional — replaces the built-in personality/rules ([ko](Resources/prompts/prompt.ko.md) · [en](Resources/prompts/prompt.en.md)). `{user}`, `{assistant}`, `{screen}` are filled in |
 | `voice/greeting.m4a`, `voice/boot.m4a` | optional — your own greeting line and boot sound |
-| `logs/jarvis.log` | what it heard, decided and said |
+| `logs/butler.log` | what it heard, decided and said |
 
 ```jsonc
 {
@@ -127,7 +127,7 @@ Everything lives in `~/.myjarvis/` (menu → *Open settings folder*):
   "sayVoice": "Reed",
   "elevenLabs": { "apiKeyFile": "~/.secrets/.env", "voiceId": "…", "model": "eleven_flash_v2_5" },
   "claudeModel": "sonnet",
-  "whisperModel": "",              // default ~/.myjarvis/models/ggml-large-v3-turbo-q8_0.bin
+  "whisperModel": "",              // default ~/.macbutler/models/ggml-large-v3-turbo-q8_0.bin
   "browserApp": "Google Chrome",
   "apps": { "브루": "Vrew" },       // extra spoken app names
   "silenceSec": 1.8, "followUpSec": 30
@@ -151,35 +151,35 @@ Everything lives in `~/.myjarvis/` (menu → *Open settings folder*):
 <details>
 <summary><b>Troubleshooting</b></summary>
 
-* **Nothing happens when I say “Jarvis”** — menu → *Status*: all ✓? Check `~/.myjarvis/logs/jarvis.log` for `heard[...]` lines.
-* **It types nothing** — Accessibility is off, or was reset after a rebuild. Remove My Jarvis from the list and add it again.
+* **Nothing happens when I say “Jarvis”** — menu → *Status*: all ✓? Check `~/.macbutler/logs/butler.log` for `heard[...]` lines.
+* **It types nothing** — Accessibility is off, or was reset after a rebuild. Remove Mac Butler from the list and add it again.
 * **“Claude Code is not installed”** — run `claude` once in Terminal, or set `"claudePath"` in config.json.
 * **Slow** — check `uptime` / Activity Monitor; heavy builds or renders slow everything down. Whisper only loads after you call it.
-* **Test without a mic** — `~/Applications/MyJarvis.app/Contents/Resources/bin/jarvis-ping say "크롬 열어"`
-* **Grammar self-test** — `~/Applications/MyJarvis.app/Contents/MacOS/MyJarvis --selftest`
+* **Test without a mic** — `~/Applications/MacButler.app/Contents/Resources/bin/butler say "크롬 열어"`
+* **Grammar self-test** — `~/Applications/MacButler.app/Contents/MacOS/MacButler --selftest`
 </details>
 
 ## Roadmap
 
-- [ ] Signed & notarized release + Homebrew tap (`brew install --cask my-jarvis`)
+- [ ] Signed & notarized release + Homebrew tap (`brew install --cask mac-butler`)
 - [ ] Settings window (no JSON editing) and a first-run setup wizard
 - [ ] Push-to-talk mode (hold the hotkey) for open offices
 - [ ] Quick-command grammars for Japanese, Spanish, …
 - [ ] Custom wake-word engine (no Apple speech needed for the wake word)
-- [ ] Plug-in commands: drop a small script in `~/.myjarvis/commands/`
+- [ ] Plug-in commands: drop a small script in `~/.macbutler/commands/`
 
 Have an idea? [Open an issue](../../issues/new/choose).
 
 ## Development
 
 ```bash
-./build.sh                                  # → build/MyJarvis.app (no Xcode project needed)
-build/MyJarvis.app/Contents/MacOS/MyJarvis --selftest
+./build.sh                                  # → build/MacButler.app (no Xcode project needed)
+build/MacButler.app/Contents/MacOS/MacButler --selftest
 ./scripts/uninstall.sh [--all]
 ```
 
-`Sources/MyJarvis/` — `Ear` (mic + Apple speech), `Whisper`, `Brain` (Claude Code), `Commands` (quick-command grammar),
-`Jarvis` (state machine), `Hands` (keyboard + Accessibility), `HUD`, `BootScene`, `Mouth` (TTS). `Tools/` — `jax`, `jarvis-ping`, `jclick`, `jtype`.
+`Sources/MacButler/` — `Ear` (mic + Apple speech), `Whisper`, `Brain` (Claude Code), `Commands` (quick-command grammar),
+`Butler` (state machine), `Hands` (keyboard + Accessibility), `HUD`, `BootScene`, `Mouth` (TTS). `Tools/` — `jax`, `butler`, `jclick`, `jtype`.
 
 Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Quick-command grammars for more languages are especially wanted.
 
@@ -188,22 +188,22 @@ Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) · [Claude Code](https://docs.claude.com/en/docs/claude-code) · [cliclick](https://github.com/BlueM/cliclick) ·
 inspired by [Handy](https://github.com/cjpais/Handy).
 
-*My Jarvis is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Marvel, Disney or Anthropic. “Claude” is a trademark of Anthropic.*
+*Mac Butler is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Marvel, Disney or Anthropic. “Claude” is a trademark of Anthropic.*
 
 ---
 
 ## 한국어
 
-**늘 듣고 있다가 「자비스」 하고 부르면 말로 맥을 움직이는 비서**입니다. 키보드도 마우스도 안 씁니다.
+**맥 버틀러(Mac Butler)** — 늘 듣고 있다가 「자비스」(기본 호출어, 설정에서 바꿀 수 있음) 하고 부르면 말로 맥을 움직이는 비서입니다. 키보드도 마우스도 안 씁니다.
 쉬운 일(앱 열기·검색·유튜브·글 입력·받아쓰기)은 1초 안에 직접 하고, 나머지는 클로드 코드가 화면을 보고 처리한 뒤 말로 답합니다.
 「클로드코드한테 ○○ 해서 보내」라고 하면 클로드 앱에 새 세션을 열어 일을 통째로 맡깁니다.
 
 ```bash
-git clone https://github.com/mvcompany8500-web/my-jarvis.git && cd my-jarvis && ./scripts/install.sh
+git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler && ./scripts/install.sh
 ```
 
 * 메뉴 막대 **◉J** → 상태 점검에서 ✗ 를 누르면 해당 권한 설정이 열립니다.
-* 호칭은 `~/.myjarvis/config.json` 의 `"userName"` (예: `"대표님"`), 인사말은 `"greetingText"`.
+* 호칭은 `~/.macbutler/config.json` 의 `"userName"` (예: `"대표님"`), 인사말은 `"greetingText"`.
 * 말하는 중에 말을 걸면 바로 멈추고 듣습니다. 끝낼 땐 「됐어」.
 * 소리는 맥 밖으로 나가지 않습니다. 클로드에게 넘긴 지시 글과(켜 둔 경우) 일레븐랩스 읽기 글만 밖으로 나갑니다.
 

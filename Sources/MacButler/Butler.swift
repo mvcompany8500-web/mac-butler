@@ -1,7 +1,7 @@
 // The conductor: listens, decides, acts, speaks.
 import AppKit
 
-final class Jarvis {
+final class Butler {
     enum Mode { case idle, awake, dictation, busy, speaking }
     var mode: Mode = .idle
     let cfg: Config
@@ -22,7 +22,7 @@ final class Jarvis {
 
     init(cfg: Config) {
         self.cfg = cfg
-        S = Strings(ko: cfg.ko)
+        S = Strings(ko: cfg.ko, name: cfg.assistantName)
         parser = Parser(cfg: cfg)
         ear = Ear(locale: cfg.locale, hints: cfg.wakes + cfg.greets + (cfg.ko ? ["클로드", "엔터", "받아써", "그만"] : ["Claude", "enter", "stop"]))
         mouth = Mouth(cfg: cfg)
@@ -49,20 +49,20 @@ final class Jarvis {
         }
     }
 
-    /// Local signals from the bundled tools (`jarvis-ping`). Same-machine only.
+    /// Local signals from the bundled tools (`butler`). Same-machine only.
     private func listenForSignals() {
         let dnc = DistributedNotificationCenter.default()
-        dnc.addObserver(forName: .init("com.myjarvis.type"), object: nil, queue: .main) { n in
+        dnc.addObserver(forName: .init("com.macbutler.type"), object: nil, queue: .main) { n in
             guard let t = n.object as? String else { return }
             DispatchQueue.global().async { Hands.typeVisible(t) }
         }
-        dnc.addObserver(forName: .init("com.myjarvis.delegate"), object: nil, queue: .main) { [weak self] n in
+        dnc.addObserver(forName: .init("com.macbutler.delegate"), object: nil, queue: .main) { [weak self] n in
             let parts = (n.object as? String ?? "").split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
             guard let self, parts.count == 2, !parts[1].isEmpty else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.claudeMacro(target: parts[0], message: parts[1], newSession: parts[0].isEmpty) }
         }
         // Text instead of voice — for testing and screen recordings.
-        dnc.addObserver(forName: .init("com.myjarvis.say"), object: nil, queue: .main) { [weak self] n in
+        dnc.addObserver(forName: .init("com.macbutler.say"), object: nil, queue: .main) { [weak self] n in
             guard let self, let t = n.object as? String else { return }
             log("text command: \(t)")
             if self.parser.isGreeting(t) { self.greet(); return }
@@ -201,7 +201,7 @@ final class Jarvis {
         req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36", forHTTPHeaderField: "User-Agent")
         req.timeoutInterval = 6
         URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-            let list = Jarvis.parseYouTube(data.flatMap { String(data: $0, encoding: .utf8) } ?? "")
+            let list = Butler.parseYouTube(data.flatMap { String(data: $0, encoding: .utf8) } ?? "")
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.ytList = list
@@ -224,11 +224,11 @@ final class Jarvis {
         mode = .busy
         hud.show(S.claudeOpen, message, heard: target.isEmpty ? "Claude" : "\(target) · Claude", color: amber, speed: 3)
         log("claude[\(target)\(newSession ? " new" : "")]: \(message)")
-        NSRunningApplication.runningApplications(withBundleIdentifier: Jarvis.claudeBundle).first?.activate()
+        NSRunningApplication.runningApplications(withBundleIdentifier: Butler.claudeBundle).first?.activate()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             Thread.sleep(forTimeInterval: 0.3)
-            guard let app = AX.app(Jarvis.claudeBundle) else { DispatchQueue.main.async { self.fail(self.S.claudeNotRunning) }; return }
+            guard let app = AX.app(Butler.claudeBundle) else { DispatchQueue.main.async { self.fail(self.S.claudeNotRunning) }; return }
             var wins = AX.windows(app)
             if wins.isEmpty { Thread.sleep(forTimeInterval: 0.4); wins = AX.windows(app) }
             guard var win = wins.first else { DispatchQueue.main.async { self.fail(self.S.claudeNoWindow) }; return }

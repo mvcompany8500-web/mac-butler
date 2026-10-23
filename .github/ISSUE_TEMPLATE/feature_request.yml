@@ -1,5 +1,5 @@
 name: Feature / command idea
-description: Something you'd like to say to Jarvis
+description: Something you'd like to say to Mac Butler
 labels: [enhancement]
 body:
   - type: textarea

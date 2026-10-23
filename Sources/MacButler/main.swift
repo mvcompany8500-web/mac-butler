@@ -1,20 +1,21 @@
-// My Jarvis — an always-listening voice assistant for macOS, powered by Claude Code.
+// Mac Butler — an always-listening voice assistant for macOS, powered by Claude Code.
+// The assistant answers to "Jarvis" by default (configurable: assistantName / wakeWords).
 // Say the wake word, then talk. It types, clicks, opens things, and hands bigger jobs to Claude.
 import AppKit
 import AVFoundation
 import Speech
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    var jarvis: Jarvis?
+    var butler: Butler?
     var item: NSStatusItem!
     var cfg = Config()
     var statusItems: [NSMenuItem] = []
     func applicationDidFinishLaunching(_ n: Notification) {
         cfg = Config.load()
         let cfg = self.cfg
-        let S = Strings(ko: cfg.ko)
+        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "◉J"
+        item.button?.title = "◉" + String(cfg.assistantName.prefix(1)).uppercased()
         let menu = NSMenu()
         menu.addItem(withTitle: S.menuToggle(), action: #selector(toggle), keyEquivalent: "")
         menu.addItem(withTitle: S.menuGreet(), action: #selector(greet), keyEquivalent: "")
@@ -43,8 +44,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             SFSpeechRecognizer.requestAuthorization { st in
                 DispatchQueue.main.async {
                     log("permissions: mic=\(ok) speech=\(st.rawValue) accessibility=\(AXIsProcessTrusted()) screen=\(CGPreflightScreenCaptureAccess())")
-                    let j = Jarvis(cfg: cfg)
-                    self.jarvis = j
+                    let j = Butler(cfg: cfg)
+                    self.butler = j
                     j.start()
                 }
             }
@@ -56,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ("mic", "Privacy_Microphone"), ("speech", "Privacy_SpeechRecognition"), ("ax", "Privacy_Accessibility"),
         ("screen", "Privacy_ScreenCapture"), ("claude", ""), ("whisper", "")]
     func menuWillOpen(_ menu: NSMenu) {
-        let S = Strings(ko: cfg.ko)
+        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
         let ok: [Bool] = [
             AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
             SFSpeechRecognizer.authorizationStatus() == .authorized,
@@ -86,31 +87,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self, e.keyCode == code else { return }
             let flag: NSEvent.ModifierFlags = code == 54 ? .command : .option
             if e.modifierFlags.contains(flag) { self.hotkeyDown = true }
-            else if self.hotkeyDown { self.hotkeyDown = false; DispatchQueue.main.async { self.jarvis?.manualWake() } }
+            else if self.hotkeyDown { self.hotkeyDown = false; DispatchQueue.main.async { self.butler?.manualWake() } }
         }
         NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged, handler: handler)
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in self?.hotkeyDown = false }   // ⌥+key combos don't count
     }
 
     @objc func toggle() {
-        guard let j = jarvis else { return }
+        guard let j = butler else { return }
         j.enabled.toggle()
-        item.button?.title = j.enabled ? "◉J" : "○J"
+        let ch = String(cfg.assistantName.prefix(1)).uppercased(); item.button?.title = (j.enabled ? "◉" : "○") + ch
         if !j.enabled { j.goIdle() }
     }
-    @objc func greet() { jarvis?.greet() }
+    @objc func greet() { butler?.greet() }
     @objc func openFolder() { NSWorkspace.shared.open(Paths.home) }
     @objc func quit() { NSApp.terminate(nil) }
-    func applicationWillTerminate(_ n: Notification) { jarvis?.shutdown() }
+    func applicationWillTerminate(_ n: Notification) { butler?.shutdown() }
 }
 
-// `MyJarvis --selftest` checks the command grammar without a microphone.
+// `MacButler --selftest` checks the command grammar without a microphone.
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 
 let delegate = AppDelegate()
 signal(SIGTERM, SIG_IGN)   // stop Whisper / Claude children when launchd stops us
 let termSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
-termSource.setEventHandler { delegate.jarvis?.shutdown(); exit(0) }
+termSource.setEventHandler { delegate.butler?.shutdown(); exit(0) }
 termSource.resume()
 
 let app = NSApplication.shared

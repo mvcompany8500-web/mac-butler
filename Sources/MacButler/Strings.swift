@@ -3,6 +3,7 @@ import Foundation
 
 struct Strings {
     let ko: Bool
+    var name = "Jarvis"
     func t(_ k: String, _ e: String) -> String { ko ? k : e }
 
     var listening: String { t("● 듣는 중", "● Listening") }
@@ -12,7 +13,7 @@ struct Strings {
     var thinking: String { t("◌ 생각 중", "◌ Thinking") }
     var working: String { t("◌ 실행 중", "◌ Working") }
     var dictation: String { t("✎ 받아쓰기 · 「그만」하면 끝", "✎ Dictation · say “stop” to end") }
-    var speaking: String { "◉ " + "J.A.R.V.I.S." }
+    var speaking: String { "◉ " + name.uppercased() }
     var dictationStart: String { t("받아쓰겠습니다. 끝나면 그만이라고 해 주세요.", "Dictation on. Say stop when you're done.") }
     var micError: String { t("마이크를 열 수 없습니다", "Can't open the microphone") }
     var noClaude: String { t("클로드 코드를 찾지 못했습니다. 설치 후 다시 켜 주세요.", "Claude Code is not installed.") }

@@ -8,4 +8,4 @@ jobs:
       - name: Build
         run: ./build.sh
       - name: Self-test (command grammar)
-        run: MYJARVIS_HOME=$RUNNER_TEMP/mj build/MyJarvis.app/Contents/MacOS/MyJarvis --selftest
+        run: MACBUTLER_HOME=$RUNNER_TEMP/mj build/MacButler.app/Contents/MacOS/MacButler --selftest

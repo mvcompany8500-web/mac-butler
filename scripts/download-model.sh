@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Downloads Whisper large-v3-turbo (q8, 874 MB) from the official whisper.cpp repo on Hugging Face.
 set -e
-DIR=${MYJARVIS_HOME:-$HOME/.myjarvis}/models
+DIR=${MACBUTLER_HOME:-$HOME/.macbutler}/models
 F=$DIR/ggml-large-v3-turbo-q8_0.bin
 mkdir -p "$DIR"
 if [[ -s "$F" ]]; then echo "✓ model already at $F"; exit 0; fi

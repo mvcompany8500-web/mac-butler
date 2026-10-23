@@ -1,7 +1,7 @@
 // jax — press buttons / links / text fields of the frontmost app by name, without moving the mouse (Accessibility).
 //   jax list [filter]            list pressable things (role | name)
 //   jax tap "name" [n]           press the n-th (default 1) element whose name contains the text
-//   jax field "field name" "text"  focus a text field and type into it (visibly, via My Jarvis)
+//   jax field "field name" "text"  focus a text field and type into it (visibly, via Mac Butler)
 import AppKit
 import ApplicationServices
 
@@ -82,7 +82,7 @@ case "field":
     AXUIElementSetAttributeValue(hit.0, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     usleep(150_000)
     let text = a[2]
-    DistributedNotificationCenter.default().postNotificationName(.init("com.myjarvis.type"), object: text, userInfo: nil, deliverImmediately: true)
+    DistributedNotificationCenter.default().postNotificationName(.init("com.macbutler.type"), object: text, userInfo: nil, deliverImmediately: true)
     usleep(useconds_t(min(Double(text.count) * 0.03 + 0.3, 6) * 1_000_000))
     print("typed \(text.count) chars into \"\(hit.2.prefix(40))\"")
 default:
