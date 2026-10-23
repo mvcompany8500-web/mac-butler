@@ -20,6 +20,7 @@ final class Ear {
     var onPartial: (String) -> Void = { _ in }
     var onUtterance: (String, [Float]) -> Void = { _, _ in }
     var onLevel: (Float) -> Void = { _ in }
+    private(set) var voicing: Float = 0          // how voice-like the latest chunk was (DoubleTalk.periodicity)
 
     // Last 40 s of 16 kHz mono audio; each utterance is cut from here and re-transcribed by Whisper.
     private var ring: [Float] = []
@@ -101,6 +102,7 @@ final class Ear {
         input.installTap(onBus: 0, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
             guard let self else { return }
             self.lock.lock(); self.lastBuffer = Date(); self.lock.unlock()
+            var voice: Float = 0
             if let conv = self.converter {
                 let cap = AVAudioFrameCount(Double(buf.frameLength) * 16000 / fmt.sampleRate) + 32
                 if let out = AVAudioPCMBuffer(pcmFormat: self.target, frameCapacity: cap) {
@@ -110,6 +112,10 @@ final class Ear {
                         fed = true; st.pointee = .haveData; return buf
                     }
                     if let d = out.floatChannelData?[0], out.frameLength > 0 {
+                        // pitch check only for loud chunks (cheap gate) — tells a voice from breath
+                        var e: Float = 0
+                        for i in 0..<Int(out.frameLength) { e += d[i] * d[i] }
+                        if sqrt(e / Float(out.frameLength)) > 0.02 { voice = DoubleTalk.periodicity(d, Int(out.frameLength)) }
                         self.lock.lock()
                         self.ring.append(contentsOf: UnsafeBufferPointer(start: d, count: Int(out.frameLength)))
                         let over = self.ring.count - 16000 * 40
@@ -136,6 +142,7 @@ final class Ear {
                             self.lastLoud = Date()
                         }
                     }
+                    self.voicing = voice
                     self.onLevel(self.muted ? 0 : rms)
                 }
             }

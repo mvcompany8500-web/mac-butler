@@ -22,7 +22,7 @@ enum EchoTest {
         input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buf, _ in
             req.append(buf)
             let v = Mouth.rms(buf)
-            DispatchQueue.main.async { levels.append(v); if dt.isUser(v) { falseStops += 1 } }
+            DispatchQueue.main.async { levels.append(v); if dt.isUser(v, voicing: 1) { falseStops += 1 } }   // worst case: treat all as voiced
         }
         let task = rec.recognitionTask(with: req) { r, _ in if let r { DispatchQueue.main.async { text = r.bestTranscription.formattedString } } }
         do { try e.start(); try pe.start() } catch { return "engine failed: \(error)" }

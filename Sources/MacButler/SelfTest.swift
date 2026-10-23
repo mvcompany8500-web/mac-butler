@@ -90,6 +90,16 @@ enum SelfTest {
         }
         checkBool("whisper repeated tail dropped", Whisper.dropRepeatedTail("맥미니 M6 찾아. 고팩! 고팩! 고팩!", apple: "Mac mini MS 찾아").0 == "맥미니 M6 찾아.")
         checkBool("whisper YouTube = 유튜브", Whisper.related("지금 켜져 있는 유튜브 창 꺼.", "자비스 지금 켜져 있는 YouTube 창 꺼"))
+        do {   // breath vs voice: a 140 Hz voice-like tone with harmonics is voiced; dark noise (a puff on the mic) isn't
+            var voice = [Float](repeating: 0, count: 1600), puff = [Float](repeating: 0, count: 1600), acc: Float = 0
+            for i in 0..<1600 {
+                let t = Float(i) / 16000
+                voice[i] = 0.1 * (sin(2 * .pi * 140 * t) + 0.5 * sin(2 * .pi * 280 * t) + 0.3 * sin(2 * .pi * 420 * t))
+                acc = acc * 0.97 + Float.random(in: -1...1); puff[i] = acc * 0.01
+            }
+            checkBool("voice is voiced", voice.withUnsafeBufferPointer { DoubleTalk.periodicity($0.baseAddress!, 1600) } > DoubleTalk.voiced)
+            checkBool("breath is not voiced", puff.withUnsafeBufferPointer { DoubleTalk.periodicity($0.baseAddress!, 1600) } < DoubleTalk.voiced)
+        }
         checkBool("brain started a video", Parser.startedMedia("사파리에서 유튜브에 터틀메이커를 검색해 첫 영상을 재생했습니다."))
         checkBool("brain paused a video", !Parser.startedMedia("영상을 일시정지했습니다."))
         checkBool("whisper shaky word → Apple text", !Whisper.shaky([("자비스,", 0.9), ("신별시야.", 0.2)], apple: "자비스 지금 몇 시야").isEmpty)

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.2 — 2026-10-23
+- Fix: breathing into the mic stopped it mid-answer. Cutting in now also needs a voice-like pitch (breath, a bump or a puff on the mic don't have one) — checked on 1,391 chunks of real speech vs. noise
+
 ## 0.6.1 — 2026-10-23
 - Fix: the first word went missing when the live recognizer split a sentence (「하이 자비스 / 아멜리아 먹방…」 → 「먹방…」)
 - Whisper output that heard a video or other people (dialogue lines, far longer than what you said) falls back to the live text

@@ -65,7 +65,7 @@ final class Butler {
             guard let self else { return }
             self.hud.orb.level(v)
             self.mouth.echo.listen(v)
-            if self.mode == .speaking, !self.bargeAny, self.cfg.bargeIn != "wake", self.mouth.echo.isUser(v) { self.bargeInByVoice() }
+            if self.mode == .speaking, !self.bargeAny, self.cfg.bargeIn != "wake", self.mouth.echo.isUser(v, voicing: self.ear.voicing) { self.bargeInByVoice() }
         }
         ear.onPartial = { [weak self] t in self?.partial(t) }
         ear.onUtterance = { [weak self] t, a in self?.utterance(t, audio: a) }
