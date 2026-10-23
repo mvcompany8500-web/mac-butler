@@ -19,7 +19,7 @@ enum SelfTest {
         check(pk, "브루 켜", .openApp(spoken: "브루", app: "Vrew"))
         check(pk, "맥미니 가격 검색해", .search("맥미니 가격"))
         check(pk, "유튜브 거북이 버프 영상 하나 켜봐", .youtube("거북이 버프"))
-        check(pk, "유튜브에서 아이언맨 틀어", .youtube("아이언맨"))
+        check(pk, "유튜브에서 로파이 음악 틀어", .youtube("로파이 음악"))
         check(pk, "두 번째 거 틀어", .youtubeNth(2), yt: true)
         check(pk, "3번째 영상 재생해", .youtubeNth(3), yt: true)
         check(pk, "안녕하세요 라고 써 줘", .type("안녕하세요"))
@@ -43,7 +43,7 @@ enum SelfTest {
         // English
         check(pe, "open chrome", .openApp(spoken: "chrome", app: "Google Chrome"))
         check(pe, "search for mac mini price", .search("mac mini price"))
-        check(pe, "play iron man on youtube", .youtube("iron man"))
+        check(pe, "play lofi music on youtube", .youtube("lofi music"))
         check(pe, "play the second one", .youtubeNth(2), yt: true)
         check(pe, "type hello world", .type("hello world"))
         check(pe, "ask claude code to review all my projects", .claude(target: "", message: "review all my projects", newSession: true))

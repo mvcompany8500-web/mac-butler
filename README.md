@@ -38,7 +38,7 @@ screen, run commands and use the web.
 | “아빠 왔어” / “daddy's home” | wake-up animation + spoken greeting | instant |
 | “크롬 열어” / “open Chrome” | opens the app | < 1 s |
 | “맥미니 가격 검색해” / “search for mac mini price” | Google search in your browser | < 1 s |
-| “유튜브 아이언맨 틀어” / “play iron man on YouTube” → “두 번째 거” / “play the second one” | plays the first result, then any other result by number | ~1 s |
+| “유튜브 로파이 음악 틀어” / “play lofi music on YouTube” → “두 번째 거” / “play the second one” | plays the first result, then any other result by number | ~1 s |
 | “안녕하세요 라고 써 줘” / “type hello world” | types into the focused field | instant |
 | “받아써” / “take dictation” … “엔터” … “그만” | continuous dictation with Whisper accuracy | ~1 s per sentence |
 | “클로드코드한테 모든 프로젝트 점검해서 텔레그램으로 보내” / “ask Claude Code to …” | opens a **new Claude Code session** in the Claude app and types the task | ~2 s |
