@@ -31,6 +31,7 @@ final class Butler {
     var lastLive = ""
     var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
     var previewUntil = Date.distantPast   // Settings is playing a sample voice — nothing heard is a command
+    var trainer: NameTrainer?             // Settings → 목소리로 이름 맞추기: what's heard goes here, not to commands
     var spokeAt = Date.distantPast        // when it last stopped talking (finished or interrupted)
     var lastSpoken = ""                   // its last spoken answer — its echo can lead the next recording
     var lastMedia: (play: Bool, at: Date)?
@@ -102,6 +103,10 @@ final class Butler {
         NotificationCenter.default.addObserver(forName: Notification.Name("MacButlerPreview"), object: nil, queue: .main) { [weak self] n in
             self?.previewUntil = (n.object as? Bool) == true ? Date().addingTimeInterval(30) : Date().addingTimeInterval(1.0)
         }
+        // Settings → 목소리로 이름 맞추기 (object: the name to try; nil = stop)
+        NotificationCenter.default.addObserver(forName: Notification.Name("MacButlerNameTrain"), object: nil, queue: .main) { [weak self] n in
+            self?.nameTraining(n.object as? String)
+        }
         // 다 같이 키우기: ask once, then share (with consent) and take the pack, once a day
         let growSync = { [weak self] (mode: String) in
             guard let self else { return }
@@ -117,6 +122,7 @@ final class Butler {
         listenForSignals()
         // Voice with no text at all (quiet, far away) may still be the name — Whisper listens to it once
         ear.onSilentSpeech = { [weak self] audio in
+            if let tr = self?.trainer { tr.take("", audio); return }
             guard let self, self.mode == .idle else { return }
             self.nameByWhisper("", audio)
         }
@@ -230,6 +236,7 @@ final class Butler {
     }
 
     func partial(_ t: String) {
+        if let tr = trainer { trainCard(tr, heard: t); return }
         guard enabled, cfg.activation != "hold" || ear.holding || mode == .speaking || mode == .dictation else { return }
         switch mode {
         case .idle:
@@ -259,6 +266,7 @@ final class Butler {
 
     func utterance(_ t: String, audio: [Float]) {
         guard enabled, !ear.holding else { return }   // push-to-talk delivers its own utterance on release
+        if let tr = trainer { log("name training take: \(t)"); tr.take(t, audio); return }
         if Date() < previewUntil { log("ignored (voice preview): \(t)"); return }
         if Date() < ignoreUntil, mode == .awake { log("ignored (our own voice tail): \(t)"); return }
         if cfg.activation == "hold", mode != .dictation, mode != .speaking { return }   // hold-only: nothing is acted on without the key
@@ -306,6 +314,41 @@ final class Butler {
                 refine(audio, t) { [weak self] full in self?.command(full) }
             }
         }
+    }
+
+    /// 이름 맞추기: 12 takes of the name, then the result goes back to Settings (and the learned spellings are saved).
+    func nameTraining(_ name: String?) {
+        guard let name, !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            if trainer != nil { trainer = nil; hud.idle(); log("name training stopped") }
+            return
+        }
+        if brain.busy { brain.cancel(silently: true) }
+        mouth.stop()
+        mode = .idle
+        let tr = NameTrainer(name: name, base: cfg, whisper: whisper)
+        let post = { (info: [String: Any]) in NotificationCenter.default.post(name: Notification.Name("MacButlerNameTrainProgress"), object: nil, userInfo: info) }
+        tr.onProgress = { [weak self, weak tr] n, heard in
+            guard let self, let tr else { return }
+            Sound.named(self.cfg.chime)
+            self.trainCard(tr, heard: heard)
+            post(["n": n, "heard": heard])
+        }
+        tr.onDone = { [weak self, weak tr] r in
+            guard let self, let tr else { return }
+            tr.save(r)
+            self.trainer = nil
+            let v = NameTrainer.verdict(r, ko: self.cfg.ko)
+            self.hud.show(self.S.t("✓ 이름 맞추기 끝 · \(r.after)/\(r.total)", "✓ Name check done · \(r.after)/\(r.total)"), v, heard: "", color: r.after * 100 >= r.total * 58 ? lime : amber)
+            post(["done": true, "before": r.before, "after": r.after, "total": r.total, "learned": r.learned, "verdict": v])
+        }
+        trainer = tr
+        log("name training started: \(name)")
+        trainCard(tr, heard: "")
+    }
+    private func trainCard(_ tr: NameTrainer, heard: String) {
+        let shown = cfg.ko ? (Config.hangulReading(tr.name) ?? tr.name) : tr.name
+        hud.show(S.t("🎙 이름 맞추기 · \(min(tr.samples.count + 1, tr.total))/\(tr.total)", "🎙 Name check · \(min(tr.samples.count + 1, tr.total))/\(tr.total)"),
+                 S.t("「\(shown)」라고 한 번 불러 주세요", "Say “\(shown)” once"), heard: heard, color: cyan)
     }
 
     /// Apple's text is shown instantly; the command itself uses Whisper's more accurate text.

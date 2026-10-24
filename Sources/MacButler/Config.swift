@@ -26,6 +26,7 @@ struct Config: Codable {
     var userName = ""                   // how the assistant addresses you, e.g. "대표님", "Tony"
     var assistantName = "Sasarisa"       // 사사리사 (2026-10-24 renamed from Sasarisa / 「자비스」)
     var wakeWords: [String] = []        // empty → language default
+    var learnedWakes: [String: [String]] = [:]   // 이름 맞추기: name → how this Mac's recognizers wrote it for the owner's voice (Settings → 목소리로 이름 맞추기)
     var greetPhrases: [String] = []     // empty → language default ("아빠 왔어", "daddy's home" …)
     var greetingText = ""               // empty → "어서 오십시오, {user}" / "Welcome home, {user}."
     var bootTitle = "M A C   B U T L E R"
@@ -81,7 +82,7 @@ struct Config: Codable {
         let c = try d.container(keyedBy: CodingKeys.self), z = Config()
         func v<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decode(T.self, forKey: k)) ?? def }
         language = v(.language, z.language); activation = v(.activation, z.activation); userName = v(.userName, z.userName); assistantName = v(.assistantName, z.assistantName)
-        wakeWords = v(.wakeWords, z.wakeWords); greetPhrases = v(.greetPhrases, z.greetPhrases)
+        wakeWords = v(.wakeWords, z.wakeWords); learnedWakes = v(.learnedWakes, z.learnedWakes); greetPhrases = v(.greetPhrases, z.greetPhrases)
         greetingText = v(.greetingText, z.greetingText); bootTitle = v(.bootTitle, z.bootTitle); bootSubtitle = v(.bootSubtitle, z.bootSubtitle)
         greetOpen = v(.greetOpen, z.greetOpen)
         brainProvider = v(.brainProvider, z.brainProvider); brainModel = v(.brainModel, z.brainModel); brainBaseURL = v(.brainBaseURL, z.brainBaseURL); brainEffort = v(.brainEffort, z.brainEffort)
@@ -126,6 +127,7 @@ struct Config: Codable {
                 let tense = h.replacingOccurrences(of: "사", with: "싸")       // how it's said out loud: 싸싸리싸
                 own += [h, "헤이 " + h] + (tense != h ? [tense] : []) + (Config.heardAs[h] ?? [])      // sound-alikes (샤싸 리사, 사사니사 …) are matched by `Parser.nameSoundsLike`
             }
+            own += learnedWakes[name] ?? []        // learned from the owner's own voice (이름 맞추기) — last, so the name model still gets the real name first
         }
         switch lang {
         case "ko": return own + ["자비스", "헤이 자비스"]      // 「자비스」 still works for people who called it that before 0.7

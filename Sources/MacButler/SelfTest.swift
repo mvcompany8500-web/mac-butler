@@ -88,6 +88,20 @@ enum SelfTest {
         checkBool("sounds like 싸싸릐싸", sp.stripWake("싸싸릐싸 몇 시야") == "몇 시야" && sp.stripWake("싸싸리싸, 몇 시야") == "몇 시야")
         checkBool("said twice keeps ?", Whisper.saidTwice("사사리사, 지금 몇 시야? 사사리사, 지금 몇 시야?") == "사사리사, 지금 몇 시야?")
         checkBool("not a wake: 사서 이사", sp.wakeRange("오늘 책 사서 집에 가") == nil)
+        // 이름 맞추기: what the recognizers wrote for the owner's voice becomes a wake word — but not common words or commands
+        var momo = Config(); momo.language = "ko"
+        let tr = NameTrainer(name: "모모", base: momo, whisper: nil)
+        let takes = ["모모", "모모", "모모야", "모모", "뭐뭐", "뭐뭐", "뭐뭐", "보보", "보보", "그래서", "그래서", "유튜브 틀어"]
+        tr.samples = takes.map { NameTrainer.Sample(apple: $0, whisper: $0, raw: "") }
+        let r = tr.result()
+        checkBool("name training before 4/12", r.before == 4)
+        checkBool("name training learns 뭐뭐·보보", r.learned.contains("뭐뭐") && r.learned.contains("보보"))
+        checkBool("name training skips common words and commands", !r.learned.contains("그래서") && !r.learned.contains("유튜브 틀어"))
+        checkBool("name training after 9/12", r.after == 9)
+        momo.assistantName = "모모"; momo.learnedWakes = ["모모": ["뭐뭐"]]
+        checkBool("learned spelling wakes", Parser(cfg: momo).stripWake("뭐뭐 몇 시야") == "몇 시야")
+        checkBool("learned spelling only for its name", !Config().wakes.contains("뭐뭐"))
+        checkBool("sounds close", NameTrainer.close("사사리싸", "사사리사") && !NameTrainer.close("오늘 날씨", "사사리사"))
         let np = Parser(cfg: named)
         checkBool("default name 사사리사", Config().assistantName == "Sasarisa" && pk.stripWake("사사리사, 크롬 열어") == "크롬 열어" && pk.stripWake("자비스, 크롬 열어") == "크롬 열어")
         checkBool("샤샤 리사 wakes", np.stripWake("샤샤 리사 유튜브 로파이 틀어") == "유튜브 로파이 틀어")

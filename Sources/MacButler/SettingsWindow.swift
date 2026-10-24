@@ -62,6 +62,33 @@ final class SettingsModel: ObservableObject {
         inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate; freeMode = c.freeMode; growTogether = c.growTogether.isEmpty ? "together" : c.growTogether; proRemote = c.proRemote; previewBeforeSend = c.previewBeforeSend; polishDictation = c.polishDictation
         brainProvider = c.brainProvider; brainModel = c.brainModel; brainBaseURL = c.brainBaseURL; brainEffort = c.brainEffort
         ttsVoice = c.ttsVoice; ttsRegion = c.ttsRegion; ttsURL = c.ttsURL
+        NotificationCenter.default.addObserver(forName: Notification.Name("MacButlerNameTrainProgress"), object: nil, queue: .main) { [weak self] n in
+            guard let self, let u = n.userInfo else { return }
+            if u["done"] as? Bool == true {
+                self.training = false
+                self.trainResult = "\(u["before"] as? Int ?? 0)/\(u["total"] as? Int ?? 0) → \(u["after"] as? Int ?? 0)/\(u["total"] as? Int ?? 0)"
+                self.trainVerdict = u["verdict"] as? String ?? ""
+                self.trainLearned = u["learned"] as? [String] ?? []
+                self.needsRestart = true        // the learned spellings are used from the next start
+            } else {
+                self.trainCount = u["n"] as? Int ?? 0; self.trainHeard = u["heard"] as? String ?? ""
+            }
+        }
+    }
+    /// 목소리로 이름 맞추기: the running app listens for the name 12 times (see NameTrainer).
+    @Published var training = false
+    @Published var trainCount = 0
+    @Published var trainHeard = ""
+    @Published var trainResult = ""
+    @Published var trainVerdict = ""
+    @Published var trainLearned: [String] = []
+    func startTraining() {
+        training = true; trainCount = 0; trainHeard = ""; trainResult = ""; trainVerdict = ""; trainLearned = []
+        NotificationCenter.default.post(name: Notification.Name("MacButlerNameTrain"), object: assistantName.isEmpty ? "Sasarisa" : assistantName)
+    }
+    func stopTraining() {
+        training = false
+        NotificationCenter.default.post(name: Notification.Name("MacButlerNameTrain"), object: nil)
     }
     /// Everything that needs a restart to take effect (screen position applies live; keys are saved when the window closes).
     var snapshot: String {
@@ -163,6 +190,7 @@ struct SettingsView: View {
                 Note(S.t("부르는 말은 늘 귀를 열어 두고, 단축키만은 누를 때만 듣습니다.", "The wake word keeps listening; hotkey only listens while you press it."))
                 TextField(S.t("나를 부르는 호칭", "What it calls you"), text: $m.userName, prompt: Text(S.t("예: 대표님", "e.g. Tony")))
                 TextField(S.t("비서 이름", "Assistant name"), text: $m.assistantName)
+                NameTrainingRow(m: m, S: S)
                 TextField(S.t("부르는 말", "Wake words"), text: $m.wakeWords, prompt: Text(S.t("쉼표로 여러 개 · 비우면 기본값", "comma-separated · empty = default")))
                 TextField(S.t("인사말", "Greeting"), text: $m.greetingText, prompt: Text(S.t("어서 오십시오, {user}", "Welcome home, {user}.")))
                 Picker(S.t("단축키로 부르기", "Wake hotkey"), selection: $m.hotkey) {
@@ -464,6 +492,7 @@ enum SettingsWindow {
     final class Closer: NSObject, NSWindowDelegate {
         func windowWillClose(_ n: Notification) {
             guard let m = SettingsWindow.model else { return }
+            if m.training { m.stopTraining() }        // 이름 맞추기 stops with the window
             m.save()
             SettingsWindow.window = nil; SettingsWindow.model = nil
             if m.needsRestart { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { SettingsWindow.relaunch() } }
@@ -549,6 +578,39 @@ struct EngineMenu: View {
 }
 
 /// The one-line explanation under a setting.
+/// 비서 이름 아래: 원하는 이름을 12번 불러 이 맥이 그 목소리를 어떻게 받아 적는지 배우게 합니다.
+struct NameTrainingRow: View {
+    @ObservedObject var m: SettingsModel
+    let S: Strings
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                if m.training {
+                    ProgressView(value: Double(m.trainCount), total: 12).frame(width: 140)
+                    Text("\(m.trainCount)/12").monospacedDigit().foregroundStyle(.secondary)
+                    Spacer()
+                    Button(S.t("그만", "Stop")) { m.stopTraining() }
+                } else {
+                    Button(S.t("목소리로 이름 맞추기", "Train the name with my voice")) { m.startTraining() }
+                    Spacer()
+                }
+            }
+            if m.training {
+                Note(S.t("화면 구석 카드가 시키는 대로 「\(m.assistantName.isEmpty ? "사사리사" : m.assistantName)」를 12번, 한 번씩 끊어서 평소 목소리로 불러 주세요."
+                         + (m.trainHeard.isEmpty ? "" : " 방금 들은 말: 「\(m.trainHeard)」"),
+                         "Say “\(m.assistantName.isEmpty ? "Sasarisa" : m.assistantName)” 12 times, one at a time, in your normal voice."
+                         + (m.trainHeard.isEmpty ? "" : " Just heard: “\(m.trainHeard)”")))
+            } else if !m.trainResult.isEmpty {
+                Text(S.t("알아들은 횟수 \(m.trainResult)", "Recognized \(m.trainResult)")).font(.callout.weight(.semibold))
+                Note(m.trainVerdict + (m.trainLearned.isEmpty ? "" : S.t(" 이렇게도 알아듣게 배웠어요: ", " Also learned: ") + m.trainLearned.prefix(6).joined(separator: ", ")))
+            } else {
+                Note(S.t("부르고 싶은 이름을 쓰고 눌러 보세요. 12번 부르면 이 맥이 내 목소리로 그 이름을 어떻게 받아 적는지 배우고, 잘 알아듣는지 알려 드려요.",
+                         "Type the name you want, then press this. Say it 12 times and this Mac learns how it hears your voice say it — and tells you how well it works."))
+            }
+        }
+    }
+}
+
 struct Note: View {
     let text: String
     init(_ text: String) { self.text = text }
