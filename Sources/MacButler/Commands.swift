@@ -196,6 +196,11 @@ struct Parser {
         // English: "type hello world"
         if let m = Parser.match(s, "^(type|write)\\s+(.+)$") { return .type(m[2]) }
 
+        // 「클로드 (창 중에) 댓글 작업용 프로젝트에 ○○ 전달해」 — the window named after 클로드: same as 「댓글 작업용 프로젝트 클로드에 ○○」
+        if let m = Parser.match(s, "^(클로드\\s*코드|클로드)\\s*(창|세션)?\\s*(중에서|중에)?\\s*(.+?)\\s*(프로젝트|창|세션)\\s*(에다가|에다|에게|한테|에)\\s*[,，]?\\s*(.+)$"),
+           !["한테", "에게", "에", "에다", "에다가"].contains(m[4]) {
+            s = m[4] + " 프로젝트 클로드에 " + m[7]
+        }
         // Claude: 「(세션) 클로드한테 ○○ 라고 전달해」 → relay just that; 「클로드코드한테 ○○ 해서 보내」 → whole task.
         if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|창에다가|창에다|창에|에다가|에다|에|님|보고)\\s*[,，]?\\s*(.+)$") {
             var target = m[1]
@@ -496,6 +501,8 @@ struct Parser {
     /// "X 멈추고 Y", "X 하고 Y", "X 그리고 Y", "X 한 다음 Y" — more than one action.
     static func isCompound(_ s: String) -> Bool {
         if [" 그리고 ", "한 다음", "하고 나서", "고 나서", "한 뒤에", "다음에 "].contains(where: { s.contains($0) }) { return true }
+        // 「네이버에 ○○ 검색해서 △△ 알려줘」「크몽 들어가서 대화 이어가」 — find/open, then read, answer or carry on: the brain does both
+        if match(s, "(검색해서|검색하고|찾아서|찾아보고|찾아 보고|들어가서|들어가 가지고|열어서|열고|보고)\\s+.*(알려|말해|정리|요약|비교|읽어|골라|추천|이어가|이어서|답장|답해|확인해|봐 줘|봐줘)") != nil { return true }
         return match(s, "(멈추|끄|켜|열|닫|틀|누르|찾|가|보|치|하|줄이|키우|올리|내리|넘기|맞추)고\\s+\\S+.*(해|줘|봐|켜|꺼|열어|틀어|찾아|검색|보여|줄여|키워|넘겨|올려|내려)") != nil
     }
     /// Removes a trailing ask: "찾아 줘", "검색해", "보여 줘", "알아봐", "좀".

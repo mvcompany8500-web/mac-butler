@@ -35,6 +35,7 @@ struct Config: Codable {
     var brainProvider = "claude-code"   // "claude-code" (default, your Claude subscription) · "codex" (your signed-in Codex CLI) · "aside" (Aside app CLI) · "anthropic" · "openai" · "gemini" · "openrouter" · "groq" · "ollama" · "lmstudio" · "openai-compatible" — keys go in the Keychain (`MacButler --set-key openai`)
     var brainModel = ""                 // model for an API brain, e.g. "gpt-5-mini", "gemini-3-flash", "claude-sonnet-5-5"; empty → provider default / a local server's first model
     var brainBaseURL = ""               // only for "openai-compatible" (or to point a provider elsewhere): https://…/v1, or http://127.0.0.1:…/v1
+    var brainEffort = "low"             // codex only: how hard it thinks — "low" (fast, default) · "medium" · "high"
     var claudePath = ""                 // empty → auto-detect `claude`
     var claudeModel = "sonnet"
     var confirmDelegate = "never"       // how boldly it acts: "never" = do it right away (default) · "brain" = ask before Claude hands work on · "always" = ask first, ask when unsure
@@ -77,7 +78,7 @@ struct Config: Codable {
         wakeWords = v(.wakeWords, z.wakeWords); greetPhrases = v(.greetPhrases, z.greetPhrases)
         greetingText = v(.greetingText, z.greetingText); bootTitle = v(.bootTitle, z.bootTitle); bootSubtitle = v(.bootSubtitle, z.bootSubtitle)
         greetOpen = v(.greetOpen, z.greetOpen)
-        brainProvider = v(.brainProvider, z.brainProvider); brainModel = v(.brainModel, z.brainModel); brainBaseURL = v(.brainBaseURL, z.brainBaseURL)
+        brainProvider = v(.brainProvider, z.brainProvider); brainModel = v(.brainModel, z.brainModel); brainBaseURL = v(.brainBaseURL, z.brainBaseURL); brainEffort = v(.brainEffort, z.brainEffort)
         claudePath = v(.claudePath, z.claudePath); claudeModel = v(.claudeModel, z.claudeModel); brainAccess = v(.brainAccess, z.brainAccess); confirmDelegate = v(.confirmDelegate, z.confirmDelegate)
         whisperModel = v(.whisperModel, z.whisperModel); whisperServer = v(.whisperServer, z.whisperServer)
         tts = v(.tts, z.tts); ttsVoice = v(.ttsVoice, z.ttsVoice); ttsModel = v(.ttsModel, z.ttsModel); ttsRegion = v(.ttsRegion, z.ttsRegion); ttsURL = v(.ttsURL, z.ttsURL); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)

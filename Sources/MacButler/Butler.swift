@@ -418,8 +418,8 @@ final class Butler {
         case .type(let text): Hands.paste(text); done(S.typed, text)
         case .claude(let target, let message, let newSession):
             // Your own spoken request goes straight through (unless confirmDelegate = "always").
-            if cfg.confirmDelegate == "always" { askToDelegate(target: target, message: message, newSession: newSession) }
-            else { claudeMacro(target: target, message: message, newSession: newSession) }
+            if cfg.confirmDelegate == "always" { askToDelegate(target: target, message: message, newSession: newSession, said: cmd) }
+            else { claudeMacro(target: target, message: message, newSession: newSession, said: cmd) }
         case .youtube(let q):
             if q.isEmpty { open("https://www.youtube.com/"); played(S.youtube, "YouTube") } else { youtube(q) }
         case .youtubeNth(let n):
@@ -616,8 +616,17 @@ final class Butler {
 
     /// Brings the Claude app forward → (finds the named session, or opens a new one) → types into the prompt box → Enter.
     /// Uses Accessibility only: the mouse pointer never moves.
-    func claudeMacro(target: String, message: String, newSession: Bool) {
+    func claudeMacro(target: String, message: String, newSession: Bool, said: String = "") {
         mode = .busy
+        // The message is tidied by a small model while the window is being found (「…라고 전달해」 quotes stay as said).
+        let verbatim = ClaudeRelay.isQuote(said, message: message)
+        var composed: String? = nil
+        let composing = DispatchGroup()
+        composing.enter()
+        DispatchQueue.global(qos: .userInitiated).async { [cfg] in
+            let t = ClaudeRelay.compose(message, verbatim: verbatim, cfg: cfg)
+            DispatchQueue.main.async { composed = t; composing.leave() }
+        }
         hud.show(S.claudeOpen, message, heard: target.isEmpty ? "Claude" : "\(target) · Claude", color: amber, speed: 3)
         log("claude[\(target)\(newSession ? " new" : "")]: \(message)")
         NSRunningApplication.runningApplications(withBundleIdentifier: Butler.claudeBundle).first?.activate()
@@ -635,23 +644,43 @@ final class Butler {
                     Thread.sleep(forTimeInterval: 0.9)
                 }
             } else if !target.isEmpty {
-                if let (w, item, _) = wins.compactMap({ w in AX.session(w, target).map { (w, $0.0, $0.1) } }).max(by: { $0.2 < $1.2 }) {
-                    win = w
+                // Several Claude windows: each window's title is its session/project name. Clear title match → that
+                // window; else a sidebar session; else a small model reads the open windows and picks one. No match → stop.
+                let titles = wins.map { (AX.attr($0, "AXTitle") as? String) ?? "" }
+                let raise = { (w: AXUIElement, title: String) in
+                    AXUIElementSetAttributeValue(w, kAXMainAttribute as CFString, kCFBooleanTrue)
                     AXUIElementPerformAction(w, kAXRaiseAction as CFString)
-                    DispatchQueue.main.async { self.hud.show(self.S.claudeFindSession, (AX.attr(item, "AXTitle") as? String) ?? target, heard: nil, color: amber, speed: 3) }
+                    DispatchQueue.main.async { self.hud.show(self.S.claudeFindSession, title, heard: nil, color: amber, speed: 3) }
+                    Thread.sleep(forTimeInterval: 0.35)
+                }
+                if let i = ClaudeRelay.clearBest(target, titles: titles) {
+                    win = wins[i]; raise(win, titles[i])
+                } else if let (w, item, _) = wins.compactMap({ w in AX.session(w, target).map { (w, $0.0, $0.1) } }).max(by: { $0.2 < $1.2 }), AX.session(w, target).map({ $0.1 >= 120 }) == true {
+                    win = w; raise(w, (AX.attr(item, "AXTitle") as? String) ?? target)
                     AX.press(item)
                     Thread.sleep(forTimeInterval: 0.6)
+                } else if let i = ClaudeRelay.pick(target, said: said.isEmpty ? target : said, titles: titles, cfg: self.cfg) {
+                    win = wins[i]; raise(win, titles[i])
                 } else {
-                    log("session not found: \(target) → typing into the current one")
+                    log("claude window not found: \(target) among \(titles)")
+                    DispatchQueue.main.async { self.fail(self.S.t("「\(target)」 클로드 창을 못 찾았어요", "Couldn't find the “\(target)” Claude window")) }
+                    return
                 }
             }
             guard let box = AX.composer(win) else { DispatchQueue.main.async { self.fail(self.S.claudeNoInput) }; return }
-            DispatchQueue.main.async { self.cancelSend = false; self.hud.show(self.S.claudeTyping, message, heard: nil, color: amber, speed: 3) }
+            if composing.wait(timeout: .now() + 0.05) == .timedOut {
+                DispatchQueue.main.async { self.hud.show(self.S.t("◌ 전할 말 다듬는 중", "◌ Tidying the message"), message, heard: nil, color: amber, speed: 3) }
+                _ = composing.wait(timeout: .now() + 20)
+            }
+            var text = message
+            DispatchQueue.main.sync { text = composed ?? message }
+            if text != message { log("claude message tidied: \(message) → \(text)") }
+            DispatchQueue.main.async { self.cancelSend = false; self.hud.show(self.S.claudeTyping, text, heard: nil, color: amber, speed: 3) }
             AX.focus(box)
             Thread.sleep(forTimeInterval: 0.15)
-            DispatchQueue.main.sync { Hands.paste(message) }   // instant (typing 30 chars/s was the slow part)
+            DispatchQueue.main.sync { Hands.paste(text) }   // instant (typing 30 chars/s was the slow part)
             // Last chance: 0.8 s to say “취소 / stop” before Enter.
-            DispatchQueue.main.async { self.hud.show(self.S.t("◌ 곧 보냄 · 「취소」 하면 멈춤", "◌ Sending… say “stop” to cancel"), message, heard: nil, color: amber, speed: 3) }
+            DispatchQueue.main.async { self.hud.show(self.S.t("◌ 곧 보냄 · 「취소」 하면 멈춤", "◌ Sending… say “stop” to cancel"), text, heard: nil, color: amber, speed: 3) }
             Thread.sleep(forTimeInterval: 0.8)
             var cancelled = false
             DispatchQueue.main.sync { cancelled = self.cancelSend; self.cancelSend = false }
@@ -661,7 +690,7 @@ final class Butler {
                 return
             }
             Hands.key(Hands.enter)
-            DispatchQueue.main.async { Sound.named("Pop"); self.done(newSession ? self.S.claudeDelegated : self.S.claudeSent, message) }
+            DispatchQueue.main.async { Sound.named("Pop"); self.done(newSession ? self.S.claudeDelegated : self.S.claudeSent, text) }
         }
     }
     // MARK: confirm before handing work to a full-power Claude session
@@ -674,9 +703,10 @@ final class Butler {
         "com.apple.dt.Xcode", "com.apple.Console", "com.anthropic.claudefordesktop", "com.microsoft.VSCode",
         "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.1password.1password", "com.bitwarden.desktop"]
     var pendingDelegate: (target: String, message: String, newSession: Bool)?
-    func askToDelegate(target: String, message: String, newSession: Bool, speakQuestion: Bool = true) {
-        guard cfg.confirmDelegate != "never" else { claudeMacro(target: target, message: message, newSession: newSession); return }
-        pendingDelegate = (target, message, newSession)
+    var pendingSaid = ""
+    func askToDelegate(target: String, message: String, newSession: Bool, speakQuestion: Bool = true, said: String = "") {
+        guard cfg.confirmDelegate != "never" else { claudeMacro(target: target, message: message, newSession: newSession, said: said); return }
+        pendingDelegate = (target, message, newSession); pendingSaid = said
         let where_ = newSession ? S.t("클로드 새 세션", "a new Claude session") : (target.isEmpty ? "Claude" : target)
         log("delegate pending: \(message)")
         guard speakQuestion else { return }
@@ -697,7 +727,7 @@ final class Butler {
         let no = ["아니", "아니야", "취소", "하지마", "됐어", "no", "nope", "cancel", "stop"]
         pendingDelegate = nil
         if no.contains(where: { s.hasPrefix($0) }) || s.contains("말고") || s.contains("하지마") { Sound.named("Pop"); log("delegate cancelled"); converse(keep: true); return true }
-        if yes.contains(where: { s.hasPrefix($0) }) { claudeMacro(target: p.target, message: p.message, newSession: p.newSession); return true }
+        if yes.contains(where: { s.hasPrefix($0) }) { claudeMacro(target: p.target, message: p.message, newSession: p.newSession, said: pendingSaid); return true }
         log("delegate dropped (no clear yes)")
         return false
     }

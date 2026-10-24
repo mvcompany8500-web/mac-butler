@@ -28,6 +28,14 @@ final class CodexBrain: Thinker {
     /// `brainModel` if you name one; otherwise Codex picks its default for your ChatGPT plan.
     /// (Not the `model` in ~/.codex/config.toml — that one may belong to another provider; 10/24 test: refused with a ChatGPT login.)
     static func model(_ cfg: Config) -> String? { cfg.brainModel.isEmpty ? nil : cfg.brainModel }
+    /// Models Codex lists for your account (~/.codex/models_cache.json, visible ones), for the settings menu.
+    static func listedModels() -> [String] {
+        let home = ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
+        guard let d = try? Data(contentsOf: home.appendingPathComponent("models_cache.json")),
+              let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any], let ms = o["models"] as? [[String: Any]] else { return [] }
+        return ms.compactMap { $0["visibility"] as? String == "list" ? $0["slug"] as? String : nil }
+    }
     /// Everything except the tool box is switched off. Fixed here, where the model can't change it.
     static func arguments(_ cfg: Config, prompt: String) -> [String] {
         let box = Paths.tools.appendingPathComponent("butler-mcp").path
@@ -37,7 +45,8 @@ final class CodexBrain: Thinker {
                  "--sandbox", "read-only", "--color", "never", "-C", Paths.home.appendingPathComponent("work").path]
         for f in off { a += ["--disable", f] }
         func q(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
-        a += ["-c", "approval_policy=\"never\"", "-c", "model_reasoning_effort=\"low\"",
+        let effort = ["low", "medium", "high"].contains(cfg.brainEffort) ? cfg.brainEffort : "low"
+        a += ["-c", "approval_policy=\"never\"", "-c", "model_reasoning_effort=\"\(effort)\"",
               "-c", "mcp_servers.butler.command=\(q(box))",
               "-c", "mcp_servers.butler.default_tools_approval_mode=\"approve\"",
               "-c", "mcp_servers.butler.env.MACBUTLER_HOME=\(q(Paths.home.path))",

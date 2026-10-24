@@ -32,6 +32,11 @@ enum SelfTest {
         check(pk, "에어팟 최저가 찾아 줘", .web(label: "네이버 쇼핑", query: "에어팟", url: "https://search.shopping.naver.com/search/all?query="))
         check(pk, "네이버에서 오늘 날씨 검색해", .web(label: "네이버", query: "오늘 날씨", url: "https://search.naver.com/search.naver?query="))
         check(pk, "지금 켜진 클로드 창에 로그인 버그 고쳐 줘", .claude(target: "", message: "로그인 버그 고쳐 줘", newSession: false))
+        check(pk, "네이버에 맥미니 가격 검색해서 제일 싼 거 알려줘", .none)
+        check(pk, "크몽 들어가서 지금 대화 이어가", .none)
+        check(pk, "카톡에 엄마 채팅창 찾아서 글 읽고 답장 좀 해 줘", .none)
+        check(pk, "클로드 댓글 작업용 프로젝트에 테스트라고 전달해", .claude(target: "댓글 작업용", message: "테스트", newSession: false))
+        check(pk, "클로드 창 중에 잡일 시키기 창에 오늘 할 일 정리해 줘", .claude(target: "잡일 시키기", message: "오늘 할 일 정리해 줘", newSession: false))
         check(pk, "지금 켜진 클로드 창에 로그인 버그 고치고, 아니, 취소", .hush)
         check(pk, "지금 켜진 클로드 창에다가 버그 고치라고 해", .claude(target: "", message: "버그 고치라고 해", newSession: false))
         checkBool("알았어 조용히 해 = hush", pk.isHush("알았어 조용히 해"))
@@ -94,6 +99,16 @@ enum SelfTest {
         checkBool("brain base: remote http refused", APIBrain.safeBase("http://evil.example/v1") == nil)
         var cc = Config(); checkBool("default brain is Claude Code", APIBrain.provider(cc) == nil)
         cc.brainProvider = "ollama"; checkBool("ollama brain", APIBrain.provider(cc)?.local == true)
+        // Several Claude windows (titles = session names), 2026-10-24
+        do {
+            let wins = ["음성 제어 Mac 설정", "터틀메이커 전체 프로젝트", "터틀메이커 소개·튜토리얼 영상 시리즈 만들기", "홈페이지 터틀메이커 영상 칸을 새 시리즈로 교체", "잡일 시키기", "댓글 작업용 프로젝트"]
+            checkBool("window: 댓글 작업", ClaudeRelay.clearBest("댓글 작업", titles: wins) == 5)
+            checkBool("window: 잡일", ClaudeRelay.clearBest("잡일", titles: wins) == 4)
+            checkBool("window: 음성 제어 맥 설정", ClaudeRelay.clearBest("음성 제어 맥 설정", titles: wins) == 0)
+            checkBool("window: 터틀메이커 alone is a close call (model decides)", ClaudeRelay.clearBest("터틀메이커", titles: wins) == nil)
+            checkBool("quote stays as said", ClaudeRelay.isQuote("클로드에 테스트라고 전달해", message: "테스트"))
+            checkBool("an order gets tidied", !ClaudeRelay.isQuote("클로드한테 버그 고치라고 해", message: "버그 고치라고 해"))
+        }
         cc.brainProvider = "aside"; checkBool("aside brain is the CLI one", Brains.make(cc) is AsideBrain)
         cc.brainProvider = "codex"; checkBool("codex brain is the CLI one", Brains.make(cc) is CodexBrain)
         do {

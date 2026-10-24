@@ -172,6 +172,8 @@ if CommandLine.arguments.contains("--misses") { print(Growth.missReport()); exit
 // `MacButler --demo-frames <dir>` renders the README demo frames from the real HUD (see docs/make-demo.sh).
 if let i = CommandLine.arguments.firstIndex(of: "--demo-frames"), CommandLine.arguments.count > i + 1 { DemoFrames.run(CommandLine.arguments[i + 1]); exit(0) }
 // `MacButler --selftest` checks the command grammar without a microphone.
+// `MacButler --settings-shot out.png` — the settings window drawn off screen, full height (to check the design).
+if let i = CommandLine.arguments.firstIndex(of: "--settings-shot"), CommandLine.arguments.count > i + 1 { SettingsWindow.shot(CommandLine.arguments[i + 1]); exit(0) }
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).
 if let i = CommandLine.arguments.firstIndex(of: "--parse") {
