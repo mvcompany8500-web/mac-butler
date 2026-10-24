@@ -152,7 +152,7 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
             return r
         case "pro":     // the natural voice from TurtleMaker (members); over the allowance → the built-in voice for a while
             guard Date() > ProAccount.voiceOffUntil else { return nil }
-            return ProAccount.speechRequest(text)
+            return ProAccount.speechRequest(text, voice: cfg.ttsVoice)
         case "http":
             guard let url = APIBrain.safeBase(cfg.ttsURL) else { return nil }
             var h: [String: String] = [:]

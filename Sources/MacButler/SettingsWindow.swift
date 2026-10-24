@@ -216,6 +216,10 @@ struct SettingsView: View {
                              "More natural voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices… → download a Premium voice"))
                         .font(.caption).foregroundStyle(.secondary)
                 } else if m.tts == "pro" {
+                    Picker(S.t("목소리", "Voice"), selection: $m.ttsVoice) {
+                        ForEach(ProAccount.voices, id: \.id) { v in Text(S.t(v.ko, v.en)).tag(v.id) }
+                    }
+                    .onAppear { if !ProAccount.voices.contains(where: { $0.id == m.ttsVoice }) { m.ttsVoice = ProAccount.voices[0].id } }
                     Note(!m.proLinked
                          ? S.t("아래 「멤버십 Pro」에서 터틀메이커 계정을 연결하면 씁니다. 그 전에는 맥 목소리로 읽습니다.",
                                "Link your TurtleMaker account under Membership Pro below. Until then the macOS voice reads.")

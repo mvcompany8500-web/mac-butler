@@ -86,9 +86,16 @@ enum ProAccount {
     static var voiceOffUntil = Date.distantPast
     /// The request for `tts = "pro"`; nil when not linked. Short questions and greetings are marked common so the server
     /// can reuse the sound (free for everyone); answers are never stored.
-    static func speechRequest(_ text: String) -> URLRequest? {
+    /// Voices the server reads with (ElevenLabs, Korean): id, Korean label, English label. The first is the default.
+    static let voices: [(id: String, ko: String, en: String)] = [
+        ("CxErO97xpQgQXYmapDKX", "테오 — 남성, 대화체", "Teo — male, conversational"),
+        ("QPFsEL6IBxlT15xfiD6C", "하나 — 여성, 밝고 자연스러움", "Hana — female, bright and natural"),
+        ("qfwDoLSKOhzIgz7XedPT", "선 — 여성, 차분한 아나운서", "Sun — female, calm announcer")]
+    static func speechRequest(_ text: String, voice: String = "") -> URLRequest? {
         let common = text.count <= 40 && (text.hasSuffix("?") || text.contains("어서 오") || text.lowercased().hasPrefix("welcome"))
-        return authed("/api/butler/tts", method: "POST", body: ["text": text, "common": common], timeout: 12)
+        var body: [String: Any] = ["text": text, "common": common]
+        if voices.contains(where: { $0.id == voice }) { body["voice"] = voice }
+        return authed("/api/butler/tts", method: "POST", body: body, timeout: 12)
     }
 
     // MARK: remote
