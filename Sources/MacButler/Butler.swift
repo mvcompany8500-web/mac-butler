@@ -501,7 +501,7 @@ final class Butler {
             done(S.opened, spoken)
         case .none:
             // 티키타카: right after it asked something back, 「응」「그래」「그거 말고」 is an answer — straight to the brain (no router)
-            if let t = brainAskedAt, Date().timeIntervalSince(t) < cfg.followUpSec + 15 { brainAskedAt = nil; log("reply to its question → brain"); ask(cmd); return }
+            if let t = brainAskedAt, Date().timeIntervalSince(t) < 90 { brainAskedAt = nil; log("reply to its question → brain"); ask(cmd); return }
             if let canon = Aliases.lookup(cmd), isQuick(canon) { log("alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
             // 「다 같이 키우기」 pack: what many people taught their Sasarisa (checked again here — safe quick commands only)
             if let canon = GrowTogether.lookup(cmd, parser: parser), isQuick(canon) { log("shared alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
