@@ -73,7 +73,7 @@ final class Butler {
         brain = Brains.make(cfg)
         router = Router(cfg: cfg)
         whisper = Whisper(model: cfg.whisperModelPath, binary: cfg.whisperBinary, language: cfg.lang,
-                          prompt: String(((cfg.wakes + [cfg.user, "Claude", "YouTube"] + cfg.customWords).joined(separator: ", ") + ".").prefix(500)))
+                          prompt: Butler.glossary(cfg))
     }
 
     func start() {
@@ -599,6 +599,16 @@ final class Butler {
         t = t.replacingOccurrences(of: #"https?://\S+"#, with: "", options: .regularExpression)
         return t.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
     }
+    /// Whisper's context like Handy's: 「Glossary: name, …」 — the name and your words first, kept short (whisper.cpp keeps only
+    /// the last ~220 tokens of a long prompt, so a long one used to lose the wake word at the front).
+    static func glossary(_ cfg: Config) -> String {
+        var seen = Set<String>(), words: [String] = []
+        for w in [cfg.displayName] + cfg.wakes.filter { !$0.hasPrefix("헤이 ") && !$0.lowercased().hasPrefix("hey ") } + [cfg.user, "Claude", "YouTube"] + cfg.customWords
+        where !w.isEmpty && seen.insert(w.lowercased()).inserted { words.append(w) }
+        var out = "Glossary:"
+        for w in words { if out.count + w.count + 2 > 180 { break }; out += (out.hasSuffix(":") ? " " : ", ") + w }
+        return out
+    }
     /// One video at a time: the YouTube videos already open are closed before a new one starts.
     func closeVideos() {
         let n = closeTabs("youtube.com/watch", frontFirst: false) + closeTabs("youtube.com/shorts", frontFirst: false)
@@ -1079,8 +1089,11 @@ final class Butler {
         var text = t.split(separator: " ").filter { w in !cfg.fillers.contains(w.trimmingCharacters(in: .punctuationCharacters)) }.joined(separator: " ")
         var enter = false
         for suf in [" 엔터", " 보내", " enter", " send"] where text.lowercased().hasSuffix(suf) { text = String(text.dropLast(suf.count)); enter = true }
-        Hands.paste(text + " ")
-        if enter { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { Hands.key(Hands.enter) } }
+        let paste = { (t: String) in
+            Hands.paste(t + " ")
+            if enter { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { Hands.key(Hands.enter) } }
+        }
+        if cfg.polishDictation { Polish.run(text, ko: cfg.ko, words: cfg.customWords, done: paste) } else { paste(text) }
     }
 
     func ask(_ cmd: String) {

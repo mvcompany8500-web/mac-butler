@@ -26,6 +26,7 @@ final class SettingsModel: ObservableObject {
     @Published var growTogether: String
     @Published var proRemote: Bool
     @Published var previewBeforeSend: Bool
+    @Published var polishDictation: Bool
     @Published var pro: ProAccount.Status?
     @Published var proLinked = ProAccount.token != nil
     @Published var proCode = ""
@@ -58,7 +59,7 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
-        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate; freeMode = c.freeMode; growTogether = c.growTogether.isEmpty ? "together" : c.growTogether; proRemote = c.proRemote; previewBeforeSend = c.previewBeforeSend
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate; freeMode = c.freeMode; growTogether = c.growTogether.isEmpty ? "together" : c.growTogether; proRemote = c.proRemote; previewBeforeSend = c.previewBeforeSend; polishDictation = c.polishDictation
         brainProvider = c.brainProvider; brainModel = c.brainModel; brainBaseURL = c.brainBaseURL; brainEffort = c.brainEffort
         ttsVoice = c.ttsVoice; ttsRegion = c.ttsRegion; ttsURL = c.ttsURL
     }
@@ -66,7 +67,7 @@ final class SettingsModel: ObservableObject {
     var snapshot: String {
         [language, activation, userName, assistantName, wakeWords, greetingText, hotkey, tts, sayVoice, elevenVoiceId, elevenKeyFile,
          claudeModel, inputDevice, bargeIn, outputDevice, confirmDelegate, brainProvider, brainModel, brainBaseURL, brainEffort,
-         ttsVoice, ttsRegion, ttsURL, growTogether, freeMode ? "1" : "0", proRemote ? "1" : "0", previewBeforeSend ? "1" : "0"].joined(separator: "\u{1F}")
+         ttsVoice, ttsRegion, ttsURL, growTogether, freeMode ? "1" : "0", proRemote ? "1" : "0", previewBeforeSend ? "1" : "0", polishDictation ? "1" : "0"].joined(separator: "\u{1F}")
     }
     /// Something that needs a restart changed — closing the window restarts Sasarisa to apply it.
     @Published var needsRestart = false
@@ -118,7 +119,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate; obj["freeMode"] = freeMode; obj["growTogether"] = growTogether; obj["proRemote"] = proRemote; obj["previewBeforeSend"] = previewBeforeSend
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate; obj["freeMode"] = freeMode; obj["growTogether"] = growTogether; obj["proRemote"] = proRemote; obj["previewBeforeSend"] = previewBeforeSend; obj["polishDictation"] = polishDictation
         obj["brainProvider"] = brainProvider; obj["brainModel"] = brainModel; obj["brainBaseURL"] = brainBaseURL; obj["brainEffort"] = brainEffort
         obj["ttsVoice"] = ttsVoice; obj["ttsRegion"] = ttsRegion; obj["ttsURL"] = ttsURL
         let bk = brainKey.trimmingCharacters(in: .whitespacesAndNewlines), vk = voiceKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -181,6 +182,11 @@ struct SettingsView: View {
                 Toggle(S.t("보내기 전 미리 보기", "Preview before sending"), isOn: $m.previewBeforeSend)
                 Note(S.t("클로드 창에 전할 말을 입력칸에 넣어 보여 주고, 「응」 하면 보냅니다. 「아니」 하거나 20초 동안 답이 없으면 지우고 보내지 않습니다.",
                          "The message for a Claude window is put in its box for you to read, and sent only when you say “yes”. “No”, or no answer in 20 s, clears it."))
+                Toggle(S.t("받아쓰기 다듬기 — 핸디처럼", "Tidy dictation — like Handy"), isOn: $m.polishDictation).disabled(!Polish.available)
+                Note(Polish.available
+                     ? S.t("받아 적은 글을 붙이기 전에 맥 안의 Apple Intelligence가 맞춤법·문장부호(?·.)·숫자를 고칩니다. 핸디에 고른 다듬기 지시문이 있으면 그걸 씁니다. 밖으로 나가는 것 없음, 비용 0.",
+                           "Before dictation is pasted, Apple Intelligence on this Mac fixes spelling, punctuation and numbers — with your Handy post-process prompt if you have one. Nothing leaves the Mac.")
+                     : S.t("Apple Intelligence를 켜면 쓸 수 있어요(시스템 설정 → Apple Intelligence).", "Turn on Apple Intelligence to use it (System Settings → Apple Intelligence)."))
                 Picker(S.t("화면 위치", "On-screen position"), selection: $m.hudPosition) {
                     Text(S.t("오른쪽 아래 (기본)", "Bottom right (default)")).tag("bottomRight"); Text(S.t("왼쪽 아래", "Bottom left")).tag("bottomLeft"); Text(S.t("위 가운데", "Top center")).tag("top")
                 }

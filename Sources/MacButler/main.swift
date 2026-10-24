@@ -175,6 +175,14 @@ if let i = CommandLine.arguments.firstIndex(of: "--demo-frames"), CommandLine.ar
 // `MacButler --settings-shot out.png` — the settings window drawn off screen, full height (to check the design).
 if let i = CommandLine.arguments.firstIndex(of: "--settings-shot"), CommandLine.arguments.count > i + 1 { SettingsWindow.shot(CommandLine.arguments[i + 1]); exit(0) }
 if let i = CommandLine.arguments.firstIndex(of: "--setup-shot"), CommandLine.arguments.count > i + 1 { SetupWindow.shot(CommandLine.arguments[i + 1]); exit(0) }
+// `Sasarisa --polish "받아 적은 글"` tidies one line like dictation would (checks Apple Intelligence on this Mac).
+if let i = CommandLine.arguments.firstIndex(of: "--polish"), CommandLine.arguments.count > i + 1 {
+    let cfg = Config.load(); var out: String?
+    print("available: \(Polish.available)")
+    Polish.run(CommandLine.arguments[i + 1], ko: cfg.ko, words: cfg.customWords) { out = $0 }
+    let t0 = Date(); while out == nil, Date().timeIntervalSince(t0) < 10 { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+    print(out ?? "(none)"); exit(0)
+}
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).
 if let i = CommandLine.arguments.firstIndex(of: "--parse") {
