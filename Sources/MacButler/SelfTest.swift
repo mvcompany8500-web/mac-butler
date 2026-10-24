@@ -95,6 +95,21 @@ enum SelfTest {
         var cc = Config(); checkBool("default brain is Claude Code", APIBrain.provider(cc) == nil)
         cc.brainProvider = "ollama"; checkBool("ollama brain", APIBrain.provider(cc)?.local == true)
         cc.brainProvider = "aside"; checkBool("aside brain is the CLI one", Brains.make(cc) is AsideBrain)
+        cc.brainProvider = "codex"; checkBool("codex brain is the CLI one", Brains.make(cc) is CodexBrain)
+        do {
+            let a = CodexBrain.arguments(cc, prompt: "x")
+            checkBool("codex: no shell, no user config, read-only, nothing saved",
+                      a.contains("--ignore-user-config") && a.contains("--ephemeral") && a.contains("read-only")
+                      && zip(a, a.dropFirst()).contains { $0 == "--disable" && $1 == "shell_tool" }
+                      && zip(a, a.dropFirst()).contains { $0 == "--disable" && $1 == "unified_exec" }
+                      && zip(a, a.dropFirst()).contains { $0 == "--disable" && $1 == "computer_use" })
+            checkBool("codex: only the butler tool box, safe mode on", a.contains { $0.hasPrefix("mcp_servers.butler.command=") } && a.contains("mcp_servers.butler.env.MACBUTLER_SAFE=\"1\"") && a.last == "x")
+            let b = CodexBrain(cfg: cc)
+            b.handle(["type": "item.started", "item": ["type": "mcp_tool_call", "tool": "open_app", "arguments": ["name": "Safari"]]])
+            b.handle(["type": "item.completed", "item": ["type": "agent_message", "text": "확인할게요."]])
+            b.handle(["type": "item.completed", "item": ["type": "agent_message", "text": "사파리를 열었어요."]])
+            checkBool("codex events parsed", true)
+        }
         checkBool("aside answer = last paragraph", AsideBrain.answer("Opening tab\nsession: abc12345\n\n\u{1B}[32m쿠팡 최저가는 1만 2천 원이에요.\u{1B}[0m".replacingOccurrences(of: "\u{1B}[32m", with: "").replacingOccurrences(of: "\u{1B}[0m", with: "")) == "쿠팡 최저가는 1만 2천 원이에요.")
         checkBool("aside session id", AsideBrain.sessionID("Session ID: ses_9fA2kq") == "ses_9fA2kq")
         checkBool("aside strips colors", AsideBrain.clean("\u{1B}[1m완료\u{1B}[0m") == "완료")

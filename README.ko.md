@@ -70,7 +70,7 @@ brew install --cask mvcompany8500-web/tap/mac-butler
 
 ## 다른 두뇌·목소리 꽂기
 
-기본 두뇌는 **내 Claude 구독의 Claude Code** 입니다. 설정 → 두뇌에서 바꿀 수 있습니다: Claude API 열쇠, **GPT(OpenAI)**, Gemini, OpenRouter, Groq,
+기본 두뇌는 **내 Claude 구독의 Claude Code** 입니다. 설정 → 두뇌에서 바꿀 수 있습니다: **GPT — Codex(내 ChatGPT 구독, 열쇠 없이 이 맥에 로그인된 Codex 그대로)**, Claude API 열쇠, **GPT(OpenAI)**, Gemini, OpenRouter, Groq,
 **내 컴퓨터 무료 모델(Ollama·LM Studio)**, 그 밖의 OpenAI 호환 주소. 어떤 두뇌를 골라도 손(누르기·입력·열기)은 같은 안전 장치를 지나고, 셸·파일은 없습니다.
 **Aside**(aside.com 브라우저)도 고를 수 있습니다. 빠른 명령은 자비스가 하고, 나머지 웹 일은 Aside 명령줄 도구(`aside "할 일"`)로 맡깁니다. Aside 설정 → 개발자에서 명령줄 도구를 설치하고 `aside login` 을 한 번 하세요. Aside 브라우저 안에서는 Aside의 안전 장치가 적용되고, 자비스는 결제·보내기·지우기 직전에 멈추고 묻도록 지시합니다.
 

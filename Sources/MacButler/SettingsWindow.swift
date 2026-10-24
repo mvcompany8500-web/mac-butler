@@ -160,6 +160,7 @@ struct SettingsView: View {
             Section(S.t("두뇌", "Brain")) {
                 Picker(S.t("생각하는 AI", "Who does the thinking"), selection: $m.brainProvider) {
                     Text(S.t("Claude Code (내 Claude 구독, 기본)", "Claude Code (your Claude plan, default)")).tag("claude-code")
+                    Text(S.t("GPT — Codex (내 ChatGPT 구독, 열쇠 없이)", "GPT — Codex (your ChatGPT plan, no key)")).tag("codex")
                     Text(S.t("Claude API (내 열쇠)", "Claude API (your key)")).tag("anthropic")
                     Text(S.t("GPT — OpenAI (내 열쇠)", "GPT — OpenAI (your key)")).tag("openai")
                     Text(S.t("Gemini (내 열쇠)", "Gemini (your key)")).tag("gemini")
@@ -176,6 +177,14 @@ struct SettingsView: View {
                                "The Aside CLI isn't installed yet. Install it in Aside → Settings → Developer, then run aside login once in Terminal.")
                          : S.t("소리·앱 열기·타이머 같은 빠른 명령은 자비스가 직접 하고, 나머지 일은 Aside 브라우저가 합니다. 결제·보내기·지우기 직전에는 멈추고 묻게 시킵니다.",
                                "Quick commands (volume, apps, timers) stay in Mac Butler; everything else goes to Aside's browser, told to stop and ask before paying, sending or deleting."))
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if m.brainProvider == "codex" {
+                    TextField(S.t("모델 이름", "Model"), text: $m.brainModel, prompt: Text(S.t("비우면 Codex 기본 모델", "empty = Codex default")))
+                    Text(CodexBrain.binary == nil
+                         ? S.t("이 맥에 Codex가 없어요. Codex 명령줄 도구를 설치하고 터미널에서 codex login 을 한 번 해 주세요.",
+                               "Codex isn't on this Mac. Install the Codex CLI and run codex login once in Terminal.")
+                         : S.t("이 맥에 로그인된 Codex(ChatGPT 구독)로 생각합니다. 열쇠는 필요 없고, Codex의 셸·파일 도구는 끄고 자비스 손만 씁니다.",
+                               "Thinks with the Codex you're signed in to on this Mac (ChatGPT plan) — no key. Codex's shell and file tools are off; only Mac Butler's hands are used."))
                         .font(.caption).foregroundStyle(.secondary)
                 } else if m.brainProvider == "claude-code" {
                     Picker(S.t("Claude 모델", "Claude model"), selection: $m.claudeModel) { Text("Sonnet").tag("sonnet"); Text("Haiku").tag("haiku"); Text("Opus").tag("opus") }

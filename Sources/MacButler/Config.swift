@@ -32,7 +32,7 @@ struct Config: Codable {
     var bootSubtitle = ""               // empty → "{user}의 개인 비서" / "Personal assistant of {user}" (or a generic line)
     var greetOpen: [String] = []        // URLs to open when greeted
 
-    var brainProvider = "claude-code"   // "claude-code" (default, your Claude subscription) · "aside" (Aside app CLI) · "anthropic" · "openai" · "gemini" · "openrouter" · "groq" · "ollama" · "lmstudio" · "openai-compatible" — keys go in the Keychain (`MacButler --set-key openai`)
+    var brainProvider = "claude-code"   // "claude-code" (default, your Claude subscription) · "codex" (your signed-in Codex CLI) · "aside" (Aside app CLI) · "anthropic" · "openai" · "gemini" · "openrouter" · "groq" · "ollama" · "lmstudio" · "openai-compatible" — keys go in the Keychain (`MacButler --set-key openai`)
     var brainModel = ""                 // model for an API brain, e.g. "gpt-5-mini", "gemini-3-flash", "claude-sonnet-5-5"; empty → provider default / a local server's first model
     var brainBaseURL = ""               // only for "openai-compatible" (or to point a provider elsewhere): https://…/v1, or http://127.0.0.1:…/v1
     var claudePath = ""                 // empty → auto-detect `claude`

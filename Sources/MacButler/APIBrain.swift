@@ -22,6 +22,7 @@ extension Brain: Thinker {}
 enum Brains {
     static func make(_ cfg: Config) -> Thinker {
         if cfg.brainProvider == "aside" { return AsideBrain(cfg: cfg) }      // Aside's browser agent via its CLI
+        if cfg.brainProvider == "codex" { return CodexBrain(cfg: cfg) }      // GPT through your signed-in Codex CLI
         return APIBrain.provider(cfg) == nil ? Brain(cfg: cfg) : APIBrain(cfg: cfg)
     }
 }
