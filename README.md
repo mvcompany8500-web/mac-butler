@@ -196,13 +196,23 @@ Everything lives in `~/.macbutler/`:
 }
 ```
 
+## Free & Pro
+
+**Mac Butler is free and open source.** Everything that runs on your Mac, your subscription or your own API key is free, and stays free.
+
+- **Free (all of it):** wake word, quick commands, dictation, rewriting, every brain (local: Claude Code, Codex, Ollama, LM Studio, Aside; any API key), sending to the right Claude window, multi-step jobs (search then answer, reply in a messenger), routines, free mode, grow-together learning.
+- **Pro (coming):** only what runs on our servers — call it from your phone (your Mac at home does it), sync across Macs (memory, routines, learned phrases), a routine library to share and pick up routines, early features and priority help. Not sold separately: it's part of the [TurtleMaker](https://maker.buffm.com) membership.
+- Nothing that is free today will become paid.
+
 ## Privacy & safety
 
-* **Stays on your Mac:** microphone audio, wake-word detection, Whisper transcription, logs. No telemetry.
+* **Stays on your Mac:** microphone audio, wake-word detection, Whisper transcription, logs. No telemetry — the only thing ever shared is opt-in grow-together learning (below).
 * **Leaves your Mac:** the text of commands that go to the brain you chose (Claude Code / Anthropic by default) and, if you picked a paid voice, the answers it reads aloud. A local brain (Ollama, LM Studio) keeps everything on the Mac. **GPT via Codex** uses the Codex CLI you're signed in to (your ChatGPT plan, no key) with its shell, file and browser tools off and only Mac Butler's tool box attached. With **Aside** as the brain, those commands go to your Aside app through its CLI (`aside "<task>"`; install it in Aside → Settings → Developer and run `aside login` once) and Aside's own policies apply inside its browser. Quick commands never leave the Mac.
 * **Safe by default, whatever the brain.** The brain only gets Mac Butler's tool box — no shell, no file reading or writing, no fetching URLs — and it can't press or type anything in terminals, code editors, the Claude app, System Settings, Keychain, password fields or permission prompts.
 * **Asks before anything irreversible.** Send, pay, post and delete buttons — and Enter in messengers or web forms, line breaks typed by the brain — wait for "Shall I send it?" → yes. The one shortcut: you asked for exactly that while holding the hotkey (a TV can say "send", it can't hold the key).
 * **Asks before handing work to a Claude Code session.** Anything the brain wants to hand over waits for your spoken yes, so a TV or a web page can't start work on your computer. ("Right away" mode applies only when you ask for Claude yourself.)
+* **Free mode (Settings, off by default):** only payments ask; sending, posting, deleting and hand-offs to Claude just happen. TV or video audio can sound like a command, so pair it with headphones or the hotkey.
+* **Grow together (chosen on first run, changeable in Settings):** only if you choose it, once a day it shares short sentences it understood and the quick command they ran (volume, video, closing pages, opening apps) with no name. No audio, conversations, screen, files, names or search words. A sentence reaches everyone only when 5+ different installs on 3+ networks use it.
 * Everything it pressed, typed or opened is logged in `~/.macbutler/logs/actions.log`.
 * Other apps can't send it commands (owner-only control socket). Details and how to report a vulnerability: [SECURITY.md](SECURITY.md).
 * Use the menu toggle to stop listening during calls and meetings.
