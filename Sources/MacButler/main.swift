@@ -1,5 +1,5 @@
 // Sasarisa — an always-listening voice assistant for macOS, powered by Claude Code.
-// The assistant answers to "Jarvis" by default (configurable: assistantName / wakeWords).
+// The assistant answers to its name, 「사사리사」 / "Sasarisa", by default (configurable: assistantName / wakeWords).
 // Say the wake word, then talk. It types, clicks, opens things, and hands bigger jobs to Claude.
 import AppKit
 import AVFoundation
@@ -182,6 +182,25 @@ if let i = CommandLine.arguments.firstIndex(of: "--polish"), CommandLine.argumen
     Polish.run(CommandLine.arguments[i + 1], ko: cfg.ko, words: cfg.customWords) { out = $0 }
     let t0 = Date(); while out == nil, Date().timeIntervalSince(t0) < 10 { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
     print(out ?? "(none)"); exit(0)
+}
+// `Sasarisa --hear a.wav [b.wav …]` — what the on-device recognizer writes for each file, without and with the name model.
+if let i = CommandLine.arguments.firstIndex(of: "--hear"), CommandLine.arguments.count > i + 1 {
+    let cfg = Config.load(), files = Array(CommandLine.arguments[(i + 1)...])
+    let rec = SFSpeechRecognizer(locale: Locale(identifier: cfg.locale))!
+    var model: Any?; var ready = false
+    Task { model = await NameModel.prepare(names: [cfg.displayName, cfg.assistantName], locale: cfg.locale, ko: cfg.ko); ready = true }
+    while !ready { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+    func hear(_ f: String, _ m: Any?) -> String {
+        let r = SFSpeechURLRecognitionRequest(url: URL(fileURLWithPath: f)); r.requiresOnDeviceRecognition = true; r.contextualStrings = cfg.wakes
+        if #available(macOS 14, *), let m = m as? SFSpeechLanguageModel.Configuration { r.customizedLanguageModel = m }
+        var out: String?
+        rec.recognitionTask(with: r) { res, err in if let res, res.isFinal { out = res.bestTranscription.formattedString } else if err != nil { out = "(error: \(err!.localizedDescription))" } }
+        let t0 = Date(); while out == nil, Date().timeIntervalSince(t0) < 20 { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+        return out ?? "(none)"
+    }
+    print("speech auth: \(SFSpeechRecognizer.authorizationStatus().rawValue) · name model: \(model != nil)")
+    for f in files { print("\(URL(fileURLWithPath: f).lastPathComponent): plain 「\(hear(f, nil))」 · with name 「\(hear(f, model))」") }
+    exit(0)
 }
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).

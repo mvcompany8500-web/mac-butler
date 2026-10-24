@@ -115,6 +115,14 @@ final class Butler {
         // Pro — 폰으로 부르기: only while linked to a TurtleMaker account (the server says no to non-members)
         if cfg.proRemote, ProAccount.token != nil { ProAccount.startRemote { [weak self] text, id in self?.runRemote(text, id) } }
         listenForSignals()
+        // Teach the recognizer the name (made-up words come back as 「서 서 있어」 otherwise) — built once, then used from here on
+        let names = Array(Set([cfg.displayName, cfg.assistantName] + cfg.wakes.filter { !$0.contains(" ") && $0 != "자비스" }.prefix(3))).filter { !$0.isEmpty }
+        let (locale, ko) = (cfg.locale, cfg.ko)
+        Task { @MainActor [weak self] in
+            let m = await NameModel.prepare(names: names, locale: locale, ko: ko)
+            guard let self, let m else { return }
+            self.ear.nameModel = m; self.ear.restart()
+        }
         do { try ear.start() } catch { log("mic failed: \(error)"); hud.show("⚠︎", S.micError, color: amber) }
         if !brain.installed { hud.show("⚠︎", S.noClaude, color: amber) }
         log("ready · whisper=\(whisper.available) claude=\(brain.installed) tts=\(cfg.tts)")
@@ -299,9 +307,9 @@ final class Butler {
     /// The live recognizer doesn't know a made-up name — 「사사리사」 came back as 「수술 있어」「서 서 있어」 (10/24). A short
     /// utterance that starts like it (ㅅ·ㅆ·ㅈ·ㅊ) is heard again by Whisper, which is told the name; if it's there, wake.
     func nameByWhisper(_ t: String, _ audio: [Float]) {
-        guard cfg.ko, whisper.available, audio.count > 8000, audio.count < 16000 * 5,
-              let first = Parser.squash(t).unicodeScalars.first, first.value >= 0xAC00, first.value < 0xD7A4,
-              [9, 10, 12, 14].contains((Int(first.value) - 0xAC00) / 588) else { return }
+        // every short idle utterance (≤ 3 s, a few words): 「있어」「Safari 있어」「헛소리 있어」 were the name too (10/24)
+        // (also the name with a command in one breath — 「세살이 YouTube 틀어」 was 「사사리사, 유튜브 틀어」 to Whisper)
+        guard cfg.ko, whisper.available, audio.count > 6000, audio.count < 72000, Parser.squash(t).count <= 24 else { return }
         whisper.transcribe(audio, fallback: t) { [weak self] full in
             guard let self, self.mode == .idle else { return }
             guard let heard = [full, self.whisper.lastSetAside].first(where: { self.parser.wakeRange($0) != nil }) else { return }

@@ -135,7 +135,8 @@ struct Config: Codable {
         }
     }
     /// What Apple's recognizer actually wrote for a name, seen in the logs — accepted as the name too.
-    static let heardAs: [String: [String]] = ["사사리사": ["서 서 있어", "서서 있어", "사사 있어", "싸싸 있어", "사사 리사"]]
+    static let heardAs: [String: [String]] = ["사사리사": ["서 서 있어", "서서 있어", "사사 있어", "싸싸 있어", "사사 리사", "수술 있어", "사파리 있어", "safari 있어",
+                                                    "헛소리 있어", "싸싸리싸", "쌰쌰리쌰", "사사리싸", "샤샤리샤", "사싸리사"]]
     /// A pattern that matches what Korean speech recognition writes for a Hangul name: each syllable may come back with a
     /// confusable consonant (ㅅ/ㅆ/ㅈ, ㄹ/ㄴ/ㅇ/ㄷ …) and vowel (ㅏ/ㅑ/ㅓ …), spaces and 「~」 between them (owner 10/24:
     /// 「사사리사~ 해도 잘 안 불려, 발음 비슷한 걸 여러 개」). nil for names it can't spell out syllable by syllable.

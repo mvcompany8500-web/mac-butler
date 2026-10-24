@@ -5,6 +5,8 @@ import Speech
 final class Ear {
     private var engine = AVAudioEngine()
     private let recognizer: SFSpeechRecognizer
+    /// The custom language model that knows the assistant's name (NameModel) — set once it's ready, used from the next restart.
+    var nameModel: Any?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private let lock = NSLock()
@@ -176,6 +178,7 @@ final class Ear {
         if recognizer.supportsOnDeviceRecognition { r.requiresOnDeviceRecognition = true }
         r.contextualStrings = hints
         if #available(macOS 13, *) { r.addsPunctuation = true }      // 「…야?」 keeps its question mark, like Handy
+        if #available(macOS 14, *), r.requiresOnDeviceRecognition, let m = nameModel as? SFSpeechLanguageModel.Configuration { r.customizedLanguageModel = m }
         lock.lock(); request = r; segStart = max(ringEnd - 4800, ringBase); lock.unlock()   // keep 0.3 s before
         lastText = ""; lastChange = Date(); taskStart = Date()
         task = recognizer.recognitionTask(with: r) { [weak self] res, err in
