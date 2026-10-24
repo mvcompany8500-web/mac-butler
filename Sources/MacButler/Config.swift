@@ -118,7 +118,13 @@ struct Config: Codable {
         var own: [String] = []
         if !name.isEmpty, name.lowercased() != "jarvis", name != "자비스" {
             own = [name, (ko ? "헤이 " : "hey ") + name]
-            if ko, let h = Config.hangulReading(name) { own += [h, "헤이 " + h] }
+            if ko, let h = Config.hangulReading(name) {
+                // what Korean speech recognition writes for it (10/24: 「사사리사」 came back as 「샤샤 리사」)
+                // each 사 may come back as 사·샤·싸 on its own (at most 3 of them → 27 spellings)
+                var heard: [String] = [""]
+                for ch in h { heard = heard.flatMap { pre in ch == "사" && h.filter({ $0 == "사" }).count <= 3 ? ["사", "샤", "싸"].map { pre + $0 } : [pre + String(ch)] } }
+                for w in heard { own += [w, "헤이 " + w] }
+            }
         }
         switch lang {
         case "ko": return own + ["자비스", "헤이 자비스"]

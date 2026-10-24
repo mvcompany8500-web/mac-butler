@@ -64,7 +64,9 @@ enum SelfTest {
         check(pk, "쿠팡에서 무선 이어폰 찾아 줘", .web(label: "쿠팡", query: "무선 이어폰", url: "https://www.coupang.com/np/search?q="))
         checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
         var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
-        checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))
+        checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("샤샤리사") && named.wakes.contains("자비스"))
+        let np = Parser(cfg: named)
+        checkBool("샤샤 리사 wakes", np.stripWake("샤샤 리사 유튜브 로파이 틀어") == "유튜브 로파이 틀어")
         checkBool("whisper said twice", Whisper.saidTwice("자비스, 지금 음악 끄고, 사기 음악 틀어. 자비스, 지금 음악 끄고, 사기 음악 틀어.") == "자비스, 지금 음악 끄고, 사기 음악 틀어.")
         checkBool("whisper once stays", Whisper.saidTwice("유튜브 꺼. 쿠팡 열어.") == nil)
         checkBool("direct order", ClaudeRelay.directOrder("이거 영상 좋으니깐 이제 전체 다 실행 하라고 얘기 하라고") == "이거 영상 좋으니깐 이제 전체 다 실행해 주세요")
