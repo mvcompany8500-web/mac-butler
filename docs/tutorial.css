@@ -1,0 +1,81 @@
+/* 사사리사 첫 칸 — 화면 끝까지 꽉 찬 둥근 칸 + 그 안의 움직이는 사용 예시 (2026-10-24, Aside 첫 화면 구조를 벤치마킹, 배경·그림은 우리 것) */
+.hero-shell{padding:16px 16px 0}
+.hero{position:relative;overflow:hidden;border-radius:32px;max-width:none;margin:0;padding:0 0 0;text-align:center;
+  box-shadow:0 18px 50px -24px rgba(15,40,70,.28),inset 0 0 0 1px rgba(15,40,70,.06);
+  /* no clouds, no line patterns — clean sky light with a soft glow behind the screen */
+  background:
+    radial-gradient(ellipse 52% 40% at 50% 80%,rgba(77,217,255,.34) 0,rgba(115,255,153,.12) 46%,rgba(115,255,153,0) 72%),
+    linear-gradient(180deg,#a6e6ff 0%,#cdeffd 38%,#e9f8ff 70%,#f6fcff 100%)}
+.hero .bnav{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;height:76px;padding:0 28px}
+.hero .bnav .links{display:flex;gap:30px;font-size:15px;font-weight:500}
+.hero .bnav .links a:hover{color:var(--blue)}
+.hero .bnav .gh{background:rgba(255,255,255,.7)}
+.hero-copy{position:relative;z-index:2;padding:58px var(--pad) 0}
+/* the floating bar that takes over once the hero scrolls away */
+nav#nav{position:fixed;left:0;right:0;top:0;transform:translateY(-100%);transition:transform .25s ease;background:rgba(255,255,255,.86)}
+nav#nav.show{transform:none;border-bottom-color:var(--line)}
+nav#nav .wrap{max-width:none;padding:0 44px}
+
+/* the screen: a real Mac screen, one scene at a time, slowly drifting */
+.tut{position:relative;z-index:2;width:min(1160px,calc(100% - 64px));margin:52px auto -64px;text-align:left}
+.tut .screen{position:relative;aspect-ratio:16/10;border-radius:22px;padding:10px;background:#0b0d12;
+  box-shadow:0 40px 90px -36px rgba(8,24,48,.55),0 0 0 1px rgba(255,255,255,.06) inset,0 0 0 1px rgba(10,30,60,.18)}
+.tut .glass{position:relative;width:100%;height:100%;border-radius:13px;overflow:hidden;background:#11151c}
+.tut .scene{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.035);
+  transition:opacity .7s ease,filter .5s ease,transform 7s linear}
+.tut .scene.on{opacity:1;transform:scale(1)}
+.tut .scene.dim{filter:brightness(.8) saturate(.9)}
+
+/* the Sasarisa card — the same card the app shows in the corner (HUD.swift): dark glass, coloured edge, orb with three dashed rings */
+.tut .hud{--c:#4dd9ff;position:absolute;right:3%;bottom:92px;z-index:4;width:min(540px,50%);display:flex;align-items:center;gap:16px;
+  padding:16px 16px 16px 24px;border-radius:24px;background:rgba(5,10,20,.95);color:#fff;
+  border:2px solid color-mix(in srgb,var(--c) 85%,transparent);
+  box-shadow:0 0 26px -2px color-mix(in srgb,var(--c) 60%,transparent),0 24px 50px -24px rgba(0,0,0,.7);
+  transition:border-color .35s,box-shadow .35s,opacity .35s,transform .35s}
+.tut .hud.amber{--c:#ffb840}.tut .hud.lime{--c:#73ff99}
+.tut .hud.pop{transform:translateY(-3px)}
+.tut .htxt{flex:1;min-width:0}
+.tut .hs{font:700 14px/1.3 ui-monospace,"SF Mono",Menlo,monospace;color:var(--c);transition:color .35s}
+.tut .hh{margin-top:5px;font-size:15px;font-weight:500;color:#c7cbd1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tut .hh:not(:empty)::before{content:"🗣 "}
+.tut .hb{margin-top:6px;font-size:21px;font-weight:700;line-height:1.35;text-shadow:0 1px 3px #000;min-height:1.35em}
+.tut .caret{display:inline-block;width:2px;height:1em;margin-left:2px;vertical-align:-2px;background:var(--c);animation:tblink 1s steps(1) infinite}
+.tut .orb{position:relative;width:84px;height:84px;flex:none}
+.tut .orb i{position:absolute;border-radius:50%;border:2px dashed var(--c);opacity:.9;filter:drop-shadow(0 0 4px var(--c));transition:border-color .35s}
+.tut .orb i:nth-child(1){inset:2px;animation:tspin 9s linear infinite}
+.tut .orb i:nth-child(2){inset:9px;border-width:1.2px;border-style:dotted;animation:tspin 6s linear infinite reverse}
+.tut .orb i:nth-child(3){inset:16px;border-width:3px;border-style:dotted;opacity:.75;animation:tspin 4s linear infinite}
+.tut .orb b{position:absolute;inset:24px;border-radius:50%;background:radial-gradient(circle,#fff 0,var(--c) 45%,transparent 72%);
+  box-shadow:0 0 18px var(--c);animation:tbreath 2.4s ease-in-out infinite}
+.tut .hud.amber .orb i{animation-duration:3s,2s,1.4s}
+.tut .hud.amber .orb i:nth-child(2){animation-duration:2s}.tut .hud.amber .orb i:nth-child(3){animation-duration:1.4s}
+.tut.listening .orb b{animation:tvoice .5s ease-in-out infinite alternate}
+@keyframes tspin{to{transform:rotate(360deg)}}
+@keyframes tblink{50%{opacity:0}}
+@keyframes tbreath{50%{transform:scale(1.08)}}
+@keyframes tvoice{from{transform:scale(.9)}to{transform:scale(1.22)}}
+
+@media (max-width:900px){
+  .hero .bnav .links{display:none}
+  .hero .bnav{padding:0 18px;height:64px}
+  .hero-copy{padding-top:36px}
+  nav#nav .wrap{padding:0 var(--pad)}
+  .tut{width:calc(100% - 28px);margin:36px auto 0;padding-bottom:18px}
+  .tut .screen{padding:6px;border-radius:16px}
+  .tut .glass{border-radius:11px}
+  /* on a phone the card sits under the screen, overlapping its bottom edge, so the screen stays visible */
+  .tut .hud{position:relative;right:auto;bottom:auto;width:auto;margin:-34px 10px 0;padding:12px 12px 12px 16px;gap:10px;border-radius:18px}
+  .tut .hs{font-size:12.5px}.tut .hh{font-size:13px}.tut .hb{font-size:16px}
+  .tut .orb{width:60px;height:60px}.tut .orb i:nth-child(2){inset:7px}.tut .orb i:nth-child(3){inset:12px}.tut .orb b{inset:18px}
+}
+@media (max-width:600px){
+  .hero-shell{padding:10px 10px 0}
+  .hero{border-radius:24px}
+  .hero .bnav .gh .ghl,.hero .bnav .lang{display:none}
+  .tut{width:calc(100% - 16px)}
+  /* phone: a closer crop of the part that matters in each scene, so it stays readable */
+  .tut .screen{aspect-ratio:5/4}
+  .tut .scene[data-k=yt]{object-position:28% 40%}.tut .scene[data-k=shop]{object-position:62% 45%}
+  .tut .scene[data-k=claude]{object-position:72% 40%}.tut .scene[data-k=timer]{object-position:50% 45%}
+}
+@media (prefers-reduced-motion:reduce){.tut *{animation:none!important;transition:none!important}}

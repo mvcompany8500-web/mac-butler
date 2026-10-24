@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>사사리사 — 이름을 부르면 맥이 움직이는 AI 비서 (무료·맥)</title>
+<title>사사리사 — 원하는 이름의 맥 AI 비서, 부르면 바로 움직여요 (무료)</title>
 <meta name="description" content="「사사리사」 한마디면 맥이 바로 움직여요. 유튜브·쇼핑 검색·타이머·글 다듬기부터 클로드 코드에 코딩 맡기기까지 — 무료·오픈소스 맥 음성 비서.">
-<meta property="og:title" content="사사리사 — 「사사리사」 한마디면, 맥이 움직여요">
+<meta property="og:title" content="사사리사 — 원하는 비서를 만들면, 맥이 바로 움직여요">
 <meta property="og:description" content="쉬운 일부터 코딩까지, 말로. 무료·오픈소스·맥 전용.">
 <meta property="og:image" content="https://sasarisa.com/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -38,7 +38,8 @@ a{color:inherit;text-decoration:none}
 /* nav */
 nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid transparent;transition:border-color .2s}
 nav.scrolled{border-bottom-color:var(--line)}
-nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px;max-width:none;padding:0 44px}
+@media (max-width:900px){nav .wrap{padding:0 var(--pad)}}
 .logo{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:700;font-size:20px;letter-spacing:-.02em}
 .logo svg{width:28px;height:28px}
 .links{display:flex;gap:30px;font-size:15px;font-weight:500}
@@ -59,9 +60,12 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .btn-ghost:hover{background:var(--soft)}
 .btn svg{width:18px;height:18px}
 /* hero */
-.hero-shell{padding:12px 16px 0}
-.hero{position:relative;overflow:hidden;border-radius:28px;max-width:1380px;margin:0 auto;
-  background:linear-gradient(180deg,var(--sky1) 0%,var(--sky2) 42%,var(--sky3) 78%,#fff 100%);padding:88px var(--pad) 0;text-align:center}
+.hero-shell{padding:12px 20px 0}
+.hero{position:relative;overflow:hidden;border-radius:28px;max-width:none;margin:0;
+  /* no clouds: the orb's glow and the rings of a voice spreading from it */
+  background:radial-gradient(ellipse 60% 46% at 50% 104%,rgba(52,211,153,.42) 0,rgba(52,211,153,.12) 46%,rgba(52,211,153,0) 70%),
+    repeating-radial-gradient(circle at 50% 104%,rgba(22,163,74,.13) 0 1.5px,rgba(22,163,74,0) 1.5px 58px),
+    linear-gradient(180deg,var(--sky1) 0%,var(--sky2) 42%,var(--sky3) 78%,#fff 100%);padding:88px var(--pad) 0;text-align:center}
 .cloud{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,0));filter:blur(6px);pointer-events:none}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:#1e3a5f;background:rgba(255,255,255,.55);border:1px solid rgba(30,58,95,.18);padding:6px 14px;border-radius:999px;position:relative}
 .hero h1{position:relative;font-size:clamp(38px,6.4vw,74px);line-height:1.12;font-weight:700;letter-spacing:-.035em;margin:26px auto 18px;max-width:900px}
@@ -202,6 +206,7 @@ footer a:hover{color:var(--blue)}
   .row .n{font-size:14.5px}
   .sec{padding:68px 0}
   .hero{padding-top:64px;border-radius:22px}
+  .hero-shell{padding:10px 12px 0}
   .cta{gap:10px;margin:28px 0 0}
   .cta .btn-lg{padding:13px 20px;font-size:16px}
   .cta .btn-ghost{display:none}
@@ -212,6 +217,7 @@ footer a:hover{color:var(--blue)}
 @media (max-width:360px){.feats{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
+<link rel="stylesheet" href="tutorial.css?v=4">
 </head>
 <body>
 
@@ -240,12 +246,32 @@ footer a:hover{color:var(--blue)}
 
 <div class="hero-shell" id="top">
 <header class="hero">
-  <div class="cloud" style="width:520px;height:220px;left:-120px;top:70px"></div>
-  <div class="cloud" style="width:460px;height:200px;right:-80px;top:30px"></div>
-  <div class="cloud" style="width:380px;height:160px;right:22%;top:250px;opacity:.7"></div>
+  <div class="bnav">
+  <a class="logo" href="#top" aria-label="사사리사">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="none" stroke="#0b0d12" stroke-width="3" stroke-dasharray="7 4"/><circle cx="32" cy="32" r="11" fill="#16a34a"/></svg>
+    사사리사
+  </a>
+  <div class="links">
+    <a href="#features">할 수 있는 것</a>
+    <a href="#wake">부르는 법</a>
+    <a href="#safety">안전</a>
+    <a href="#install">설치</a><a href="#pro">무료·Pro</a>
+    <a href="#more">자료</a>
+  </div>
+  <div class="right">
+    <a class="lang" href="en/" hreflang="en" lang="en">EN</a>
+    <a class="gh" href="https://github.com/mvcompany8500-web/sasarisa" aria-label="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg><span class="ghl">GitHub</span><span class="stars" hidden></span>
+    </a>
+    <a class="btn btn-dark" href="https://sasarisa.com/download">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>다운로드
+    </a>
+  </div>
+  </div>
+  <div class="hero-copy">
   <span class="badge">무료 · 오픈소스 · 맥 전용</span>
-  <h1><span class="nw">「사사리사」</span> 한마디면,<br>맥이 바로 움직여요.</h1>
-  <p class="lead"><span class="ln">이름을 부르고 말하면 끝. 맥이 그 일을 끝까지&nbsp;합니다.</span><span class="ln">쉬운 일부터 코딩까지, <span class="nw">손&nbsp;대신&nbsp;말로.</span></span></p>
+  <h1>원하는 <span class="nw">비서를 만들면,</span><br>맥이 바로 움직여요.</h1>
+  <p class="lead"><span class="ln">부르고 싶은 이름을 정하고 <span class="nw">말하면 끝.</span> <span class="nw">기본 이름은 「사사리사」예요.</span></span><span class="ln">쉬운 일부터 코딩까지, <span class="nw">손&nbsp;대신&nbsp;말로.</span></span></p>
   <div class="cta">
     <a class="btn btn-dark btn-lg" href="https://sasarisa.com/download">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>macOS용 다운로드
@@ -255,7 +281,16 @@ footer a:hover{color:var(--blue)}
     </a>
   </div>
   <p class="note">또는 터미널에 한 줄: <code>brew install --cask mvcompany8500-web/tap/sasarisa</code></p>
-  <div class="shot"><img src="product-shot.png" width="1600" height="900" alt="「사사리사, 유튜브 로파이 틀어」 — 사파리에서 로파이 영상이 바로 재생되고, 오른쪽 아래 카드가 알려 줌"></div>
+  </div>
+  <div class="tut" aria-label="사사리사가 일하는 모습 — 움직이는 예시">
+    <div class="screen"><div class="glass">
+        <img class="scene" data-k="claude" src="hero/claude.webp" width="1600" height="1000" alt="클로드 코드가 로그인 버그를 고치는 맥 화면" loading="lazy" decoding="async">
+        <img class="scene" data-k="yt" src="hero/yt.webp" width="1600" height="1000" alt="유튜브에서 로파이 음악이 재생되는 맥 화면" loading="lazy" decoding="async">
+        <img class="scene on" data-k="timer" src="hero/timer.webp" width="1600" height="1000" alt="3분 타이머가 돌아가는 맥 화면" loading="eager" decoding="async">
+        <img class="scene" data-k="shop" src="hero/shop.webp" width="1600" height="1000" alt="쇼핑몰에서 맥미니를 검색한 맥 화면" loading="lazy" decoding="async">
+    </div></div>
+    <div class="hud" aria-hidden="true"><div class="htxt"><div class="hs"></div><div class="hh"></div><div class="hb"></div></div><div class="orb"><i></i><i></i><i></i><b></b></div></div>
+  </div>
 </header>
 </div>
 
@@ -412,5 +447,6 @@ document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 fetch('https://api.github.com/repos/mvcompany8500-web/sasarisa').then(r=>r.json()).then(j=>{const n=j.stargazers_count;if(n>=10){const e=document.querySelector('.stars');e.textContent='★ '+(n>=1000?(n/1000).toFixed(1)+'k':n);e.hidden=false}}).catch(()=>{});
 function copyBrew(b){navigator.clipboard?.writeText(document.getElementById('brew').textContent).then(()=>{b.textContent='복사됨';setTimeout(()=>b.textContent='복사',1500)})}
 </script>
+<script src="tutorial.js?v=4" defer></script>
 </body>
 </html>
