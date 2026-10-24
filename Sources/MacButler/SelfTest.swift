@@ -94,6 +94,10 @@ enum SelfTest {
         checkBool("brain base: remote http refused", APIBrain.safeBase("http://evil.example/v1") == nil)
         var cc = Config(); checkBool("default brain is Claude Code", APIBrain.provider(cc) == nil)
         cc.brainProvider = "ollama"; checkBool("ollama brain", APIBrain.provider(cc)?.local == true)
+        cc.brainProvider = "aside"; checkBool("aside brain is the CLI one", Brains.make(cc) is AsideBrain)
+        checkBool("aside answer = last paragraph", AsideBrain.answer("Opening tab\nsession: abc12345\n\n\u{1B}[32m쿠팡 최저가는 1만 2천 원이에요.\u{1B}[0m".replacingOccurrences(of: "\u{1B}[32m", with: "").replacingOccurrences(of: "\u{1B}[0m", with: "")) == "쿠팡 최저가는 1만 2천 원이에요.")
+        checkBool("aside session id", AsideBrain.sessionID("Session ID: ses_9fA2kq") == "ses_9fA2kq")
+        checkBool("aside strips colors", AsideBrain.clean("\u{1B}[1m완료\u{1B}[0m") == "완료")
 
         // Whisper sanity
         checkBool("whisper drops subtitle line", Whisper.clean("한글자막 by 한효정\n 헤이 자비스 지금 몇 시야?", apple: "헤이 자비스 지금 몇 시야") == "헤이 자비스 지금 몇 시야?")

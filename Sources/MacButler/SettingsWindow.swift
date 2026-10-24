@@ -168,8 +168,16 @@ struct SettingsView: View {
                     Text(S.t("내 컴퓨터 — Ollama (무료)", "This Mac — Ollama (free)")).tag("ollama")
                     Text(S.t("내 컴퓨터 — LM Studio (무료)", "This Mac — LM Studio (free)")).tag("lmstudio")
                     Text(S.t("다른 OpenAI 호환 주소", "Another OpenAI-compatible server")).tag("openai-compatible")
+                    Text(S.t("Aside (내 Aside 앱, 브라우저 일)", "Aside (your Aside app, browser errands)")).tag("aside")
                 }
-                if m.brainProvider == "claude-code" {
+                if m.brainProvider == "aside" {
+                    Text(AsideBrain.binary == nil
+                         ? S.t("Aside 명령줄 도구가 아직 없어요. Aside 설정 → 개발자에서 설치하고, 터미널에서 aside login 을 한 번 해 주세요.",
+                               "The Aside CLI isn't installed yet. Install it in Aside → Settings → Developer, then run aside login once in Terminal.")
+                         : S.t("소리·앱 열기·타이머 같은 빠른 명령은 자비스가 직접 하고, 나머지 일은 Aside 브라우저가 합니다. 결제·보내기·지우기 직전에는 멈추고 묻게 시킵니다.",
+                               "Quick commands (volume, apps, timers) stay in Mac Butler; everything else goes to Aside's browser, told to stop and ask before paying, sending or deleting."))
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if m.brainProvider == "claude-code" {
                     Picker(S.t("Claude 모델", "Claude model"), selection: $m.claudeModel) { Text("Sonnet").tag("sonnet"); Text("Haiku").tag("haiku"); Text("Opus").tag("opus") }
                 } else {
                     TextField(S.t("모델 이름", "Model"), text: $m.brainModel,
