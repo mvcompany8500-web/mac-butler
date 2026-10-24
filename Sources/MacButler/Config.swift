@@ -124,7 +124,7 @@ struct Config: Codable {
             if ko, let h = Config.hangulReading(name) {
                 // what Korean speech recognition writes for it (10/24: 「사사리사」 came back as 「샤샤 리사」)
                 let tense = h.replacingOccurrences(of: "사", with: "싸")       // how it's said out loud: 싸싸리싸
-                own += [h, "헤이 " + h] + (tense != h ? [tense] : [])      // sound-alikes (샤싸 리사, 사사니사 …) are matched by `Parser.nameSoundsLike`
+                own += [h, "헤이 " + h] + (tense != h ? [tense] : []) + (Config.heardAs[h] ?? [])      // sound-alikes (샤싸 리사, 사사니사 …) are matched by `Parser.nameSoundsLike`
             }
         }
         switch lang {
@@ -134,6 +134,8 @@ struct Config: Codable {
         default: return own.isEmpty ? ["sasarisa", "hey sasarisa"] : own
         }
     }
+    /// What Apple's recognizer actually wrote for a name, seen in the logs — accepted as the name too.
+    static let heardAs: [String: [String]] = ["사사리사": ["서 서 있어", "서서 있어", "사사 있어", "싸싸 있어", "사사 리사"]]
     /// A pattern that matches what Korean speech recognition writes for a Hangul name: each syllable may come back with a
     /// confusable consonant (ㅅ/ㅆ/ㅈ, ㄹ/ㄴ/ㅇ/ㄷ …) and vowel (ㅏ/ㅑ/ㅓ …), spaces and 「~」 between them (owner 10/24:
     /// 「사사리사~ 해도 잘 안 불려, 발음 비슷한 걸 여러 개」). nil for names it can't spell out syllable by syllable.

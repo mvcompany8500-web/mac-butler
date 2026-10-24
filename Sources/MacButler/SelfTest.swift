@@ -73,6 +73,10 @@ enum SelfTest {
              let gl = Butler.glossary(g); checkBool("glossary keeps the name first and short", gl.hasPrefix("Glossary: 사사리사") && gl.count <= 180) }
         for yes in ["응", "응 찾아봐", "그래 해 줘", "좋아 틀어 줘", "네 알려 주세요"] { check(pk, yes, .none) }
         check(pk, "응원가 틀어", .youtube("응원가"))
+        // 10/24 relay sentences from the log
+        check(pk, "서 서 있어 서 서 있어 이거 발음 클로드에다가 전달해놔", .claude(target: "", message: "서 서 있어 서 서 있어 이거 발음", newSession: false))
+        if case .claude(let t, _, false) = pk.parse("클로드 음성 제어 Mac 설정에다가 방금 내 발음들 버그 고치 놓으라고 전달 하라고", hasYouTubeList: false) { checkBool("window name without 프로젝트", t == "음성 제어 Mac 설정") } else { checkBool("window name without 프로젝트", false) }
+        if case .claude(let t, _, _) = pk.parse("클로드 음성 제어 Mac 설정에 버그 고치라고 해", hasYouTubeList: false) { checkBool("window name + 에", t == "음성 제어 Mac 설정") } else { checkBool("window name + 에", false) }
         checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
         var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
         checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))
@@ -80,6 +84,7 @@ enum SelfTest {
         for said in ["샤싸 리사 몇 시야", "사사니사 몇 시야", "서서 리사 몇 시야", "사사리사~ 몇 시야", "싸사리사, 몇 시야", "헤이 사사리샤 몇 시야"] {
             checkBool("sounds like 사사리사: " + said, sp.stripWake(said) == "몇 시야")
         }
+        checkBool("서 서 있어 wakes", sp.stripWake("서 서 있어 지금 몇 시야") == "지금 몇 시야")
         checkBool("sounds like 싸싸릐싸", sp.stripWake("싸싸릐싸 몇 시야") == "몇 시야" && sp.stripWake("싸싸리싸, 몇 시야") == "몇 시야")
         checkBool("said twice keeps ?", Whisper.saidTwice("사사리사, 지금 몇 시야? 사사리사, 지금 몇 시야?") == "사사리사, 지금 몇 시야?")
         checkBool("not a wake: 사서 이사", sp.wakeRange("오늘 책 사서 집에 가") == nil)

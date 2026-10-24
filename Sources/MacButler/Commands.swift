@@ -211,6 +211,13 @@ struct Parser {
            !["한테", "에게", "에", "에다", "에다가"].contains(m[4]) {
             s = m[4] + " 프로젝트 클로드에 " + m[7]
         }
+        // 「클로드 음성 제어 Mac 설정에다가 버그 고치라고 해」 — a window name right after 클로드, without 「프로젝트」 (10/24 it went to the
+        // brain and took 26 s). With plain 「에」 only when the sentence ends in an order, so 「클로드 3시에 …」 isn't read as a window.
+        if let m = Parser.match(s, "^(클로드\\s*코드|클로드)\\s+(.{2,30}?)\\s*(에다가|에다|에게|한테|에)\\s+(.+)$"),
+           !m[2].contains("클로드"), !m[2].hasPrefix("코드"), !["창", "세션", "프로젝트", "지금", "현재"].contains(m[2]), m[2].split(separator: " ").count <= 6,
+           m[3] != "에" || Parser.match(m[4], "(하라고|해|해줘|해 줘|전달해|전해|시켜|보내|얘기해|말해)\\s*(줘|놔|둬|라)?$") != nil {
+            s = m[2] + " 프로젝트 클로드에 " + m[4]
+        }
         // Claude: 「(세션) 클로드한테 ○○ 라고 전달해」 → relay just that; 「클로드코드한테 ○○ 해서 보내」 → whole task.
         if let m = Parser.match(s, "^(.*?)\\s*(클로드\\s*코드|클로드)\\s*(한테|에게|창에다가|창에다|창에|에다가|에다|에|님|보고)\\s*[,，]?\\s*(.+)$") {
             var target = m[1]
@@ -225,6 +232,10 @@ struct Parser {
             if openWords.contains(Parser.squash(target)) { target = "" }
             var rest = m[4]
             for p in ["다가 ", "다 "] where rest.hasPrefix(p) { rest = String(rest.dropFirst(p.count)) }
+            let delivery: Set<String> = ["전달해", "전달해놔", "전달해줘", "전달해둬", "전해", "전해줘", "전해놔", "보내", "보내줘", "넣어", "넣어놔", "넣어줘", "얘기해", "얘기해줘", "말해", "말해줘", "알려줘", "알려"]
+            if delivery.contains(Parser.squash(rest)), !m[1].isEmpty, !here {
+                return .claude(target: "", message: m[1].trimmingCharacters(in: .whitespaces.union(.punctuationCharacters)), newSession: false)
+            }
             // "클로드한테 얘기해. <내용>" — the verb came first, the content after it
             for p in ["얘기해서", "말해서", "시켜서", "얘기해", "말해", "전해", "전달해", "시켜", "물어봐"] where rest.hasPrefix(p) {
                 let after = String(rest.dropFirst(p.count)).trimmingCharacters(in: .whitespaces.union(.punctuationCharacters))
