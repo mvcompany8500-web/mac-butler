@@ -35,7 +35,9 @@ final class Brain {
             : (cfg.ko ? "- 뜻이 둘로 갈리면 실행하기 전에 질문 하나로 묻는다(물음표로 끝나면 바로 대답할 수 있다). 분명하면 바로 한다."
                       : "- If the request could mean two different things, ask one short question before acting. If it's clear, just do it.")
         // Hand-offs from the brain always wait for the user's yes (see Butler.delegateFromBrain), in every mode.
-        let delegateRule = cfg.ko ? "이 명령은 바로 넘기지 않고 {user}의 「응」을 기다린다 — 답은 「○○에 이렇게 맡길까요?」 질문 한 문장으로 하고, 맡겼다고 말하지 않는다."
+        let delegateRule = cfg.freeMode
+            ? (cfg.ko ? "자유 모드라 이 명령은 바로 그 세션에 들어간다 — 「○○에 맡겼습니다」처럼 짧게 말한다." : "Free mode: it goes into that session right away — say briefly that you handed it over.")
+            : cfg.ko ? "이 명령은 바로 넘기지 않고 {user}의 「응」을 기다린다 — 답은 「○○에 이렇게 맡길까요?」 질문 한 문장으로 하고, 맡겼다고 말하지 않는다."
                                   : "It is NOT sent yet — Mac Butler waits for {user} to say yes, so your answer must be one question like \"Shall I hand this to …?\" and never claim it was done."
         s = s.replacingOccurrences(of: "{askRule}", with: askRule).replacingOccurrences(of: "{delegateRule}", with: delegateRule)
         s += Memory.promptBlock(ko: cfg.ko)

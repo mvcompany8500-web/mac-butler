@@ -21,6 +21,8 @@ final class SettingsModel: ObservableObject {
     @Published var outputDevice: String
     @Published var hudPosition: String
     @Published var confirmDelegate: String
+    @Published var freeMode: Bool
+    @Published var growTogether: String
     @Published var brainProvider: String
     @Published var brainModel: String
     @Published var brainBaseURL: String
@@ -39,9 +41,35 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
-        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate; freeMode = c.freeMode; growTogether = c.growTogether.isEmpty ? "together" : c.growTogether
         brainProvider = c.brainProvider; brainModel = c.brainModel; brainBaseURL = c.brainBaseURL; brainEffort = c.brainEffort
         ttsVoice = c.ttsVoice; ttsRegion = c.ttsRegion; ttsURL = c.ttsURL
+    }
+    /// Everything that needs a restart to take effect (screen position applies live; keys are saved when the window closes).
+    var snapshot: String {
+        [language, activation, userName, assistantName, wakeWords, greetingText, hotkey, tts, sayVoice, elevenVoiceId, elevenKeyFile,
+         claudeModel, inputDevice, bargeIn, outputDevice, confirmDelegate, brainProvider, brainModel, brainBaseURL, brainEffort,
+         ttsVoice, ttsRegion, ttsURL, growTogether, freeMode ? "1" : "0"].joined(separator: "\u{1F}")
+    }
+    /// Something that needs a restart changed — closing the window restarts Mac Butler to apply it.
+    @Published var needsRestart = false
+    /// 미리 듣기: says a sample line with the engine and voice chosen in the window right now (before saving).
+    @Published var previewing = false
+    private var previewMouth: Mouth?
+    func preview() {
+        var c = Config.load()
+        c.language = language; c.tts = tts; c.sayVoice = sayVoice; c.ttsVoice = ttsVoice; c.ttsRegion = ttsRegion; c.ttsURL = ttsURL
+        c.elevenLabs.voiceId = elevenVoiceId; c.elevenLabs.apiKeyFile = elevenKeyFile; c.outputDevice = outputDevice
+        if !userName.isEmpty { c.userName = userName }
+        if !assistantName.isEmpty { c.assistantName = assistantName }
+        let vk = voiceKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !vk.isEmpty, !voiceAccount.isEmpty { Keys.set(voiceAccount, vk) }     // the same place Save puts it
+        let who = c.userName.isEmpty ? (c.ko ? "주인님" : "") : c.userName
+        let line = c.ko ? "안녕하세요, \(who). \(c.assistantName)입니다. 이 목소리로 읽어 드릴게요."
+                        : "Hello\(who.isEmpty ? "" : ", " + who). I'm \(c.assistantName), and this is how I'll sound."
+        previewMouth?.stop()
+        let m = Mouth(cfg: c); previewMouth = m; previewing = true
+        m.speak(line) { [weak self] in DispatchQueue.main.async { self?.previewing = false } }
     }
     /// Keychain account for the chosen voice's key.
     var voiceAccount: String { ["openai": "openai", "azure": "azure-speech", "http": "http-tts", "elevenlabs": "elevenlabs"][tts] ?? "" }
@@ -54,7 +82,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate; obj["freeMode"] = freeMode; obj["growTogether"] = growTogether
         obj["brainProvider"] = brainProvider; obj["brainModel"] = brainModel; obj["brainBaseURL"] = brainBaseURL; obj["brainEffort"] = brainEffort
         obj["ttsVoice"] = ttsVoice; obj["ttsRegion"] = ttsRegion; obj["ttsURL"] = ttsURL
         let bk = brainKey.trimmingCharacters(in: .whitespacesAndNewlines), vk = voiceKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -109,11 +137,23 @@ struct SettingsView: View {
                     Text(S.t("클로드에 넘길 때만 묻기", "Ask before handing to Claude")).tag("brain")
                     Text(S.t("물어보고 실행", "Ask first")).tag("always")
                 }
-                Note(S.t("바로 실행은 묻지 않고 합니다. 어느 방식이든 보내기·결제·삭제처럼 되돌릴 수 없는 일은 한 번 묻습니다.",
-                         "Right away just does it. In every mode it asks once before anything irreversible (sending, paying, deleting)."))
+                Note(S.t("바로 실행은 묻지 않고 합니다. 보내기·게시·삭제처럼 되돌릴 수 없는 일은 한 번 묻습니다(자유 모드가 아니면).",
+                         "Right away just does it. Irreversible things (sending, posting, deleting) are asked once — unless free mode is on."))
+                Toggle(S.t("자유 모드 — 결제만 묻기", "Free mode — ask only before paying"), isOn: $m.freeMode)
+                Note(S.t("보내기·게시·삭제, 클로드에 일 넘기기까지 묻지 않고 바로 합니다. 결제는 늘 묻습니다. 텔레비전·영상 소리도 명령처럼 들릴 수 있으니 이어폰이나 단축키와 함께 쓰세요.",
+                         "Sends, posts, deletes and hand-offs to Claude happen without asking. Payments always ask. TV or video audio can sound like a command, so pair it with headphones or the hotkey."))
                 Picker(S.t("화면 위치", "On-screen position"), selection: $m.hudPosition) {
                     Text(S.t("오른쪽 아래 (기본)", "Bottom right (default)")).tag("bottomRight"); Text(S.t("왼쪽 아래", "Bottom left")).tag("bottomLeft"); Text(S.t("위 가운데", "Top center")).tag("top")
                 }
+            }
+            Section(S.t("키우기", "Learning")) {
+                Picker(S.t("배운 말 나누기", "Share what it learns"), selection: $m.growTogether) {
+                    Text(S.t("다 같이 키우기", "Grow together")).tag("together"); Text(S.t("혼자 키우기", "Grow alone")).tag("solo")
+                }.pickerStyle(.segmented)
+                Note(m.growTogether == "together"
+                     ? S.t("알아들은 짧은 말과 그 말로 한 빠른 명령(소리·영상·창 닫기·앱 열기)만 이름 없이 하루 한 번 보냅니다. 여러 사람이 같은 말을 쓸 때만 모두에게 들어갑니다. 목소리·대화·화면·파일·이름·검색어는 보내지 않습니다.",
+                           "Once a day it shares only short sentences it understood and the quick command they ran (volume, video, closing pages, opening apps), with no name. A sentence reaches everyone only when many people use it. No audio, conversations, screen, files, names or search words.")
+                     : S.t("배운 것은 이 맥에만 둡니다. 모두가 함께 키운 말은 그대로 받아 씁니다.", "What it learns stays on this Mac. It still uses what everyone taught together."))
             }
             Section(S.t("마이크·스피커", "Microphone & speaker")) {
                 Picker(S.t("마이크", "Microphone"), selection: $m.inputDevice) {
@@ -164,6 +204,10 @@ struct SettingsView: View {
                     SecureField(S.t("API 키 (맥 키체인에만 저장)", "API key (kept in the macOS Keychain only)"), text: $m.voiceKey,
                                 prompt: Text(SettingsModel.keyHint(m.voiceAccount).isEmpty ? S.t(m.tts == "http" ? "필요할 때만" : "붙여 넣기", m.tts == "http" ? "only if needed" : "paste it here") : S.t("저장됨 ", "saved ") + SettingsModel.keyHint(m.voiceAccount)))
                     Text(S.t("안 되면 늘 무료 맥 목소리로 대신 읽습니다.", "If it fails, the free macOS voice reads instead.")).font(.caption).foregroundStyle(.secondary)
+                }
+                LabeledContent(S.t("미리 듣기", "Preview")) {
+                    Button { m.preview() } label: { Label(m.previewing ? S.t("읽는 중…", "Speaking…") : S.t("들어 보기", "Listen"), systemImage: m.previewing ? "speaker.wave.2.fill" : "play.fill") }
+                        .disabled(m.previewing)
                 }
             }
             Section {
@@ -225,13 +269,25 @@ struct SettingsView: View {
                          "Whatever brain you pick, the hands go through the same safety checks. There's no shell or file access."))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            HStack {
-                Button(S.t("설정 폴더 열기", "Open folder")) { NSWorkspace.shared.open(Paths.home) }
-                Spacer()
-                Button(S.t("저장하고 다시 켜기", "Save & restart")) { m.save(); onSave() }.keyboardShortcut(.defaultAction)
+            Section {
+                HStack {
+                    Button(S.t("설정 폴더 열기", "Open folder")) { NSWorkspace.shared.open(Paths.home) }
+                    Spacer()
+                    Button(S.t("지금 다시 켜서 적용", "Restart now to apply")) { m.save(); onSave() }
+                        .keyboardShortcut(.defaultAction).disabled(!m.needsRestart)
+                }
+            } footer: {
+                Note(m.needsRestart
+                     ? S.t("바꾼 설정은 저장됐습니다. 창을 닫으면 다시 켜서 적용합니다.", "Saved. Closing this window restarts Mac Butler to apply it.")
+                     : S.t("바꾸는 즉시 저장됩니다. 화면 위치는 바로 바뀝니다.", "Changes are saved as you make them. The on-screen position moves right away."))
             }
         }
         .formStyle(.grouped)
+        .onChange(of: m.snapshot) { _ in m.save(); m.needsRestart = true }
+        .onChange(of: m.hudPosition) { v in
+            m.save()
+            NotificationCenter.default.post(name: Notification.Name("MacButlerHUDPosition"), object: v)
+        }
         .frame(width: 580, height: height)
         .padding(.bottom, 8)
     }
@@ -253,11 +309,24 @@ enum SettingsWindow {
         v.cacheDisplay(in: v.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
     }
+    static var model: SettingsModel?
+    /// Closing the window: keys typed are saved, and if something that needs a restart changed, Mac Butler restarts.
+    final class Closer: NSObject, NSWindowDelegate {
+        func windowWillClose(_ n: Notification) {
+            guard let m = SettingsWindow.model else { return }
+            m.save()
+            SettingsWindow.window = nil; SettingsWindow.model = nil
+            if m.needsRestart { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { SettingsWindow.relaunch() } }
+        }
+    }
+    static let closer = Closer()
     static func show(cfg: Config) {
         if let w = window { w.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
         let S = Strings(ko: cfg.ko, name: cfg.assistantName)
-        let view = SettingsView(m: SettingsModel(cfg), S: S) { relaunch() }
+        let model = SettingsModel(cfg); self.model = model
+        let view = SettingsView(m: model, S: S) { relaunch() }
         let w = NSWindow(contentViewController: NSHostingController(rootView: view))
+        w.delegate = closer
         w.title = "Mac Butler — " + S.t("설정", "Settings")
         w.styleMask = [.titled, .closable]
         w.isReleasedWhenClosed = false

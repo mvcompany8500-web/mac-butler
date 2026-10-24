@@ -99,6 +99,14 @@ enum SelfTest {
         checkBool("brain base: remote http refused", APIBrain.safeBase("http://evil.example/v1") == nil)
         var cc = Config(); checkBool("default brain is Claude Code", APIBrain.provider(cc) == nil)
         cc.brainProvider = "ollama"; checkBool("ollama brain", APIBrain.provider(cc)?.local == true)
+        // 다 같이 키우기: only safe quick commands and short, number-free sentences are ever shared
+        checkBool("share: volume down", GrowTogether.isShareable("소리 줄여", parser: pk))
+        checkBool("share: close pages", GrowTogether.isShareable("창 다 꺼", parser: pk))
+        checkBool("no share: a YouTube search", !GrowTogether.isShareable("유튜브에서 로파이 틀어", parser: pk))
+        checkBool("no share: a Claude task", !GrowTogether.isShareable("클로드한테 버그 고쳐 줘", parser: pk))
+        checkBool("no share: a timer label", !GrowTogether.isShareable("라면 3분", parser: pk))
+        checkBool("no share: phone-number-like sentence", !GrowTogether.cleanSaid("010 1234 5678로 소리 줄여"))
+        checkBool("share: short sentence", GrowTogether.cleanSaid("소리 좀 줄여 봐"))
         // Several Claude windows (titles = session names), 2026-10-24
         do {
             let wins = ["음성 제어 Mac 설정", "터틀메이커 전체 프로젝트", "터틀메이커 소개·튜토리얼 영상 시리즈 만들기", "홈페이지 터틀메이커 영상 칸을 새 시리즈로 교체", "잡일 시키기", "댓글 작업용 프로젝트"]

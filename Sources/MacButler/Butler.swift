@@ -89,6 +89,20 @@ final class Butler {
         if cfg.pauseInCalls { Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.checkCalls() } }
         Timers.onFire = { [weak self] label in self?.timerFired(label) }
         Timers.restore()
+        // Settings → 화면 위치 moves the orb right away (no restart)
+        NotificationCenter.default.addObserver(forName: Notification.Name("MacButlerHUDPosition"), object: nil, queue: .main) { [weak self] n in
+            if let p = n.object as? String { self?.hud.position = p }
+        }
+        // 다 같이 키우기: ask once, then share (with consent) and take the pack, once a day
+        let growSync = { [weak self] (mode: String) in
+            guard let self else { return }
+            GrowTogether.sync(self.cfg, parser: self.parser, mode: mode)
+            Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                GrowTogether.sync(self.cfg, parser: self.parser, mode: Config.load().growTogether)
+            }
+        }
+        if cfg.growTogether.isEmpty { GrowTogether.askIfNeeded(cfg) { growSync($0) } } else { growSync(cfg.growTogether) }
         listenForSignals()
         do { try ear.start() } catch { log("mic failed: \(error)"); hud.show("⚠︎", S.micError, color: amber) }
         if !brain.installed { hud.show("⚠︎", S.noClaude, color: amber) }
@@ -305,6 +319,7 @@ final class Butler {
     // MARK: acting
 
     func handle(_ cmd: String) {
+        if askingFreeMode, answerFreeMode(cmd) { return }
         if pendingAction != nil, answerAction(cmd) { return }
         if pendingDelegate != nil, answerPending(cmd) { return }
         let q = Parser.squash(cmd)
@@ -312,7 +327,7 @@ final class Butler {
             log("not learning: \(learnCandidate!.phrase)"); learnCandidate = nil
         }
         if let r = lastRouted, Date().timeIntervalSince(r.at) < 20, ["아니", "틀렸", "그게아니", "no", "wrong"].contains(where: { q.hasPrefix($0) }) {
-            Aliases.forget(r.said); lastRouted = nil; log("forgot alias: \(r.said)")
+            Aliases.forget(r.said); GrowTogether.veto(r.said); lastRouted = nil; log("forgot alias: \(r.said)")
         }
         let intent = parser.parse(cmd, hasYouTubeList: !ytList.isEmpty)
         log("intent: \(intent)")
@@ -441,6 +456,8 @@ final class Butler {
             done(S.opened, spoken)
         case .none:
             if let canon = Aliases.lookup(cmd), isQuick(canon) { log("alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
+            // 「다 같이 키우기」 pack: what many people taught their Mac Butler (checked again here — safe quick commands only)
+            if let canon = GrowTogether.lookup(cmd, parser: parser), isQuick(canon) { log("shared alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
             Growth.miss(cmd, front: NSWorkspace.shared.frontmostApplication?.localizedName ?? "")
             if let steps = Learning.lookup(cmd) {      // learned before → instant, no Claude call
                 brainCommand = cmd; brainByHold = byHold
@@ -737,6 +754,35 @@ final class Butler {
     var brainByHold = false        // …and whether they said it holding the hotkey (no TV can do that)
     var byHold = false             // set while handling a push-to-talk command
     var pendingAction: (kind: String, bundle: String, what: String, args: [String], at: Date)?
+    lazy var freeMode = cfg.freeMode
+    var askingFreeMode = false
+    /// After a send/post/delete the user said yes to, ask once: 「다음부터는 묻지 않고 바로 할까요?」 (payments keep asking).
+    func offerFreeMode(_ kind: String) {
+        guard !freeMode, kind != "pay", !cfg.freeModeAsked, !UserDefaults.standard.bool(forKey: "freeModeAsked") else { return }
+        UserDefaults.standard.set(true, forKey: "freeModeAsked"); Config.set("freeModeAsked", true)
+        askingFreeMode = true
+        speak(S.t("다음부터는 묻지 않고 바로 할까요? 결제는 계속 묻습니다.", "Shall I do these without asking from now on? Payments will still ask.")) { [weak self] in
+            guard let self else { return }
+            self.converse(keep: true)
+            self.hud.show(self.S.t("◌ 자유 모드로 할까요? 「응」 / 「아니」", "◌ Free mode? “yes” / “no”"), self.S.t("결제는 늘 묻습니다", "Payments always ask"), heard: nil, color: amber)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in self?.askingFreeMode = false }
+        }
+    }
+    /// Returns true if the utterance answered the free-mode question.
+    func answerFreeMode(_ a: String) -> Bool {
+        guard askingFreeMode else { return false }
+        askingFreeMode = false
+        let s = Parser.squash(a)
+        if ["응", "네", "예", "그래", "좋아", "해", "ㅇㅇ", "yes", "yeah", "sure", "ok", "okay"].contains(where: { s.hasPrefix($0) }) {
+            freeMode = true; Config.set("freeMode", true); log("free mode on (asked after a confirmed action)")
+            Sound.named("Pop"); done(S.t("자유 모드 켬", "Free mode on"), S.t("결제만 묻습니다 · 설정에서 끌 수 있어요", "Only payments ask · turn it off in Settings"))
+            return true
+        }
+        if ["아니", "아니야", "됐어", "싫어", "no", "nope"].contains(where: { s.hasPrefix($0) }) {
+            Sound.named("Pop"); done(S.t("계속 묻기", "Keep asking"), S.t("설정에서 바꿀 수 있어요", "You can change it in Settings")); return true
+        }
+        return false
+    }
     static let askedFor: [String: [String]] = [
         "send": ["보내", "전송", "송신", "send"],
         "pay": ["결제", "구매", "구입", "주문", "송금", "이체", "pay", "buy", "purchase", "order", "checkout"],
@@ -748,6 +794,8 @@ final class Butler {
         let p = text.components(separatedBy: "\u{1F}")
         guard p.count >= 4 else { return "ask" }
         let kind = p[0]
+        // 자유 모드 (the owner chose it): no question for sending, posting, deleting — paying always asks.
+        if freeMode, kind != "pay" { log("free mode: \(kind) without asking → \(p[2])"); return "yes" }
         // Pressed without asking only when the user held the hotkey and said it (a TV or a video can say "보내",
         // it can't hold the key). Spoken the normal way, it asks once.
         if cfg.confirmDelegate != "always", brainByHold, Butler.userAskedFor(kind, brainCommand) {
@@ -764,6 +812,12 @@ final class Butler {
         let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
         guard parts.count == 2, !parts[1].isEmpty else { return "pending" }
         let here = parts[0] == "." || parts[0] == "지금" || parts[0].lowercased() == "here"
+        if freeMode {     // 자유 모드: the brain's hand-off goes straight to the Claude session
+            log("free mode: delegate without asking → \(parts[1])")
+            let t = here ? "" : parts[0], m = parts[1], fresh = parts[0].isEmpty
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.claudeMacro(target: t, message: m, newSession: fresh) }
+            return "sent"
+        }
         pendingDelegate = (here ? "" : parts[0], parts[1], parts[0].isEmpty)
         log("delegate pending (needs a yes): \(parts[1])")
         return "pending"
@@ -804,7 +858,7 @@ final class Butler {
             let ok = (try? proc.run()) != nil && { proc.waitUntilExit(); return proc.terminationStatus == 0 }()
             DispatchQueue.main.async {
                 guard let self else { return }
-                if ok { Sound.named("Pop"); self.done(self.S.t("눌렀음", "Done"), p.what) }
+                if ok { Sound.named("Pop"); self.done(self.S.t("눌렀음", "Done"), p.what); self.offerFreeMode(p.kind) }
                 else { self.fail(self.S.t("누르지 못했습니다.", "Couldn't press it.")) }
             }
         }
