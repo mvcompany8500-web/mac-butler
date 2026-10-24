@@ -27,7 +27,8 @@ final class Router {
         {앱 이름} 열어 | 뒤로 가 | 앞으로 가 | 새로고침 | 화면 꺼
         소리 키워 | 소리 줄여 | 볼륨 {0-100} | 음소거 | 몇 시야 | 오늘 며칠이야
         {N}분 타이머 | {N}시에 {할 일} 알려 줘 | 타이머 취소 | {장소} 가는 길
-        Several of them in one sentence → join with " 그리고 ".
+        Several of them in one sentence → join with " 그리고 ". Keep EVERY job that was asked for (never drop one), and put only
+        the thing to find into a search — never the other jobs. 「적당하게·잘 들리게」 for volume → 볼륨 50.
         Answer BRAIN for anything else: questions that need thinking or looking at the screen, clicking something
         on a page, typing or sending text, anything about Claude/sessions/files/code, or when unsure.
         Examples:
@@ -35,6 +36,7 @@ final class Router {
         「쿠팡 가서 무선 이어폰 좀 보여 줄래」 → 쿠팡에서 무선 이어폰 찾아
         「너무 시끄럽다 좀 작게」 → 소리 줄여
         「이거 다음 거」 → 다음 영상
+        「쿠팡에서 맥미니 검색하면서 베토벤 음악도 하나 틀어봐. 볼륨은 적당하게」 → 쿠팡에서 맥미니 찾아 그리고 유튜브 베토벤 음악 틀어 그리고 볼륨 50
         「이 페이지 요약해 줘」 → BRAIN
         「카톡으로 엄마한테 늦는다고 보내」 → BRAIN
         """

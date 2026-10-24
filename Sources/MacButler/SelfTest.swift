@@ -51,6 +51,17 @@ enum SelfTest {
         check(pk, "볼륨 많이 키워", .volume(set: nil, delta: 30, mute: false))
         check(pk, "볼륨 두 배 더 키워", .volume(set: nil, delta: 30, mute: false))
         check(pk, "소리 조금 줄여", .volume(set: nil, delta: -7, mute: false))
+        // 10/24 「쿠팡에서 맥미니 검색하면서 베토벤 음악도 하나 틀어봐. 음악 볼륨은 적당하게 내가 잘 들을 수 있게」 → split, not one search
+        check(pk, "쿠팡에서 맥미니 검색하면서 베토벤 음악도 하나 틀어봐. 음악 볼륨은 적당하게 내가 잘 들을 수 있게",
+              .multi(["쿠팡에서 맥미니 검색해", "베토벤 음악도 하나 틀어봐", "음악 볼륨은 적당하게 내가 잘 들을 수 있게"]))
+        check(pk, "쿠팡에서 맥미니 검색하면서 베토벤 음악도 하나 틀어봐", .multi(["쿠팡에서 맥미니 검색해", "베토벤 음악도 하나 틀어봐"]))
+        check(pk, "쿠팡에서 맥미니 검색해", .web(label: "쿠팡", query: "맥미니", url: "https://www.coupang.com/np/search?q="))
+        check(pk, "베토벤 음악도 하나 틀어봐", .youtube("베토벤 음악"))
+        check(pk, "음악 볼륨은 적당하게 내가 잘 들을 수 있게", .volume(set: 50, delta: 0, mute: false))
+        check(pk, "쿠팡 맥미니 검색", .web(label: "쿠팡", query: "맥미니", url: "https://www.coupang.com/np/search?q="))
+        check(pk, "유튜브 베토벤 음악 틀어", .youtube("베토벤 음악"))
+        check(pk, "볼륨 적당하게 해줘", .volume(set: 50, delta: 0, mute: false))
+        check(pk, "쿠팡에서 무선 이어폰 찾아 줘", .web(label: "쿠팡", query: "무선 이어폰", url: "https://www.coupang.com/np/search?q="))
         checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
         var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
         checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))
