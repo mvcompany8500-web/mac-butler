@@ -71,6 +71,8 @@ enum SelfTest {
         checkBool("speakable", Butler.speakable("주인님, 9호선 급행입니다. [경로 안내](https://www.gimpo.go.kr/x) **좋아요**") == "주인님, 9호선 급행입니다. 경로 안내 좋아요")
         do { var g = Config(); g.language = "ko"; g.assistantName = "Sasarisa"; g.customWords = (1...200).map { "낱말\($0)" }
              let gl = Butler.glossary(g); checkBool("glossary keeps the name first and short", gl.hasPrefix("Glossary: 사사리사") && gl.count <= 180) }
+        for yes in ["응", "응 찾아봐", "그래 해 줘", "좋아 틀어 줘", "네 알려 주세요"] { check(pk, yes, .none) }
+        check(pk, "응원가 틀어", .youtube("응원가"))
         checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
         var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
         checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))

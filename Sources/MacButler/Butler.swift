@@ -25,6 +25,7 @@ final class Butler {
     var bargedIn = false
     var ytList: [(id: String, title: String)] = []
     var cancelSend = false
+    var brainAskedAt: Date?            // the brain's last answer asked something back (티키타카)
     var awaitingSend = false           // 보내기 전 미리 보기: waiting for 「응」 / 「아니」 on the message shown
     var sendDecision: Bool?
     var lastLive = ""
@@ -499,6 +500,8 @@ final class Butler {
             let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-a", app]; try? p.run()
             done(S.opened, spoken)
         case .none:
+            // 티키타카: right after it asked something back, 「응」「그래」「그거 말고」 is an answer — straight to the brain (no router)
+            if let t = brainAskedAt, Date().timeIntervalSince(t) < cfg.followUpSec + 15 { brainAskedAt = nil; log("reply to its question → brain"); ask(cmd); return }
             if let canon = Aliases.lookup(cmd), isQuick(canon) { log("alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
             // 「다 같이 키우기」 pack: what many people taught their Sasarisa (checked again here — safe quick commands only)
             if let canon = GrowTogether.lookup(cmd, parser: parser), isQuick(canon) { log("shared alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
@@ -1125,6 +1128,7 @@ final class Butler {
                 }
             }
             let spoken = Butler.speakable(answer)
+            self.brainAskedAt = spoken.hasSuffix("?") || spoken.hasSuffix("까요") ? Date() : nil   // it asked back → the next short reply is the answer
             self.speak(spoken) {
                 if Parser.startedMedia(answer) { self.played(self.S.youtubePlay, spoken); return }
                 self.converse(keep: true)   // leave the answer on screen

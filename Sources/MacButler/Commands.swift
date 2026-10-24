@@ -147,6 +147,9 @@ struct Parser {
         var s = Parser.clean(raw)
         let sq = Parser.squash(s)
         if s.isEmpty { return .none }
+        // 「응 찾아봐」「그래 해 줘」「좋아 틀어 줘」 — an answer to something it just offered, not a search for 「응」 (the brain knows the offer)
+        if let m = Parser.match(sq, "^(응|네|예|어|그래|좋아|오케이|ㅇㅇ|당연하지|부탁해|yes|yeah|sure|ok|okay)(.*)$"),
+           m[2].count <= 6, ["", "찾아봐", "찾아줘", "찾아", "해줘", "해봐", "해", "그렇게해", "그렇게해줘", "틀어줘", "틀어", "보여줘", "알려줘", "열어줘", "부탁해", "please", "doit", "goahead"].contains(m[2]) { return .none }
         if Parser.isCancelTimers(s) { return .cancelTimers }
         if ["방금거취소", "방금거취소해", "방금건취소", "되돌려", "되돌려줘", "원래대로", "원래대로해", "원래대로돌려", "실행취소", "방금거되돌려", "undo", "undothat"].contains(sq.replacingOccurrences(of: "것", with: "거")) { return .undo }
         if ["방금뭐했어", "뭐했어", "방금뭐한거야", "방금뭐했니", "whatdidyoujustdo", "whatdidyoudo"].contains(sq) { return .whatDid }
