@@ -394,7 +394,7 @@ final class Butler {
             lastDone = (S.t("소리를 바꿨어요", "changed the volume"), { NSAppleScript(source: "set volume output volume \(before) without output muted")?.executeAndReturnError(nil) })
             let script = mute ? "set volume output muted true"
                 : set.map { "set volume output volume \($0) without output muted" }
-                ?? "set volume output volume ((output volume of (get volume settings)) + \(delta)) without output muted"
+                ?? "set volume output volume \(min(100, max(Int(before) + delta, delta < 0 ? 4 : 0))) without output muted"   // 「줄여」 never silences (10/24: 14 → 0)
             var err: NSDictionary?; NSAppleScript(source: script)?.executeAndReturnError(&err)
             let now = NSAppleScript(source: "output volume of (get volume settings)")?.executeAndReturnError(&err).int32Value ?? 0
             done(S.t("소리", "Volume"), mute ? S.t("음소거", "Muted") : "\(now)")
@@ -590,6 +590,14 @@ final class Butler {
         let n = Int(NSAppleScript(source: src)?.executeAndReturnError(&err).int32Value ?? 0)
         if n > 0 { log("closed \(n) empty Safari window(s)") }
         return n
+    }
+    /// What is read aloud: no markdown marks, links read by their text only, bare addresses dropped (10/24 it tried to read
+    /// 「[경로 안내](https://…)」).
+    static func speakable(_ s: String) -> String {
+        var t = s.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
+        t = t.replacingOccurrences(of: #"\[([^\]]+)\]\([^)]*\)"#, with: "$1", options: .regularExpression)
+        t = t.replacingOccurrences(of: #"https?://\S+"#, with: "", options: .regularExpression)
+        return t.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
     }
     /// One video at a time: the YouTube videos already open are closed before a new one starts.
     func closeVideos() {
@@ -1103,7 +1111,7 @@ final class Butler {
                     Learning.remember(c.phrase, c.steps); self.learnCandidate = nil
                 }
             }
-            let spoken = answer.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
+            let spoken = Butler.speakable(answer)
             self.speak(spoken) {
                 if Parser.startedMedia(answer) { self.played(self.S.youtubePlay, spoken); return }
                 self.converse(keep: true)   // leave the answer on screen

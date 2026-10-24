@@ -68,6 +68,7 @@ enum SelfTest {
         check(pk, "쿠팡에 맥미니 좀 검색해 줘", .web(label: "쿠팡", query: "맥미니", url: "https://www.coupang.com/np/search?q="))
         check(pk, "강남으로 가는 길 제주도에서 비행기를 어떻게 가는지 체크해 봐", .none)
         check(pk, "쿠팡에 맥미니 좀 검색해 주고 강남으로 가는 길 체크해 봐", .multi(["쿠팡에 맥미니 좀 검색해 줘", "강남으로 가는 길 체크해 봐"]))
+        checkBool("speakable", Butler.speakable("주인님, 9호선 급행입니다. [경로 안내](https://www.gimpo.go.kr/x) **좋아요**") == "주인님, 9호선 급행입니다. 경로 안내 좋아요")
         checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
         var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
         checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))
