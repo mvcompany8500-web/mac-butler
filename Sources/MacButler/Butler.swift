@@ -34,6 +34,7 @@ final class Butler {
     var lastSite: (label: String, url: String, at: Date)?
     // What it opened for you (this run): page hosts and apps it started — 「창 다 꺼」 closes exactly these.
     var openedHosts: Set<String> = []
+    var openedURLs: [String] = []      // the exact pages it opened — 「창 다 꺼」 closes these, not every tab on that site
     var openedApps: Set<String> = []
     static let neverClose: Set<String> = ["Claude", "Finder", "Terminal", "iTerm2", "Xcode", "Visual Studio Code", "Cursor", "Mac Butler", "MacButler"]   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
     /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
@@ -505,6 +506,7 @@ final class Butler {
     }
     func noteOpened(url: String) {
         if let h = URL(string: url)?.host(percentEncoded: true), Butler.safeHost(h) { openedHosts.insert(h.lowercased()) }
+        if url.hasPrefix("http"), !url.contains("\""), !url.contains("\\"), url.count < 600 { openedURLs.append(url); if openedURLs.count > 50 { openedURLs.removeFirst() } }
     }
     /// Hosts end up inside AppleScript (closeTabs) — only plain host names, nothing that could break out of the quotes.
     static func safeHost(_ h: String) -> Bool { h.count < 254 && h.range(of: #"^[A-Za-z0-9.-]+$"#, options: .regularExpression) != nil }
@@ -564,14 +566,58 @@ final class Butler {
     }
     func closeOpened() -> Int {
         var n = 0
-        for h in openedHosts { n += closeTabs("://" + h + "/", frontFirst: false) }
+        // Only the pages it opened (10/24: closing by site also took the owner's own YouTube search and Coupang tabs).
+        // A video it started may have moved on to the next one, so its YouTube videos are matched as any open video.
+        var prefixes = openedURLs.map { u -> String in
+            var p = u.hasSuffix("/") ? String(u.dropLast()) : u
+            if let enc = p.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.union(CharacterSet(charactersIn: "%"))) { p = enc }
+            return p
+        }
+        if openedURLs.contains(where: { $0.contains("youtube.com/watch") }) { prefixes.append("https://www.youtube.com/watch") }
+        n += closeTabs(prefixes: Array(Set(prefixes)))
         for app in openedApps where !Butler.neverClose.contains(app) {
             for a in NSWorkspace.shared.runningApplications where a.localizedName == app { if a.terminate() { n += 1 } }
         }
         n += closeEmptySafariWindows()
         log("closed what it opened: \(n) (hosts \(openedHosts.sorted()), apps \(openedApps.sorted()))")
-        openedHosts = []; openedApps = []
+        openedHosts = []; openedApps = []; openedURLs = []
         return n
+    }
+    /// Closes browser tabs whose address starts with one of these (the exact pages it opened).
+    func closeTabs(prefixes: [String]) -> Int {
+        let safe = prefixes.filter { $0.hasPrefix("http") && !$0.contains("\"") && !$0.contains("\\") && $0.count < 800 }
+        guard !safe.isEmpty else { return 0 }
+        let list = "{" + safe.map { "\"" + $0 + "\"" }.joined(separator: ", ") + "}"
+        var total = 0
+        for app in ["Google Chrome", "Safari"] {
+            let bundle = app == "Safari" ? "com.apple.Safari" : "com.google.Chrome"
+            guard !NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty else { continue }
+            let src = """
+            tell application "\(app)"
+              set n to 0
+              set wanted to \(list)
+              repeat with w in windows
+                repeat with i from (count of tabs of w) to 1 by -1
+                  set u to URL of tab i of w
+                  if u is not missing value then
+                    repeat with p in wanted
+                      if u starts with (p as text) then
+                        close tab i of w
+                        set n to n + 1
+                        exit repeat
+                      end if
+                    end repeat
+                  end if
+                end repeat
+              end repeat
+              return n
+            end tell
+            """
+            var err: NSDictionary?
+            total += Int(NSAppleScript(source: src)?.executeAndReturnError(&err).int32Value ?? 0)
+            if let err { log("close tabs (\(app)): \(err[NSAppleScript.errorMessage] ?? err)") }
+        }
+        return total
     }
     /// Closes the browser tabs on that site — the front window first; if none there, any window.
     /// (YouTube Studio and the like are left alone. Only browsers already running are touched.)

@@ -122,6 +122,11 @@ final class CodexBrain: Thinker {
     /// --json events: tool calls → HUD steps (and jax lines for learning), agent messages → the answer (last one wins).
     func handle(_ obj: [String: Any]) {
         let type = obj["type"] as? String ?? ""
+        if type == "turn.completed", let u = obj["usage"] as? [String: Any] {   // Mac Butler's share, same tally as Claude's
+            let cached = u["cached_input_tokens"] as? Int ?? 0      // Codex counts cached tokens inside input_tokens
+            Usage.record(["usage": ["input_tokens": max((u["input_tokens"] as? Int ?? 0) - cached, 0), "output_tokens": u["output_tokens"] as? Int ?? 0,
+                                    "cache_read_input_tokens": cached]])
+        }
         guard let item = obj["item"] as? [String: Any] else {
             if type == "turn.failed" || type == "error" {
                 log("codex: \(obj)")

@@ -72,7 +72,9 @@ final class Router {
         while let nl = buffer.firstIndex(of: 0x0A) {
             let line = buffer.subdata(in: buffer.startIndex..<nl)
             buffer.removeSubrange(buffer.startIndex...nl)
-            guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any], obj["type"] as? String == "result" else { continue }
+            guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+            if obj["type"] as? String == "rate_limit_event" { AIUsage.noteClaude(obj); continue }
+            guard obj["type"] as? String == "result" else { continue }
             if skip > 0 { skip -= 1; continue }
             reply((obj["result"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines))
         }

@@ -2,6 +2,7 @@
 import AppKit
 import SwiftUI
 import AVFoundation
+import Charts
 
 final class SettingsModel: ObservableObject {
     @Published var language: String
@@ -26,7 +27,17 @@ final class SettingsModel: ObservableObject {
     @Published var proRemote: Bool
     @Published var pro: ProAccount.Status?
     @Published var proLinked = ProAccount.token != nil
-    @Published var proCode = ""             // shown while waiting for approval in the browser
+    @Published var proCode = ""
+    @Published var plans: [String: AIUsage.Plan] = [:]
+    @Published var daily: [(day: String, calls: Int, tokens: Int)] = []
+    /// AI plan windows (Claude from its last run, Codex from its logs) and Mac Butler's own use — read when the window opens.
+    func refreshUsage() {
+        DispatchQueue.global().async {
+            AIUsage.refreshCodex()
+            let p = AIUsage.load(), d = AIUsage.daily(7)
+            DispatchQueue.main.async { self.plans = p; self.daily = d }
+        }
+    }             // shown while waiting for approval in the browser
     @Published var brainProvider: String
     @Published var brainModel: String
     @Published var brainBaseURL: String
@@ -282,6 +293,37 @@ struct SettingsView: View {
                          "Everything that runs on this Mac, your plan or your API key stays free. Pro only covers what needs our servers (phone, natural voice) and comes with the TurtleMaker membership."))
             }
             Section {
+                ForEach(["claude", "codex"], id: \.self) { key in
+                    if let p = m.plans[key] {
+                        ForEach(Array(p.windows.enumerated()), id: \.offset) { _, w in
+                            UsageBar(title: (key == "claude" ? "Claude" : "Codex") + " · " + S.t(w.label, w.label.replacingOccurrences(of: "시간", with: " h").replacingOccurrences(of: "7일", with: "7 days")),
+                                     used: w.used, detail: w.resets.map { S.t("\(Self.when($0)) 다시 채워짐", "resets \(Self.when($0))") } ?? "")
+                        }
+                    }
+                }
+                if m.plans.isEmpty {
+                    Note(S.t("두뇌가 한 번 일하면 남은 양이 여기 나옵니다(Claude 코드·Codex).", "Your plan's remaining share shows here after the brain runs once (Claude Code, Codex)."))
+                }
+                if m.proLinked, let p = m.pro, p.voice {
+                    UsageBar(title: S.t("좋은 목소리 · 이번 달", "Natural voice · this month"), used: Double(p.used) / Double(max(p.limit, 1)),
+                             detail: "\(p.used.formatted()) / \(p.limit.formatted())" + S.t("자", " chars"))
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(S.t("\(m.assistantName.isEmpty ? "비서" : m.assistantName)가 쓴 양 · 7일", "Used by \(m.assistantName.isEmpty ? "the assistant" : m.assistantName) · 7 days"))
+                    Chart(m.daily, id: \.day) { d in
+                        BarMark(x: .value("day", d.day), y: .value("tokens", d.tokens)).foregroundStyle(Color.accentColor.gradient).cornerRadius(3)
+                    }
+                    .chartYAxis { AxisMarks(position: .leading) { v in AxisGridLine(); AxisValueLabel { if let n = v.as(Int.self) { Text(Self.short(n)) } } } }
+                    .frame(height: 110)
+                    let today = m.daily.last
+                    Note(S.t("오늘 \(today?.calls ?? 0)번 · 약 \(Self.short(today?.tokens ?? 0)) 토큰(다시 읽은 부분은 1/10로 셈)",
+                             "Today \(today?.calls ?? 0) runs · about \(Self.short(today?.tokens ?? 0)) tokens (re-read context counted at 1/10)"))
+                }
+            } header: { Text(S.t("AI 사용량", "AI usage")) } footer: {
+                Note(S.t("막대는 요금제 전체(다른 앱에서 쓴 것 포함)가 얼마나 찼는지이고, 그래프는 이 비서가 쓴 몫입니다. 이 맥 안에서만 읽고 어디에도 보내지 않습니다.",
+                         "The bars are how full your whole plan is (including other apps); the chart is this assistant's share. Read on this Mac only, sent nowhere."))
+            }
+            Section {
                 LabeledContent(S.t("생각하는 AI", "Who does the thinking")) {
                     EngineMenu(selection: $m.brainProvider, localTitle: S.t("로컬 연결 — 이 맥에 로그인된 AI", "Local — AI signed in on this Mac"), local: [
                         Choice("claude-code", S.t("Claude Code — Claude 구독 (기본)", "Claude Code — your Claude plan (default)")),
@@ -354,7 +396,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { m.refreshPro() }
+        .onAppear { m.refreshPro(); m.refreshUsage() }
         .onChange(of: m.snapshot) { _ in m.save(); m.needsRestart = true }
         .onChange(of: m.hudPosition) { v in
             m.save()
@@ -362,6 +404,27 @@ struct SettingsView: View {
         }
         .frame(width: 580, height: height)
         .padding(.bottom, 8)
+    }
+}
+
+extension SettingsView {
+    static func when(_ d: Date) -> String {
+        let f = DateFormatter(); f.locale = Locale.current
+        f.dateFormat = Calendar.current.isDateInToday(d) ? "HH:mm" : "M/d HH:mm"
+        return f.string(from: d)
+    }
+    static func short(_ n: Int) -> String { n >= 1_000_000 ? String(format: "%.1fM", Double(n) / 1e6) : n >= 1000 ? String(format: "%.0fK", Double(n) / 1e3) : "\(n)" }
+}
+
+/// One plan window: name, how full, when it resets.
+struct UsageBar: View {
+    let title: String; let used: Double; let detail: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack { Text(title); Spacer(); Text("\(Int((used * 100).rounded()))%").monospacedDigit().foregroundStyle(used > 0.85 ? .red : .secondary) }
+            ProgressView(value: min(max(used, 0), 1)).tint(used > 0.85 ? .red : used > 0.6 ? .orange : .accentColor)
+            if !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary) }
+        }
     }
 }
 

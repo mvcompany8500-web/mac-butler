@@ -155,6 +155,7 @@ final class Brain {
     }
     private func handle(_ obj: [String: Any]) {
         let type = obj["type"] as? String
+        if type == "rate_limit_event" { AIUsage.noteClaude(obj); return }
         if type == "result" {
             Usage.record(obj)
             received += 1
