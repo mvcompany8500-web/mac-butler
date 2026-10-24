@@ -31,4 +31,5 @@ let a = CommandLine.arguments
 guard a.count >= 2, ["say", "type", "delegate", "settings", "session", "setup"].contains(a[1]) else { print("usage: butler <say|type|delegate|settings|session|setup> [text]"); exit(1) }
 guard let answer = butlerSend(a[1], a.dropFirst(2).joined(separator: " ")) else { print("Mac Butler is not running"); exit(2) }
 _ = answer
+if a[1] == "delegate", answer == "sent" { print("sent — free mode: Mac Butler typed the task into the Claude session. Say briefly that it was handed over."); exit(0) }
 if a[1] == "delegate" { print("pending — Mac Butler holds the task until the user says yes. In your answer, ASK whether to hand it over; do not say it was done.") }
