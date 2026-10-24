@@ -137,6 +137,7 @@ final class Butler {
     private func listenForSignals() { control.start() }
     func signal(_ cmd: String, _ text: String) {
         switch cmd {
+        case "restart": log("restart requested over the control socket"); SettingsWindow.relaunch()   // same path as Settings' restart
         case "type":
             if cfg.brainAccess != "full", let b = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, Butler.protectedApps.contains(b) || b == Bundle.main.bundleIdentifier {
                 log("blocked typing into protected app \(b)"); return

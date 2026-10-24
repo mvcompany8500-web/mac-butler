@@ -407,12 +407,21 @@ enum SettingsWindow {
     /// Otherwise start a fresh copy, then quit.
     static func relaunch() {
         (NSApp.delegate as? AppDelegate)?.butler?.shutdown()
-        if ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"]?.contains(Bundle.main.bundleIdentifier ?? "-") == true { exit(3) }
-        // Start the new copy a moment after this one is gone — started right away it saw this one still running and quit,
-        // leaving none (10/24).
-        let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/sh")
-        p.arguments = ["-c", "sleep 1.5; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath]
-        try? p.run()
+        // Run by our launch agent (its label is the bundle id; KeepAlive restarts a non-zero exit). Opened as an app the name
+        // is "application.<bundle id>.<numbers>" — that used to match too, so it quit and nothing restarted it (10/24).
+        if ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] == Bundle.main.bundleIdentifier { exit(3) }
+        // A child process dies with us (launchd ends the app's whole process group), so `open -n` / `sleep; open` never
+        // ran and it ended with none running (10/24). Ask LaunchServices for the new copy, which waits for this one to go.
+        let conf = NSWorkspace.OpenConfiguration()
+        conf.createsNewApplicationInstance = true
+        conf.arguments = ["--after", String(getpid())]
+        conf.activates = false
+        let started = DispatchSemaphore(value: 0)
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: conf) { app, err in
+            if let err { log("restart: couldn't start the new copy: \(err.localizedDescription)") } else { log("restart: new copy \(app?.processIdentifier ?? 0)") }
+            started.signal()
+        }
+        _ = started.wait(timeout: .now() + 8)
         exit(0)
     }
 }

@@ -1,7 +1,7 @@
 // Local control channel for the bundled tools (`butler`, `jax field`).
 // A Unix socket at ~/.macbutler/butler.sock, mode 0600, and every connection must come from the
 // same user (getpeereid). Sandboxed apps can't reach it; other users can't connect.
-// Wire format: "<command>\n<text>" — commands: say, type, delegate, settings, session, setup, confirm. Two get a real
+// Wire format: "<command>\n<text>" — commands: say, type, delegate, settings, session, setup, confirm, restart. Two get a real
 // answer: confirm ("yes" when the user asked for that send/pay/post/delete, otherwise "ask" — see jax) and delegate
 // ("sent", or "pending" when it waits for the user's yes).
 import Foundation

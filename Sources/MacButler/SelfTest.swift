@@ -51,6 +51,9 @@ enum SelfTest {
         check(pk, "볼륨 많이 키워", .volume(set: nil, delta: 30, mute: false))
         check(pk, "볼륨 두 배 더 키워", .volume(set: nil, delta: 30, mute: false))
         check(pk, "소리 조금 줄여", .volume(set: nil, delta: -7, mute: false))
+        checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
+        var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
+        checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))
         checkBool("whisper said twice", Whisper.saidTwice("자비스, 지금 음악 끄고, 사기 음악 틀어. 자비스, 지금 음악 끄고, 사기 음악 틀어.") == "자비스, 지금 음악 끄고, 사기 음악 틀어.")
         checkBool("whisper once stays", Whisper.saidTwice("유튜브 꺼. 쿠팡 열어.") == nil)
         checkBool("direct order", ClaudeRelay.directOrder("이거 영상 좋으니깐 이제 전체 다 실행 하라고 얘기 하라고") == "이거 영상 좋으니깐 이제 전체 다 실행해 주세요")

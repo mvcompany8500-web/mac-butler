@@ -207,6 +207,12 @@ if CommandLine.arguments.contains("--devices") {
     exit(0)
 }
 
+// Started by Settings' restart: wait until the copy that started us has gone (it shuts its mic and Whisper first).
+if let i = CommandLine.arguments.firstIndex(of: "--after"), CommandLine.arguments.count > i + 1, let old = pid_t(CommandLine.arguments[i + 1]) {
+    let t0 = Date()
+    while kill(old, 0) == 0, Date().timeIntervalSince(t0) < 10 { usleep(100_000) }
+}
+
 let delegate = AppDelegate()
 signal(SIGTERM, SIG_IGN)   // stop Whisper / Claude children when launchd stops us
 let termSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)

@@ -111,12 +111,36 @@ struct Config: Codable {
     var locale: String { Config.languages.first { $0.code == lang }?.locale ?? "en-US" }
     var wakes: [String] {
         if !wakeWords.isEmpty { return wakeWords }
-        switch lang {
-        case "ko": return ["자비스", "헤이 자비스"]
-        case "ja": return ["ジャービス", "jarvis"]
-        case "zh": return ["贾维斯", "jarvis"]
-        default: return ["jarvis", "hey jarvis"]
+        // The assistant's own name calls it too (10/24: renamed to sasarisa, but only 「자비스」 worked). A Latin name is also
+        // heard in Hangul (sasarisa → 사사리사), since Korean speech comes back as Hangul. 「자비스」 keeps working meanwhile.
+        let name = assistantName.trimmingCharacters(in: .whitespaces)
+        var own: [String] = []
+        if !name.isEmpty, name.lowercased() != "jarvis", name != "자비스" {
+            own = [name, (ko ? "헤이 " : "hey ") + name]
+            if ko, let h = Config.hangulReading(name) { own += [h, "헤이 " + h] }
         }
+        switch lang {
+        case "ko": return own + ["자비스", "헤이 자비스"]
+        case "ja": return own + ["ジャービス", "jarvis"]
+        case "zh": return own + ["贾维斯", "jarvis"]
+        default: return own + ["jarvis", "hey jarvis"]
+        }
+    }
+    /// 「sasarisa」→「사사리사」: a Latin name made of open syllables (consonant + vowel, no final consonant) read in Hangul.
+    static func hangulReading(_ name: String) -> String? {
+        let w = name.lowercased()
+        guard w.range(of: "^([bcdfghjklmnprstvz]?[aeiouy])+$", options: .regularExpression) != nil else { return nil }
+        let lead: [Character: Int] = ["g": 0, "n": 2, "d": 3, "r": 5, "l": 5, "m": 6, "b": 7, "v": 7, "s": 9, "j": 12, "z": 12,
+                                      "c": 15, "k": 15, "t": 16, "p": 17, "f": 17, "h": 18]
+        let vowel: [Character: Int] = ["a": 0, "e": 5, "i": 20, "y": 20, "o": 8, "u": 13]
+        var out = "", pending: Int? = nil
+        for ch in w {
+            if let v = vowel[ch] {
+                out.unicodeScalars.append(Unicode.Scalar(0xAC00 + ((pending ?? 11) * 21 + v) * 28)!)   // 11 = ㅇ (no consonant)
+                pending = nil
+            } else { pending = lead[ch] }
+        }
+        return out.isEmpty ? nil : out
     }
     var greets: [String] {
         if !greetPhrases.isEmpty { return greetPhrases }
