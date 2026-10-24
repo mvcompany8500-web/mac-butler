@@ -41,6 +41,7 @@ struct Config: Codable {
     var confirmDelegate = "never"       // how boldly it acts: "never" = do it right away (default) · "brain" = ask before Claude hands work on · "always" = ask first, ask when unsure
     var freeMode = false               // 자유 모드: sending, posting, deleting and hand-offs to Claude go without asking — paying always asks
     var freeModeAsked = false          // the one-time 「다음부터는 묻지 않을까요?」 has been asked
+    var previewBeforeSend = false      // 보내기 전 미리 보기: the message for Claude is shown and only sent after a spoken 「응」
     var proRemote = true               // Pro: call this Mac from the phone (only does anything while linked and a member)
     var growTogether = ""              // 「다 같이 키우기」: "" = not asked yet · "together" (share safe learned sentences, take the pack) · "solo" (take the pack only)
     var brainAccess = "safe"            // "safe": fixed tool allowlist, no shell/file writes/web fetch · "full": any Bash (power users)
@@ -83,7 +84,7 @@ struct Config: Codable {
         greetingText = v(.greetingText, z.greetingText); bootTitle = v(.bootTitle, z.bootTitle); bootSubtitle = v(.bootSubtitle, z.bootSubtitle)
         greetOpen = v(.greetOpen, z.greetOpen)
         brainProvider = v(.brainProvider, z.brainProvider); brainModel = v(.brainModel, z.brainModel); brainBaseURL = v(.brainBaseURL, z.brainBaseURL); brainEffort = v(.brainEffort, z.brainEffort)
-        claudePath = v(.claudePath, z.claudePath); claudeModel = v(.claudeModel, z.claudeModel); brainAccess = v(.brainAccess, z.brainAccess); confirmDelegate = v(.confirmDelegate, z.confirmDelegate); freeMode = v(.freeMode, z.freeMode); freeModeAsked = v(.freeModeAsked, z.freeModeAsked); growTogether = v(.growTogether, z.growTogether); proRemote = v(.proRemote, z.proRemote)
+        claudePath = v(.claudePath, z.claudePath); claudeModel = v(.claudeModel, z.claudeModel); brainAccess = v(.brainAccess, z.brainAccess); confirmDelegate = v(.confirmDelegate, z.confirmDelegate); freeMode = v(.freeMode, z.freeMode); freeModeAsked = v(.freeModeAsked, z.freeModeAsked); growTogether = v(.growTogether, z.growTogether); proRemote = v(.proRemote, z.proRemote); previewBeforeSend = v(.previewBeforeSend, z.previewBeforeSend)
         whisperModel = v(.whisperModel, z.whisperModel); whisperServer = v(.whisperServer, z.whisperServer)
         tts = v(.tts, z.tts); ttsVoice = v(.ttsVoice, z.ttsVoice); ttsModel = v(.ttsModel, z.ttsModel); ttsRegion = v(.ttsRegion, z.ttsRegion); ttsURL = v(.ttsURL, z.ttsURL); sayVoice = v(.sayVoice, z.sayVoice); sayRate = v(.sayRate, z.sayRate); elevenLabs = v(.elevenLabs, z.elevenLabs)
         inputDevice = v(.inputDevice, z.inputDevice); outputDevice = v(.outputDevice, z.outputDevice)

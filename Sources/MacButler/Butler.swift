@@ -25,6 +25,8 @@ final class Butler {
     var bargedIn = false
     var ytList: [(id: String, title: String)] = []
     var cancelSend = false
+    var awaitingSend = false           // 보내기 전 미리 보기: waiting for 「응」 / 「아니」 on the message shown
+    var sendDecision: Bool?
     var lastLive = ""
     var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
     var previewUntil = Date.distantPast   // Settings is playing a sample voice — nothing heard is a command
@@ -264,6 +266,12 @@ final class Butler {
             whisper.transcribe(audio, fallback: t) { [weak self] full in self?.dictate(full) }
         case .busy:
             let a = parser.stripWake(t)
+            if awaitingSend {
+                let q = Parser.squash(a)
+                if ["응", "네", "예", "그래", "보내", "좋아", "그렇게", "오케이", "ㅇㅇ", "yes", "yeah", "send", "ok", "okay", "sure"].contains(where: { q.hasPrefix($0) }) { sendDecision = true; return }
+                if ["아니", "취소", "하지마", "됐어", "멈춰", "no", "nope", "cancel", "stop"].contains(where: { q.hasPrefix($0) }) { sendDecision = false; return }
+                return
+            }
             if parser.isHush(a) || parser.isBye(a) || Parser.cancelledAtEnd(" " + a) || ["취소", "멈춰", "stop", "cancel"].contains(Parser.squash(a)) {
                 cancelSend = true
                 if brain.busy { brain.cancel() }
@@ -789,11 +797,28 @@ final class Butler {
             AX.focus(box)
             Thread.sleep(forTimeInterval: 0.15)
             DispatchQueue.main.sync { Hands.paste(text) }   // instant (typing 30 chars/s was the slow part)
-            // Last chance: 0.8 s to say “취소 / stop” before Enter.
-            DispatchQueue.main.async { self.hud.show(self.S.t("◌ 곧 보냄 · 「취소」 하면 멈춤", "◌ Sending… say “stop” to cancel"), text, heard: nil, color: amber, speed: 3) }
-            Thread.sleep(forTimeInterval: 0.8)
             var cancelled = false
-            DispatchQueue.main.sync { cancelled = self.cancelSend; self.cancelSend = false }
+            if self.cfg.previewBeforeSend {
+                // 보내기 전 미리 보기 (a viewer's request, 10/24): the message waits in the box until a spoken 「응」; no answer = not sent.
+                DispatchQueue.main.async {
+                    self.sendDecision = nil; self.awaitingSend = true; Sound.soft("Tink")
+                    self.hud.show(self.S.t("◌ 이대로 보낼까요? 「응」 / 「아니」", "◌ Send this? “yes” / “no”"), text, heard: nil, color: amber, speed: 1)
+                }
+                var decision: Bool? = nil
+                for _ in 0..<200 {          // 20 s
+                    Thread.sleep(forTimeInterval: 0.1)
+                    DispatchQueue.main.sync { decision = self.sendDecision ?? (self.cancelSend ? false : nil) }
+                    if decision != nil { break }
+                }
+                DispatchQueue.main.sync { self.awaitingSend = false; self.cancelSend = false }
+                cancelled = decision != true
+                if cancelled { log("claude send: preview not confirmed (\(decision == nil ? "no answer" : "no"))") }
+            } else {
+                // Last chance: 0.8 s to say “취소 / stop” before Enter.
+                DispatchQueue.main.async { self.hud.show(self.S.t("◌ 곧 보냄 · 「취소」 하면 멈춤", "◌ Sending… say “stop” to cancel"), text, heard: nil, color: amber, speed: 3) }
+                Thread.sleep(forTimeInterval: 0.8)
+                DispatchQueue.main.sync { cancelled = self.cancelSend; self.cancelSend = false }
+            }
             if cancelled {
                 Hands.key(0, .maskCommand); Thread.sleep(forTimeInterval: 0.05); Hands.key(51)   // ⌘A, delete — clear what we typed
                 DispatchQueue.main.async { Sound.named("Pop"); log("claude send cancelled"); self.done(self.S.t("취소", "Cancelled"), message) }

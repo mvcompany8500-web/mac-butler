@@ -42,7 +42,7 @@ enum ProAccount {
             guard let url = URL(string: server + "/api/butler/link/start") else { return }
             var r = URLRequest(url: url, timeoutInterval: 15); r.httpMethod = "POST"
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            r.httpBody = try? JSONSerialization.data(withJSONObject: ["name": name])
+            r.httpBody = try? JSONSerialization.data(withJSONObject: ["name": name, "lang": Config.load().lang])
             let s = call(r)
             guard s.code == 200, let c = s.json["code"] as? String, let poll = s.json["poll"] as? String,
                   let page = (s.json["url"] as? String).flatMap(URL.init(string:)), page.host == "maker.buffm.com" else {
@@ -87,10 +87,12 @@ enum ProAccount {
     /// The request for `tts = "pro"`; nil when not linked. Short questions and greetings are marked common so the server
     /// can reuse the sound (free for everyone); answers are never stored.
     /// Voices the server reads with (ElevenLabs, Korean): id, Korean label, English label. The first is the default.
-    static let voices: [(id: String, ko: String, en: String)] = [
-        ("CxErO97xpQgQXYmapDKX", "테오 — 남성, 대화체", "Teo — male, conversational"),
-        ("QPFsEL6IBxlT15xfiD6C", "하나 — 여성, 밝고 자연스러움", "Hana — female, bright and natural"),
-        ("qfwDoLSKOhzIgz7XedPT", "선 — 여성, 차분한 아나운서", "Sun — female, calm announcer")]
+    static let voices: [(id: String, lang: String, ko: String, en: String)] = [
+        ("CxErO97xpQgQXYmapDKX", "ko", "테오 — 한국어 남성, 대화체", "Teo — Korean male, conversational"),
+        ("QPFsEL6IBxlT15xfiD6C", "ko", "하나 — 한국어 여성, 밝고 자연스러움", "Hana — Korean female, bright and natural"),
+        ("qfwDoLSKOhzIgz7XedPT", "ko", "선 — 한국어 여성, 차분한 아나운서", "Sun — Korean female, calm announcer"),
+        ("BuaKXS4Sv1Mccaw3flfU", "en", "크리스티나 — 영어 여성, 밝음", "Christina — English female, bright"),
+        ("nPczCjzI2devNBz1zQrb", "en", "브라이언 — 영어 남성, 차분함", "Brian — English male, calm")]
     static func speechRequest(_ text: String, voice: String = "") -> URLRequest? {
         let common = text.count <= 40 && (text.hasSuffix("?") || text.contains("어서 오") || text.lowercased().hasPrefix("welcome"))
         var body: [String: Any] = ["text": text, "common": common]
