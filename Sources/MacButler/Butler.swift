@@ -441,6 +441,7 @@ final class Butler {
             if q.isEmpty { open("https://www.youtube.com/"); played(S.youtube, "YouTube") } else { youtube(q) }
         case .youtubeNth(let n):
             guard n >= 1, n <= ytList.count else { ask(cmd); return }
+            closeVideos()
             open("https://www.youtube.com/watch?v=" + ytList[n - 1].id); played("\(S.youtube) #\(n)", ytList[n - 1].title); ensurePlaying()
         case .search(let q) where lastSite.map({ Date().timeIntervalSince($0.at) < 120 }) == true:
             let s = lastSite!; lastSite = (s.label, s.url, Date()); open(s.url + enc(q)); done(s.label, q)
@@ -451,6 +452,7 @@ final class Butler {
             open(q.isEmpty ? url : url + enc(q)); done(label, q.isEmpty ? url : q)
         case .closeTabs(let label, let host):
             let n = closeTabs(host)
+            if n == 0, host == "youtube.com", AudioDevices.outputBusy(cfg.outputDevice, micUID: cfg.inputDevice) == true { media(play: false); return }   // music in another app → pause it
             if n > 0 { done(S.t("창 닫음", "Closed"), "\(label) ×\(n)") } else { done(S.t("닫을 창 없음", "Nothing to close"), label) }
         case .openApp(let spoken, let app):
             noteOpened(app: app)
@@ -518,12 +520,48 @@ final class Butler {
     }
     /// 「창 다 꺼」: the pages it opened (by exact host — not Gmail because it opened a Google search) and the apps it
     /// started. Claude, Finder, terminals and editors are never touched.
+    /// Safari windows left with nothing but a blank / start page once its tabs were closed (10/24: 「니가 연 거 끄라고」).
+    func closeEmptySafariWindows() -> Int {
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Safari").isEmpty else { return 0 }
+        let src = """
+        tell application "Safari"
+          set n to 0
+          repeat with i from (count of windows) to 1 by -1
+            set w to window i
+            set blank to true
+            try
+              repeat with t in tabs of w
+                set u to URL of t
+                if u is not missing value and u is not "" and u does not start with "favorites:" and u does not start with "about:" then set blank to false
+              end repeat
+            on error
+              set blank to false
+            end try
+            if blank then
+              close w
+              set n to n + 1
+            end if
+          end repeat
+          return n
+        end tell
+        """
+        var err: NSDictionary?
+        let n = Int(NSAppleScript(source: src)?.executeAndReturnError(&err).int32Value ?? 0)
+        if n > 0 { log("closed \(n) empty Safari window(s)") }
+        return n
+    }
+    /// One video at a time: the YouTube videos already open are closed before a new one starts.
+    func closeVideos() {
+        let n = closeTabs("youtube.com/watch", frontFirst: false) + closeTabs("youtube.com/shorts", frontFirst: false)
+        if n > 0 { log("closed \(n) open video(s) before the new one") }
+    }
     func closeOpened() -> Int {
         var n = 0
         for h in openedHosts { n += closeTabs("://" + h + "/", frontFirst: false) }
         for app in openedApps where !Butler.neverClose.contains(app) {
             for a in NSWorkspace.shared.runningApplications where a.localizedName == app { if a.terminate() { n += 1 } }
         }
+        n += closeEmptySafariWindows()
         log("closed what it opened: \(n) (hosts \(openedHosts.sorted()), apps \(openedApps.sorted()))")
         openedHosts = []; openedApps = []
         return n
@@ -620,7 +658,7 @@ final class Butler {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.ytList = list
-                if let v = list.first { self.open("https://www.youtube.com/watch?v=" + v.id); self.played(self.S.youtubePlay, v.title); self.ensurePlaying() }
+                if let v = list.first { self.closeVideos(); self.open("https://www.youtube.com/watch?v=" + v.id); self.played(self.S.youtubePlay, v.title); self.ensurePlaying() }
                 else { self.open("https://www.youtube.com/results?search_query=" + self.enc(q)); self.done(self.S.youtube, q) }
             }
         }.resume()
@@ -709,6 +747,7 @@ final class Butler {
                 return
             }
             Hands.key(Hands.enter)
+            log("claude sent → \((AX.attr(win, "AXTitle") as? String) ?? "?"): \(text)")
             DispatchQueue.main.async { Sound.named("Pop"); self.done(newSession ? self.S.claudeDelegated : self.S.claudeSent, text) }
         }
     }
@@ -742,7 +781,7 @@ final class Butler {
     func answerPending(_ a: String) -> Bool {
         guard let p = pendingDelegate else { return false }
         let s = Parser.squash(a)
-        let yes = ["응", "네", "예", "맡겨", "그래", "좋아", "해", "보내", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay"]
+        let yes = ["응", "네", "예", "맡겨", "그래", "좋아", "해", "보내", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay", "그렇게", "그러자", "부탁", "진행", "고고", "콜", "오케이", "알았어", "알겠어"]
         let no = ["아니", "아니야", "취소", "하지마", "됐어", "no", "nope", "cancel", "stop"]
         pendingDelegate = nil
         if no.contains(where: { s.hasPrefix($0) }) || s.contains("말고") || s.contains("하지마") { Sound.named("Pop"); log("delegate cancelled"); converse(keep: true); return true }
@@ -775,7 +814,7 @@ final class Butler {
         guard askingFreeMode else { return false }
         askingFreeMode = false
         let s = Parser.squash(a)
-        if ["응", "네", "예", "그래", "좋아", "해", "ㅇㅇ", "yes", "yeah", "sure", "ok", "okay"].contains(where: { s.hasPrefix($0) }) {
+        if ["응", "네", "예", "그래", "좋아", "해", "ㅇㅇ", "그렇게", "그러자", "부탁", "오케이", "yes", "yeah", "sure", "ok", "okay"].contains(where: { s.hasPrefix($0) }) {
             freeMode = true; Config.set("freeMode", true); log("free mode on (asked after a confirmed action)")
             Sound.named("Pop"); done(S.t("자유 모드 켬", "Free mode on"), S.t("결제만 묻습니다 · 설정에서 끌 수 있어요", "Only payments ask · turn it off in Settings"))
             return true
@@ -879,7 +918,7 @@ final class Butler {
         pendingAction = nil
         guard Date().timeIntervalSince(p.at) < 60 else { return false }
         let s = Parser.squash(a)
-        let yes = ["응", "네", "예", "그래", "좋아", "눌러", "해", "보내", "결제", "올려", "지워", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay", "send"]
+        let yes = ["응", "네", "예", "그래", "좋아", "눌러", "해", "보내", "결제", "올려", "지워", "ㅇㅇ", "yes", "yeah", "doit", "go", "sure", "ok", "okay", "send", "그렇게", "그러자", "부탁", "진행", "고고", "콜", "오케이", "알았어", "알겠어"]
         let no = ["아니", "아니야", "취소", "하지마", "됐어", "no", "nope", "cancel", "stop"]
         if no.contains(where: { s.hasPrefix($0) }) || s.contains("말고") { Sound.named("Pop"); log("held action cancelled"); done(S.t("취소", "Cancelled"), p.what); return true }
         guard yes.contains(where: { s.hasPrefix($0) }) else { log("held action dropped (no clear yes)"); return false }
@@ -954,7 +993,8 @@ final class Butler {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.brain.warm() }   // swap in a fresh brain now if it got heavy, not on the next question
             self.noteOpened(fromBrain: self.brain.lastCommands)
             let correction = ["아니", "그게 아니", "no ", "not "].contains { cmd.lowercased().hasPrefix($0) }
-            if !correction, let steps = Learning.replayable(self.brain.lastCommands) {
+            let failed = ["못 ", "못했", "않았", "않습니다", "실패", "확인되지", "안 됐", "안 돼", "안됐", "couldn't", "could not", "failed", "didn't", "not able"].contains(where: answer.lowercased().contains)
+            if !correction, !failed, let steps = Learning.replayable(self.brain.lastCommands) {
                 self.learnCandidate = (cmd, steps)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in   // no “아니” within 12 s → keep it
                     guard let self, let c = self.learnCandidate, c.phrase == cmd else { return }

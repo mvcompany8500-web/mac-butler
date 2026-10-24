@@ -188,6 +188,7 @@ struct Parser {
         if let place = Parser.mapPlace(s) { return .map(place) }
         if Parser.isDisplayOff(s) { return .displayOff }
         if Parser.isNext(s) { return .mediaNext }
+        if Parser.closesVideo(s) { return .closeTabs(label: "유튜브", host: "youtube.com") }
         if let play = Parser.mediaControl(s) { return .media(play: play) }
 
         let tail = "\\s*(해 봐 줘|해봐줘|해 봐|해봐|해 줘|해줘|해 주세요|해|줘|좀|봐|봐 줘|봐줘|주세요)?$"
@@ -235,7 +236,9 @@ struct Parser {
         // YouTube: play the first result right away
         if let m = Parser.match(s, "^(유튜브|youtube)\\s*(에다가(?=\\s)|에다(?=\\s)|에서(?=\\s)|로(?=\\s)|에(?=\\s))?\\s*(.*?)\\s*(?:검색해서|검색해 가지고|찾아서)?\\s*(틀어|재생\\s*시켜|재생해|재생|켜|보여|찾아|검색|열어)" + tail) {
             let filler: Set<String> = ["아무거나", "영상", "하나", "동영상", "거", "좀", "한", "개", "아무", "창", "화면", "페이지", "사이트", "홈", "앱", "참"]   // 참 = 창 misheard
-            return .youtube(m[3].split(separator: " ").map(String.init).filter { !filler.contains($0) }.joined(separator: " "))
+            let q = m[3].split(separator: " ").map(String.init).filter { !filler.contains($0) }.joined(separator: " ")
+            if Parser.alsoStops(q) { return .none }          // 「지금 음악 끄고 베토벤 틀어」 → two steps, the router splits them
+            return .youtube(Parser.isOther(q) ? "추천" : q)
         }
         if let m = Parser.match(s, "^play\\s+(.+?)\\s+on\\s+youtube$") ?? Parser.match(s, "^youtube\\s+([^가-힣]+)$") { return .youtube(m[1]) }
         if hasYouTubeList {
@@ -247,7 +250,8 @@ struct Parser {
         if let m = Parser.match(s, "^(.+?)\\s*(?:검색해서|찾아서)?\\s*(틀어|재생해|재생 해|틀어 봐|틀어봐)" + tail), app(m[1]) == nil,
            Parser.match(m[1], "(번째|번)\\s*(거|것|영상|꺼)?$") == nil,
            !["영상", "다시", "이어서", "계속", "음악", "노래"].contains(m[1].trimmingCharacters(in: .whitespaces)) {
-            return .youtube(m[1])
+            if Parser.alsoStops(m[1]) { return .none }
+            return .youtube(Parser.isOther(m[1]) ? "추천" : m[1])
         }
         // Two things in one breath ("영상 멈추고 쿠팡에서 …", "X 하고 Y") → Claude does them in order.
         if let m = Parser.match(s, "^(기억해|기억해 둬|기억해둬|메모해|remember(?: that)?)\\s*[:,]?\\s*(.+)$") { return .remember(m[2]) }
@@ -272,6 +276,7 @@ struct Parser {
                 if q.hasPrefix(lead) { q = String(q.dropFirst(lead.count)).trimmingCharacters(in: .whitespaces) }
             }
             q = Parser.stripAsk(q)
+            if Parser.siteAction(q) { return .none }     // 「네이버 로그아웃 해」「네이버 메일 확인해」 → the brain does it on the page
             if q.isEmpty || ["열어", "켜", "들어가", "가", "접속해", "띄워"].contains(where: { q == $0 }) { return .web(label: label, query: "", url: home) }
             return .web(label: label, query: q, url: url)
         }
@@ -356,8 +361,10 @@ struct Parser {
         guard q.count <= 16, ["소리", "볼륨", "음량", "volume", "음소거", "mute"].contains(where: q.contains) else { return nil }
         if q.contains("음소거") && !q.contains("해제") || q.contains("mute") && !q.contains("unmute") { return (nil, 0, true) }
         if let n = Int(q.filter(\.isNumber)), (0...100).contains(n) { return (n, 0, false) }
-        if ["키워", "크게", "올려", "높여", "up", "louder"].contains(where: q.contains) { return (nil, 15, false) }
-        if ["줄여", "작게", "낮춰", "내려", "down", "quieter"].contains(where: q.contains) { return (nil, -15, false) }
+        let step = ["많이", "두배", "2배", "확", "엄청", "훨씬", "왕창", "alot", "much"].contains(where: q.contains) ? 30
+            : ["조금", "살짝", "약간", "little", "bit"].contains(where: q.contains) ? 7 : 15
+        if ["키워", "크게", "올려", "높여", "up", "louder"].contains(where: q.contains) { return (nil, step, false) }
+        if ["줄여", "작게", "낮춰", "내려", "down", "quieter"].contains(where: q.contains) { return (nil, -step, false) }
         if q.contains("해제") || q.contains("unmute") { return (nil, 0, false) }
         return nil
     }
@@ -492,6 +499,13 @@ struct Parser {
         if ["다시틀어", "다시재생", "이어서틀어", "이어서재생", "계속틀어", "계속재생", "resume", "playagain"].contains(where: q.contains) { return true }
         return nil
     }
+    /// 「유튜브 꺼」「이전 영상 꺼」「음악 끄라고」 — 꺼 means close it (pausing is 멈춰·정지). No YouTube page → pause instead.
+    static func closesVideo(_ s: String) -> Bool {
+        let q = squash(s)
+        guard q.count <= 24, ["유튜브", "youtube", "영상", "동영상", "음악", "노래"].contains(where: q.contains) else { return false }
+        if ["멈춰", "정지", "중지", "스톱", "pause", "stop", "끄고", "말고", "틀어"].contains(where: q.contains) { return false }
+        return ["꺼", "끄라", "끄자", "끄랬", "꺼줘", "꺼라", "닫아"].contains(where: { q.hasSuffix($0) || q.hasSuffix($0 + "고") || q.contains($0) })
+    }
     /// Claude's reply says it started a video / music ("…재생했습니다", "틀었습니다", "Playing …").
     static func startedMedia(_ answer: String) -> Bool {
         let a = answer.lowercased()
@@ -506,9 +520,22 @@ struct Parser {
         return match(s, "(멈추|끄|켜|열|닫|틀|누르|찾|가|보|치|하|줄이|키우|올리|내리|넘기|맞추)고\\s+\\S+.*(해|줘|봐|켜|꺼|열어|틀어|찾아|검색|보여|줄여|키워|넘겨|올려|내려)") != nil
     }
     /// Removes a trailing ask: "찾아 줘", "검색해", "보여 줘", "알아봐", "좀".
+    /// 「다른 영상」「다른 걸로」「딴 거」 — something else, not those words.
+    static func isOther(_ q: String) -> Bool {
+        let t = squash(q)
+        return t.count <= 7 && ["다른", "딴", "another", "something else"].contains(where: t.hasPrefix)
+    }
+    /// The query also asks to stop or close something first (「지금 음악 끄고 …」).
+    static func alsoStops(_ q: String) -> Bool { ["끄고", "꺼고", "멈추고", "닫고", "끈 다음", "끄고서"].contains(where: q.contains) }
+    /// Doing something on the site rather than searching it.
+    static func siteAction(_ q: String) -> Bool {
+        let t = squash(q)
+        return ["로그아웃", "로그인", "메일", "확인해", "확인하", "하라고", "읽어", "답장", "logout", "login", "signin", "mail", "inbox"].contains(where: t.contains)
+    }
     static func stripAsk(_ q: String) -> String {
         var t = q.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
-        let asks = ["띄워 봐", "띄워봐", "띄워 줘", "띄워줘", "서치해 줘", "서치해줘", "서치해 봐", "서치 해 봐", "서치해봐", "서치해", "서치", "검색해 봐", "검색해봐",
+        let asks = ["얼만가 봐 봐", "얼만가 봐봐", "얼만가 봐", "얼마인지 봐 봐", "얼마인지 봐봐", "얼마인지 봐", "얼마인지", "얼마야", "얼마예요", "얼만지", "얼마지",
+                    "가격 봐 봐", "가격 봐봐", "봐 봐", "봐봐", "알려 줘", "알려줘", "띄워 봐", "띄워봐", "띄워 줘", "띄워줘", "서치해 줘", "서치해줘", "서치해 봐", "서치 해 봐", "서치해봐", "서치해", "서치", "검색해 봐", "검색해봐",
                     "검색해 줘", "검색해줘", "검색해", "검색", "찾아 줘", "찾아줘", "찾아 봐", "찾아봐", "찾아", "보여 줘", "보여줘", "보여", "알아봐 줘", "알아봐", "열어 줘", "열어줘", "열어", "좀"]
         var changed = true
         while changed {

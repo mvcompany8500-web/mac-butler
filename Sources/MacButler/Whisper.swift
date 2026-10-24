@@ -64,6 +64,8 @@ final class Whisper {
             // "맥미니 M6 찾아. 고팩! 고팩! 고팩!" — a word repeated at the end that Apple didn't hear is made up.
             let (trimmed, dropped) = Whisper.dropRepeatedTail(t, apple: fallback)
             if !dropped.isEmpty { log("whisper: dropped repeated tail \(dropped)"); t = trimmed }
+            // 「자비스, 지금 음악 끄고 …. 자비스, 지금 음악 끄고 ….」 — the whole sentence twice → once
+            if let once = Whisper.saidTwice(t) { log("whisper: same sentence twice → once"); t = once }
             let kept = words.filter { w in !dropped.contains(Parser.squash(w.0)) }
             // A word Whisper itself wasn't sure of, that Apple didn't hear either, means the audio was garbled
             // (e.g. "지금 몇 시야" → "신별시야") — then Apple's live text is the safer one.
@@ -85,6 +87,15 @@ final class Whisper {
             done(t.isEmpty ? fallback : t)
             self.running = false; self.next()
         }
+    }
+    /// The text is one sentence repeated (optionally with the wake word again) → that sentence.
+    static func saidTwice(_ t: String) -> String? {
+        let parts = t.components(separatedBy: CharacterSet(charactersIn: ".?!。")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard parts.count >= 2, parts.count % 2 == 0 else { return nil }
+        let half = parts.count / 2
+        let key = { (xs: ArraySlice<String>) in Parser.squash(xs.joined(separator: " ")).replacingOccurrences(of: "자비스", with: "") }
+        guard key(parts[..<half]).count >= 4, key(parts[..<half]) == key(parts[half...]) else { return nil }
+        return parts[..<half].joined(separator: ". ") + "."
     }
     private func attempt(_ wav: Data, tries: Int, done: @escaping (String?, [(String, Double)]) -> Void) {
         guard proc?.isRunning == true else { done(nil, []); return }   // never trust a port we didn't start

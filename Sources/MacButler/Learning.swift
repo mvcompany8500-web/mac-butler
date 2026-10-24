@@ -43,6 +43,9 @@ enum Learning {
             if tool == "jax", t.count >= 2 {
                 if lookups.contains(t[1]) { if t[1] == "click" { return nil }; continue }
                 guard actions.contains(t[1]) else { return nil }
+                // Closing keys act on whatever is in front at the time (10/24: 「사파리 창 끄라고」 became ⌘⇧W, which would
+                // close any window later) — closing is done by the quick commands that know what they opened.
+                if t[1] == "key", t.count >= 3, ["cmd+w", "cmd+shift+w", "cmd+q", "cmd+option+w", "cmd+alt+w"].contains(t[2].lowercased()) { return nil }
                 steps.append(t)
             } else if tool == "jtype" { steps.append(t) }
             else if tool == "date" { continue }
@@ -51,6 +54,8 @@ enum Learning {
         return steps.isEmpty || steps.count > 6 ? nil : steps
     }
     static func remember(_ phrase: String, _ steps: [[String]]) {
+        // One short word (「아파트」「버드」) is more likely a mishearing than a command worth replaying.
+        guard Parser.squash(phrase).count >= 4 else { log("not learning a too-short phrase: \(phrase)"); return }
         store[key(phrase)] = Entry(commands: steps.map { $0.joined(separator: "\u{1F}") }, uses: 0, learned: Date())
         save(); log("learned: \(phrase) → \(steps.map { $0.joined(separator: " ") })")
     }
