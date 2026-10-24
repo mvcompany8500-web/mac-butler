@@ -113,10 +113,19 @@ final class Ear {
         // The node's format, as before (this worked for hours). But if it no longer matches what the mic hardware
         // delivers (after a call app or a device switch), installing a tap aborts the whole app (10/24 01:33) — so
         // refuse instead; the watchdog retries a few seconds later with a fresh engine, which picks up the new format.
-        let fmt0 = input.outputFormat(forBus: 0), hw = input.inputFormat(forBus: 0)
+        var fmt0 = input.outputFormat(forBus: 0); let hw = input.inputFormat(forBus: 0)
         guard fmt0.sampleRate > 0, hw.sampleRate > 0 else { throw NSError(domain: "Ear", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device"]) }
-        guard fmt0.sampleRate == hw.sampleRate else {
-            throw NSError(domain: "Ear", code: 2, userInfo: [NSLocalizedDescriptionKey: "mic format changed (\(Int(hw.sampleRate)) Hz) — retrying with a fresh engine"])
+        if fmt0.sampleRate != hw.sampleRate {
+            // After another app reconfigured the mic the node kept its old rate, and a fresh engine did too — refusing looped every
+            // 4 s and left it deaf (10/24 23:00). Re-link the input at the mic's own rate into a silent mixer (never the speakers).
+            let sink = AVAudioMixerNode(); sink.outputVolume = 0
+            engine.attach(sink)
+            engine.connect(input, to: sink, format: hw)
+            fmt0 = input.outputFormat(forBus: 0)
+            log("ear: mic format \(Int(fmt0.sampleRate)) Hz re-linked to the mic's \(Int(hw.sampleRate)) Hz")
+            guard fmt0.sampleRate == hw.sampleRate else {
+                throw NSError(domain: "Ear", code: 2, userInfo: [NSLocalizedDescriptionKey: "mic format changed (\(Int(hw.sampleRate)) Hz) — retrying with a fresh engine"])
+            }
         }
         converter = nil
         input.installTap(onBus: 0, bufferSize: 1024, format: fmt0) { [weak self] buf, _ in
