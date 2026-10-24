@@ -7,6 +7,10 @@ final class Ear {
     private let recognizer: SFSpeechRecognizer
     /// The custom language model that knows the assistant's name (NameModel) — set once it's ready, used from the next restart.
     var nameModel: Any?
+    /// Automatic gain (10/24: the name said from across the room reached the mic at -50 dB and nothing recognized it). Speech
+    /// is raised toward -12 dBFS for the recognizer and Whisper only — levels for echo and barge-in stay as heard. Tap thread only.
+    private var agcPeak: Float = 0.25, agcGain: Float = 1
+    static let agcMax: Float = 10          // at most +20 dB, so a quiet room isn't turned into noise
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private let lock = NSLock()
@@ -21,6 +25,9 @@ final class Ear {
     var silenceSec = 1.8
     var onPartial: (String) -> Void = { _ in }
     var onUtterance: (String, [Float]) -> Void = { _, _ in }
+    /// A short burst of voice the recognizer wrote nothing for (the name said quietly or from afar often ends up like this).
+    var onSilentSpeech: ([Float]) -> Void = { _ in }
+    private var silentHandled = -1
     var onLevel: (Float) -> Void = { _ in }
     private(set) var voicing: Float = 0          // how voice-like the latest chunk was (DoubleTalk.periodicity)
 
@@ -115,6 +122,19 @@ final class Ear {
         input.installTap(onBus: 0, bufferSize: 1024, format: fmt0) { [weak self] buf, _ in
             guard let self else { return }
             let fmt = buf.format
+            // automatic gain: learn how loud speech peaks (only while it's clearly speech), then raise it toward -12 dBFS
+            var rawRMS: Float = 0, rawPeak: Float = 0
+            if let ch = buf.floatChannelData?[0] {
+                let n = Int(buf.frameLength); var sum: Float = 0
+                for i in 0..<n { let v = ch[i]; sum += v * v; rawPeak = max(rawPeak, abs(v)) }
+                rawRMS = sqrt(sum / Float(max(n, 1)))
+            }
+            if rawRMS > max(self.floor * 4, 0.002) {
+                self.agcPeak = rawPeak > self.agcPeak ? rawPeak : self.agcPeak * 0.97   // follows a quieter voice within ~0.5 s
+                let want = min(Ear.agcMax, max(1, 0.25 / max(self.agcPeak, 0.0001)))
+                self.agcGain += (want - self.agcGain) * 0.2
+            }
+            let gain = self.agcGain
             if self.converter?.inputFormat != fmt { self.converter = AVAudioConverter(from: fmt, to: self.target) }
             self.lock.lock(); self.lastBuffer = Date(); self.lock.unlock()
             var voice: Float = 0
@@ -127,6 +147,7 @@ final class Ear {
                         fed = true; st.pointee = .haveData; return buf
                     }
                     if let d = out.floatChannelData?[0], out.frameLength > 0 {
+                        if gain > 1.05 { for i in 0..<Int(out.frameLength) { d[i] = max(-1, min(1, d[i] * gain)) } }
                         // pitch check only for loud chunks (cheap gate) — tells a voice from breath
                         var e: Float = 0
                         for i in 0..<Int(out.frameLength) { e += d[i] * d[i] }
@@ -162,6 +183,9 @@ final class Ear {
                 }
             }
             if self.muted { return }
+            if gain > 1.05, let chans = buf.floatChannelData {
+                for c in 0..<Int(buf.format.channelCount) { let ch = chans[c]; for i in 0..<Int(buf.frameLength) { ch[i] = max(-1, min(1, ch[i] * gain)) } }
+            }
             self.lock.lock(); let r = self.request; self.lock.unlock()
             r?.append(buf)
         }
@@ -254,6 +278,10 @@ final class Ear {
         let finished = Ear.soundsFinished(lastText)
         let quiet = Date().timeIntervalSince(lastLoud) > (finished ? 0.5 : 0.7)
         if !lastText.isEmpty, quiet, Date().timeIntervalSince(lastChange) > (finished ? min(0.9, silenceSec) : silenceSec) { flush() }
+        else if lastText.isEmpty, speechOnset != silentHandled, Date().timeIntervalSince(lastLoud) > 0.8, Date().timeIntervalSince(lastLoud) < 3 {
+            lock.lock(); let len = ringEnd - speechOnset; lock.unlock()
+            if len > 6400 && len < 72000 { silentHandled = speechOnset; onSilentSpeech(segment()) }      // 0.4–4.5 s of voice, no text
+        }
         else if lastText.isEmpty, Date().timeIntervalSince(taskStart) > 50 { restart() }
     }
 }

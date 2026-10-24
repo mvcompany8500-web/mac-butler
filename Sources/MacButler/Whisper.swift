@@ -46,6 +46,8 @@ final class Whisper {
     /// One at a time so dictation stays in order. Falls back to Apple's text on any failure.
     /// What Whisper heard when its text was set aside for Apple's (unsure / unrelated) — the other candidate.
     private(set) var lastSetAside = ""
+    /// Exactly what Whisper wrote last, before any filter (the name check looks at it even when the text was set aside).
+    private(set) var lastRaw = ""
     func transcribe(_ audio: [Float], fallback: String, done: @escaping (String) -> Void) {
         lastSetAside = ""
         guard available, audio.count > 8000 else { done(fallback); return }
@@ -61,6 +63,7 @@ final class Whisper {
             guard let self else { return }
             var t = Whisper.clean(text ?? "", apple: fallback)
             let heard = t
+            self.lastRaw = heard
             // "맥미니 M6 찾아. 고팩! 고팩! 고팩!" — a word repeated at the end that Apple didn't hear is made up.
             let (trimmed, dropped) = Whisper.dropRepeatedTail(t, apple: fallback)
             if !dropped.isEmpty { log("whisper: dropped repeated tail \(dropped)"); t = trimmed }

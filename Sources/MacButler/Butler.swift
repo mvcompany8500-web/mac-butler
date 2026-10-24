@@ -115,6 +115,11 @@ final class Butler {
         // Pro — 폰으로 부르기: only while linked to a TurtleMaker account (the server says no to non-members)
         if cfg.proRemote, ProAccount.token != nil { ProAccount.startRemote { [weak self] text, id in self?.runRemote(text, id) } }
         listenForSignals()
+        // Voice with no text at all (quiet, far away) may still be the name — Whisper listens to it once
+        ear.onSilentSpeech = { [weak self] audio in
+            guard let self, self.mode == .idle else { return }
+            self.nameByWhisper("", audio)
+        }
         // Teach the recognizer the name (made-up words come back as 「서 서 있어」 otherwise) — built once, then used from here on
         let names = Array(Set([cfg.displayName, cfg.assistantName] + cfg.wakes.filter { !$0.contains(" ") && $0 != "자비스" }.prefix(3))).filter { !$0.isEmpty }
         let (locale, ko) = (cfg.locale, cfg.ko)
@@ -312,11 +317,12 @@ final class Butler {
         guard cfg.ko, whisper.available, audio.count > 6000, audio.count < 72000, Parser.squash(t).count <= 24 else { return }
         whisper.transcribe(audio, fallback: t) { [weak self] full in
             guard let self, self.mode == .idle else { return }
-            guard let heard = [full, self.whisper.lastSetAside].first(where: { self.parser.wakeRange($0) != nil }) else { return }
+            guard let heard = [full, self.whisper.lastSetAside, self.whisper.lastRaw].first(where: { self.parser.wakeRange($0) != nil }) else { return }
             log("name heard by Whisper: 「\(t)」 → 「\(heard)」")
             Sound.named(self.cfg.chime)
             self.mode = .awake; self.awakeUntil = Date().addingTimeInterval(self.cfg.followUpSec)
-            let rest = self.parser.stripWake(heard)
+            // only the name is trusted from text Whisper's own filters set aside (it may have added words nobody said)
+            let rest = heard == full ? self.parser.stripWake(heard) : ""
             if rest.isEmpty { self.hud.show(self.S.conversing, self.S.speakNow) } else { self.command(heard) }
         }
     }
