@@ -57,7 +57,7 @@ final class ControlSocket {
                 }
                 write(c, "ok\n", 3)
                 close(c)
-                guard ["say", "type", "delegate", "settings", "session", "setup"].contains(cmd) else { continue }
+                guard ["say", "type", "delegate", "settings", "session", "setup", "restart"].contains(cmd) else { continue }
                 DispatchQueue.main.async { self.handler(cmd, text) }
             }
         }
