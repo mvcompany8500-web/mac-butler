@@ -150,6 +150,9 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
             r.setValue("audio-24khz-48kbitrate-mono-mp3", forHTTPHeaderField: "X-Microsoft-OutputFormat")
             r.setValue("MacButler", forHTTPHeaderField: "User-Agent")
             return r
+        case "pro":     // the natural voice from TurtleMaker (members); over the allowance → the built-in voice for a while
+            guard Date() > ProAccount.voiceOffUntil else { return nil }
+            return ProAccount.speechRequest(text)
         case "http":
             guard let url = APIBrain.safeBase(cfg.ttsURL) else { return nil }
             var h: [String: String] = [:]
@@ -162,8 +165,10 @@ final class Mouth: NSObject, AVAudioPlayerDelegate {
         task = URLSession.shared.dataTask(with: req) { [weak self] data, resp, _ in
             DispatchQueue.main.async {
                 guard let self, my == self.token else { return }
-                guard (resp as? HTTPURLResponse)?.statusCode == 200, let data, data.count > 500, self.playOnDevice(data, my: my) else {
-                    log("\(self.cfg.tts) voice failed → built-in voice"); self.say(text, my: my); return
+                let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+                guard code == 200, let data, data.count > 500, self.playOnDevice(data, my: my) else {
+                    if self.cfg.tts == "pro", code == 402 || code == 503 || code == 401 { ProAccount.voiceOffUntil = Date().addingTimeInterval(3600) }
+                    log("\(self.cfg.tts) voice failed (\(code)) → built-in voice"); self.say(text, my: my); return
                 }
             }
         }

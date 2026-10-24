@@ -23,6 +23,10 @@ final class SettingsModel: ObservableObject {
     @Published var confirmDelegate: String
     @Published var freeMode: Bool
     @Published var growTogether: String
+    @Published var proRemote: Bool
+    @Published var pro: ProAccount.Status?
+    @Published var proLinked = ProAccount.token != nil
+    @Published var proCode = ""             // shown while waiting for approval in the browser
     @Published var brainProvider: String
     @Published var brainModel: String
     @Published var brainBaseURL: String
@@ -41,7 +45,7 @@ final class SettingsModel: ObservableObject {
         wakeWords = c.wakeWords.joined(separator: ", "); greetingText = c.greetingText
         hotkey = c.hotkey; tts = c.tts; sayVoice = c.sayVoice
         elevenVoiceId = c.elevenLabs.voiceId; elevenKeyFile = c.elevenLabs.apiKeyFile; claudeModel = c.claudeModel
-        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate; freeMode = c.freeMode; growTogether = c.growTogether.isEmpty ? "together" : c.growTogether
+        inputDevice = c.inputDevice; outputDevice = c.outputDevice; bargeIn = c.bargeIn; hudPosition = c.hudPosition; confirmDelegate = c.confirmDelegate; freeMode = c.freeMode; growTogether = c.growTogether.isEmpty ? "together" : c.growTogether; proRemote = c.proRemote
         brainProvider = c.brainProvider; brainModel = c.brainModel; brainBaseURL = c.brainBaseURL; brainEffort = c.brainEffort
         ttsVoice = c.ttsVoice; ttsRegion = c.ttsRegion; ttsURL = c.ttsURL
     }
@@ -49,7 +53,7 @@ final class SettingsModel: ObservableObject {
     var snapshot: String {
         [language, activation, userName, assistantName, wakeWords, greetingText, hotkey, tts, sayVoice, elevenVoiceId, elevenKeyFile,
          claudeModel, inputDevice, bargeIn, outputDevice, confirmDelegate, brainProvider, brainModel, brainBaseURL, brainEffort,
-         ttsVoice, ttsRegion, ttsURL, growTogether, freeMode ? "1" : "0"].joined(separator: "\u{1F}")
+         ttsVoice, ttsRegion, ttsURL, growTogether, freeMode ? "1" : "0", proRemote ? "1" : "0"].joined(separator: "\u{1F}")
     }
     /// Something that needs a restart changed — closing the window restarts Mac Butler to apply it.
     @Published var needsRestart = false
@@ -71,6 +75,19 @@ final class SettingsModel: ObservableObject {
         let m = Mouth(cfg: c); previewMouth = m; previewing = true
         m.speak(line) { [weak self] in DispatchQueue.main.async { self?.previewing = false } }
     }
+    /// Pro: membership and voice allowance, read in the background when the window opens.
+    func refreshPro() {
+        guard ProAccount.token != nil else { proLinked = false; pro = nil; return }
+        DispatchQueue.global().async { let st = ProAccount.refresh()
+            DispatchQueue.main.async { self.pro = st; self.proLinked = ProAccount.token != nil } }
+    }
+    func linkPro() {
+        proCode = "…"
+        ProAccount.link(name: Host.current().localizedName ?? "Mac", code: { self.proCode = $0 }) { ok in
+            self.proCode = ""; self.proLinked = ok; if ok { self.pro = ProAccount.status; self.needsRestart = true }
+        }
+    }
+    func unlinkPro() { ProAccount.unlink(); proLinked = false; pro = nil; if tts == "pro" { tts = "say" } }
     /// Keychain account for the chosen voice's key.
     var voiceAccount: String { ["openai": "openai", "azure": "azure-speech", "http": "http-tts", "elevenlabs": "elevenlabs"][tts] ?? "" }
     static func keyHint(_ account: String) -> String { Keys.get(account).map { "…" + $0.suffix(4) } ?? "" }
@@ -82,7 +99,7 @@ final class SettingsModel: ObservableObject {
         obj["language"] = language; obj["activation"] = activation; obj["userName"] = userName; obj["assistantName"] = assistantName
         obj["wakeWords"] = wakeWords.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         obj["greetingText"] = greetingText; obj["hotkey"] = hotkey; obj["tts"] = tts; obj["sayVoice"] = sayVoice
-        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate; obj["freeMode"] = freeMode; obj["growTogether"] = growTogether
+        obj["claudeModel"] = claudeModel; obj["inputDevice"] = inputDevice; obj["outputDevice"] = outputDevice; obj["bargeIn"] = bargeIn; obj["hudPosition"] = hudPosition; obj["confirmDelegate"] = confirmDelegate; obj["freeMode"] = freeMode; obj["growTogether"] = growTogether; obj["proRemote"] = proRemote
         obj["brainProvider"] = brainProvider; obj["brainModel"] = brainModel; obj["brainBaseURL"] = brainBaseURL; obj["brainEffort"] = brainEffort
         obj["ttsVoice"] = ttsVoice; obj["ttsRegion"] = ttsRegion; obj["ttsURL"] = ttsURL
         let bk = brainKey.trimmingCharacters(in: .whitespacesAndNewlines), vk = voiceKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -181,6 +198,8 @@ struct SettingsView: View {
                         Choice("elevenlabs", "ElevenLabs"),
                         Choice("openai", S.t("OpenAI 목소리", "OpenAI voice")),
                         Choice("azure", S.t("Azure 음성 — 매달 무료 한도", "Azure Speech — monthly free tier"))
+                    ], proTitle: S.t("멤버십 Pro", "Membership Pro"), pro: [
+                        Choice("pro", S.t("좋은 목소리 — 터틀메이커 멤버십", "Natural voice — TurtleMaker membership"))
                     ])
                 }
                 if m.tts == "say" {
@@ -191,6 +210,15 @@ struct SettingsView: View {
                     Text(S.t("더 자연스러운 목소리(무료): 시스템 설정 → 손쉬운 사용 → 읽기 및 말하기 → 시스템 목소리 → 목소리 관리… → Premium 받기",
                              "More natural voices (free): System Settings → Accessibility → Spoken Content → System voice → Manage Voices… → download a Premium voice"))
                         .font(.caption).foregroundStyle(.secondary)
+                } else if m.tts == "pro" {
+                    Note(!m.proLinked
+                         ? S.t("아래 「멤버십 Pro」에서 터틀메이커 계정을 연결하면 씁니다. 그 전에는 맥 목소리로 읽습니다.",
+                               "Link your TurtleMaker account under Membership Pro below. Until then the macOS voice reads.")
+                         : m.pro?.voice == true
+                         ? S.t("이번 달 \(m.pro!.used.formatted()) / \(m.pro!.limit.formatted())자 사용. 다 쓰면 다음 달까지 맥 목소리로 읽습니다.",
+                               "\(m.pro!.used.formatted()) / \(m.pro!.limit.formatted()) characters used this month. After that, the macOS voice reads until next month.")
+                         : S.t("좋은 목소리는 홈페이지·프로그램 멤버십에 들어 있습니다. 지금은 맥 목소리로 읽습니다.",
+                               "The natural voice comes with the site or program membership. For now the macOS voice reads."))
                 } else if m.tts == "elevenlabs" {
                     TextField("ElevenLabs voice ID", text: $m.elevenVoiceId)
                     TextField(S.t("API 키가 든 .env 파일 (또는 아래 칸)", ".env file with ELEVENLABS_API_KEY (or the box below)"), text: $m.elevenKeyFile)
@@ -200,7 +228,7 @@ struct SettingsView: View {
                     if m.tts == "azure" { TextField(S.t("지역", "Region"), text: $m.ttsRegion, prompt: Text("koreacentral")) }
                     if m.tts == "http" { TextField(S.t("서버 주소", "Server URL"), text: $m.ttsURL, prompt: Text("http://127.0.0.1:5002/tts")) }
                 }
-                if m.tts != "say" {
+                if m.tts != "say" && m.tts != "pro" {
                     SecureField(S.t("API 키 (맥 키체인에만 저장)", "API key (kept in the macOS Keychain only)"), text: $m.voiceKey,
                                 prompt: Text(SettingsModel.keyHint(m.voiceAccount).isEmpty ? S.t(m.tts == "http" ? "필요할 때만" : "붙여 넣기", m.tts == "http" ? "only if needed" : "paste it here") : S.t("저장됨 ", "saved ") + SettingsModel.keyHint(m.voiceAccount)))
                     Text(S.t("안 되면 늘 무료 맥 목소리로 대신 읽습니다.", "If it fails, the free macOS voice reads instead.")).font(.caption).foregroundStyle(.secondary)
@@ -209,6 +237,40 @@ struct SettingsView: View {
                     Button { m.preview() } label: { Label(m.previewing ? S.t("읽는 중…", "Speaking…") : S.t("들어 보기", "Listen"), systemImage: m.previewing ? "speaker.wave.2.fill" : "play.fill") }
                         .disabled(m.previewing)
                 }
+            }
+            Section {
+                if !m.proLinked {
+                    LabeledContent(S.t("터틀메이커 계정", "TurtleMaker account")) {
+                        if m.proCode.isEmpty {
+                            Button(S.t("연결하기", "Link")) { m.linkPro() }
+                        } else {
+                            Text(m.proCode == "…" ? S.t("여는 중…", "Opening…") : S.t("브라우저에서 승인 · \(m.proCode)", "Approve in the browser · \(m.proCode)"))
+                                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
+                    Note(S.t("브라우저에서 터틀메이커에 로그인한 채 「연결」을 누르면 끝납니다. 이 맥에는 연결 열쇠만 키체인에 남습니다.",
+                             "Press Link in the browser while signed in to TurtleMaker. Only a link key stays on this Mac, in the Keychain."))
+                } else {
+                    LabeledContent(S.t("터틀메이커 계정", "TurtleMaker account")) {
+                        HStack {
+                            Text(m.pro?.email ?? "…").foregroundStyle(.secondary)
+                            Button(S.t("연결 끊기", "Unlink")) { m.unlinkPro() }
+                        }
+                    }
+                    LabeledContent(S.t("멤버십", "Membership")) {
+                        if m.pro?.active == true {
+                            Text(S.t("회원 · Pro 사용 중", "Member · Pro on")).foregroundStyle(.secondary)
+                        } else {
+                            Link(S.t("멤버십 보기", "See membership"), destination: URL(string: "https://turtlebuffkit.com/join")!)
+                        }
+                    }
+                    Toggle(S.t("폰으로 부르기", "Call it from your phone"), isOn: $m.proRemote)
+                    Note(S.t("폰에서 maker.buffm.com/butler/remote 를 열어 글로 시키면 이 맥이 하고 결과를 한 줄로 알려 줍니다. 폰에서 시킨 일은 결제를 하지 않고, 보내기·삭제는 자유 모드일 때만 합니다.",
+                             "Open maker.buffm.com/butler/remote on your phone and type a request; this Mac does it and answers in one line. Requests from the phone never pay, and send or delete only in free mode."))
+                }
+            } header: { Text(S.t("멤버십 Pro", "Membership Pro")) } footer: {
+                Note(S.t("이 맥·내 구독·내 API 키로 하는 일은 모두 계속 무료입니다. Pro는 서버가 드는 것(폰으로 부르기·좋은 목소리)만 담고, 터틀메이커 통합 멤버십에 들어 있습니다.",
+                         "Everything that runs on this Mac, your plan or your API key stays free. Pro only covers what needs our servers (phone, natural voice) and comes with the TurtleMaker membership."))
             }
             Section {
                 LabeledContent(S.t("생각하는 AI", "Who does the thinking")) {
@@ -283,6 +345,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { m.refreshPro() }
         .onChange(of: m.snapshot) { _ in m.save(); m.needsRestart = true }
         .onChange(of: m.hudPosition) { v in
             m.save()
@@ -358,6 +421,8 @@ struct EngineMenu: View {
     let local: [Choice]
     let apiTitle: String
     let api: [Choice]
+    var proTitle = ""
+    var pro: [Choice] = []
     var body: some View {
         Menu {
             Section(localTitle) {
@@ -367,12 +432,19 @@ struct EngineMenu: View {
             Menu(apiTitle) {
                 Picker("", selection: $selection) { ForEach(api) { Text($0.label).tag($0.id) } }.pickerStyle(.inline).labelsHidden()
             }
+            if !pro.isEmpty {
+                Divider()
+                Section(proTitle) {
+                    Picker("", selection: $selection) { ForEach(pro) { Text($0.label).tag($0.id) } }.pickerStyle(.inline).labelsHidden()
+                }
+            }
         } label: { Text(current) }
         .fixedSize()
     }
     private var current: String {
         if let c = local.first(where: { $0.id == selection }) { return c.label }
         if let c = api.first(where: { $0.id == selection }) { return apiTitle + " · " + c.label }
+        if let c = pro.first(where: { $0.id == selection }) { return c.label }
         return selection
     }
 }

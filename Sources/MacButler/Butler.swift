@@ -103,6 +103,8 @@ final class Butler {
             }
         }
         if cfg.growTogether.isEmpty { GrowTogether.askIfNeeded(cfg) { growSync($0) } } else { growSync(cfg.growTogether) }
+        // Pro — 폰으로 부르기: only while linked to a TurtleMaker account (the server says no to non-members)
+        if cfg.proRemote, ProAccount.token != nil { ProAccount.startRemote { [weak self] text, id in self?.runRemote(text, id) } }
         listenForSignals()
         do { try ear.start() } catch { log("mic failed: \(error)"); hud.show("⚠︎", S.micError, color: amber) }
         if !brain.installed { hud.show("⚠︎", S.noClaude, color: amber) }
@@ -794,6 +796,9 @@ final class Butler {
         let p = text.components(separatedBy: "\u{1F}")
         guard p.count >= 4 else { return "ask" }
         let kind = p[0]
+        if remote != nil, kind == "pay" || !freeMode {
+            remote!.held = kind; log("remote: \(kind) not done from the phone → \(p[2])"); return "ask"
+        }
         // 자유 모드 (the owner chose it): no question for sending, posting, deleting — paying always asks.
         if freeMode, kind != "pay" { log("free mode: \(kind) without asking → \(p[2])"); return "yes" }
         // Pressed without asking only when the user held the hotkey and said it (a TV or a video can say "보내",
@@ -808,6 +813,41 @@ final class Butler {
     /// A Claude Code session can do far more than the safe brain, so work the brain wants to hand over always waits for
     /// a spoken yes, whatever `confirmDelegate` says — the brain may have been talked into it by a page title or a link.
     /// ("바로 실행" applies only to a hand-off the user asked for directly — the `.claude` quick command.)
+    // MARK: Pro — 폰으로 부르기
+    /// A request typed on the phone runs like a spoken one; what it says and shows is collected and sent back as one line
+    /// once it goes quiet. Payments never run from the phone; send/post/delete only in free mode (see `confirmAction`).
+    var remote: (id: String, at: Date, said: [String], held: String)?
+    private var remoteTimer: Timer?
+    func runRemote(_ text: String, _ id: String) {
+        if remote != nil { finishRemote(force: true) }
+        remote = (id, Date(), [], "")
+        hud.show(S.t("📱 폰에서", "📱 From your phone"), text, heard: text, color: lime)
+        byHold = false
+        handle(String(text.prefix(300)))
+        remoteSettle(after: 90)
+    }
+    func remoteSaid(_ text: String) {
+        guard remote != nil, !text.isEmpty, remote!.said.last != text else { return }
+        remote!.said.append(text); remoteSettle(after: 6)
+    }
+    private func remoteSettle(after s: TimeInterval) {
+        remoteTimer?.invalidate()
+        remoteTimer = Timer.scheduledTimer(withTimeInterval: s, repeats: false) { [weak self] _ in self?.finishRemote() }
+    }
+    func finishRemote(force: Bool = false) {
+        guard let r = remote else { return }
+        if !force, mode == .speaking || mode == .busy, Date().timeIntervalSince(r.at) < 300 { remoteSettle(after: 5); return }
+        remoteTimer?.invalidate(); remote = nil
+        var out = r.said.joined(separator: " ")
+        if !r.held.isEmpty {
+            out += (out.isEmpty ? "" : " ") + (r.held == "pay"
+                ? S.t("결제는 폰에서 하지 않아요. 맥 앞에서 해 주세요.", "Payments never run from the phone — do it at the Mac.")
+                : S.t("보내기·게시·삭제는 자유 모드일 때만 폰에서 합니다. 지금은 하지 않았어요.", "Send, post and delete run from the phone only in free mode, so it wasn't done."))
+            pendingAction = nil
+        }
+        ProAccount.reply(r.id, out.isEmpty ? S.t("했어요.", "Done.") : out)
+    }
+
     func delegateFromBrain(_ text: String) -> String {
         let parts = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespaces) }
         guard parts.count == 2, !parts[1].isEmpty else { return "pending" }
@@ -818,6 +858,7 @@ final class Butler {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.claudeMacro(target: t, message: m, newSession: fresh) }
             return "sent"
         }
+        if remote != nil { remote!.held = "delegate"; log("remote: hand-off not done from the phone → \(parts[1])"); return "pending" }
         pendingDelegate = (here ? "" : parts[0], parts[1], parts[0].isEmpty)
         log("delegate pending (needs a yes): \(parts[1])")
         return "pending"
@@ -958,6 +999,7 @@ final class Butler {
 
     /// The ear stays open while speaking — if the user starts talking, stop and listen (barge-in).
     func speak(_ text: String, then: @escaping () -> Void) {
+        remoteSaid(text)
         lastSpoken = text
         mode = .speaking
         speakingText = text; bargedIn = false
@@ -1018,12 +1060,14 @@ final class Butler {
         return a.count >= 4 && Double(hit) / Double(a.count) > 0.85
     }
     func done(_ kind: String, _ body: String) {
+        remoteSaid(body.isEmpty ? kind : kind + " · " + body)
         hud.show("✓ \(kind)", body, color: lime)
         mode = .awake; awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in if self?.mode == .awake { self?.converse() } }
     }
     /// After starting a video/music, go idle so its audio isn't taken as commands.
     func played(_ kind: String, _ body: String) {
+        remoteSaid(body.isEmpty ? kind : kind + " · " + body)
         hud.show("▶ \(kind)", body, color: lime)
         mode = .idle
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in if self?.mode == .idle { self?.hud.idle() } }
