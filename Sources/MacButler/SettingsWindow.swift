@@ -73,7 +73,12 @@ final class SettingsModel: ObservableObject {
                         : "Hello\(who.isEmpty ? "" : ", " + who). I'm \(c.assistantName), and this is how I'll sound."
         previewMouth?.stop()
         let m = Mouth(cfg: c); previewMouth = m; previewing = true
-        m.speak(line) { [weak self] in DispatchQueue.main.async { self?.previewing = false } }
+        // Mac Butler must not take its own sample line for a command (10/24 it handed 「안녕하세요 주인님…」 to the brain)
+        NotificationCenter.default.post(name: Notification.Name("MacButlerPreview"), object: true)
+        m.speak(line) { [weak self] in DispatchQueue.main.async {
+            self?.previewing = false
+            NotificationCenter.default.post(name: Notification.Name("MacButlerPreview"), object: false)
+        } }
     }
     /// Pro: membership and voice allowance, read in the background when the window opens.
     func refreshPro() {
@@ -403,7 +408,10 @@ enum SettingsWindow {
     static func relaunch() {
         (NSApp.delegate as? AppDelegate)?.butler?.shutdown()
         if ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"]?.contains(Bundle.main.bundleIdentifier ?? "-") == true { exit(3) }
-        let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/open"); p.arguments = ["-n", Bundle.main.bundlePath]
+        // Start the new copy a moment after this one is gone — started right away it saw this one still running and quit,
+        // leaving none (10/24).
+        let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", "sleep 1.5; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath]
         try? p.run()
         exit(0)
     }

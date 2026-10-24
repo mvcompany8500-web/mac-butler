@@ -27,6 +27,7 @@ final class Butler {
     var cancelSend = false
     var lastLive = ""
     var ignoreUntil = Date.distantPast    // our own voice's tail right after speaking
+    var previewUntil = Date.distantPast   // Settings is playing a sample voice — nothing heard is a command
     var spokeAt = Date.distantPast        // when it last stopped talking (finished or interrupted)
     var lastSpoken = ""                   // its last spoken answer — its echo can lead the next recording
     var lastMedia: (play: Bool, at: Date)?
@@ -92,6 +93,10 @@ final class Butler {
         // Settings → 화면 위치 moves the orb right away (no restart)
         NotificationCenter.default.addObserver(forName: Notification.Name("MacButlerHUDPosition"), object: nil, queue: .main) { [weak self] n in
             if let p = n.object as? String { self?.hud.position = p }
+        }
+        // Settings → 미리 듣기: don't listen to our own sample line
+        NotificationCenter.default.addObserver(forName: Notification.Name("MacButlerPreview"), object: nil, queue: .main) { [weak self] n in
+            self?.previewUntil = (n.object as? Bool) == true ? Date().addingTimeInterval(30) : Date().addingTimeInterval(1.0)
         }
         // 다 같이 키우기: ask once, then share (with consent) and take the pack, once a day
         let growSync = { [weak self] (mode: String) in
@@ -236,6 +241,7 @@ final class Butler {
 
     func utterance(_ t: String, audio: [Float]) {
         guard enabled, !ear.holding else { return }   // push-to-talk delivers its own utterance on release
+        if Date() < previewUntil { log("ignored (voice preview): \(t)"); return }
         if Date() < ignoreUntil, mode == .awake { log("ignored (our own voice tail): \(t)"); return }
         if cfg.activation == "hold", mode != .dictation, mode != .speaking { return }   // hold-only: nothing is acted on without the key
         log("heard[\(mode)]: \(t)")
