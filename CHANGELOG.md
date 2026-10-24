@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.8 — 2026-10-24
+- **Pick your brain, signed in on this Mac:** Codex (your ChatGPT plan) and Aside join Claude Code, Ollama and LM Studio; API-key services moved to an “API key” submenu. Everything local stays free
+- **Talk to the right Claude window:** 「클로드 ○○ 프로젝트에 …」 finds that window among many and sends a tidied message (your words, first person, slips fixed); 「…라고 전달해」 stays verbatim. **Preview before sending** (Settings): it waits in the box until you say 「응」
+- **Several jobs in one breath:** 「쿠팡에서 맥미니 검색하면서 베토벤 틀어봐. 볼륨은 적당하게」 → Coupang search · YouTube · volume 50 — searches never carry the other jobs
+- **Free mode** (Settings, or asked once after a confirmed send): sends, posts, deletes and hand-offs go without asking — payments always ask
+- **Grow together** (asked once): short sentences it understood and the safe quick command they ran, no names, once a day; a phrase reaches everyone only when 5+ installs on 3+ networks agree
+- **AI usage in Settings:** how full your Claude / Codex plan is (5-hour and 7-day windows) and how much the assistant itself used (7-day chart)
+- **Your assistant's name is its wake word** (a Latin name is also heard in Hangul: sasarisa → 사사리사); voice preview button; Settings save as you change them and the on-screen position moves at once
+- **Pro (membership, optional):** natural voices (Korean Teo / Hana / Sun, English Christina / Brian) and calling your Mac from your phone — linked with a code, a key in the Keychain only; phone requests never pay
+- Fixes: a new video closes the old one; 「유튜브 꺼」 closes the page; 「창 다 꺼」 closes only the pages it opened; restart from Settings no longer leaves it off; it no longer learns from runs that failed or from closing keys
+
 ## 0.6.7 — 2026-10-24
 - Fix: when Whisper's version was set aside as "unsure" but is a known command (「자비스, 아파트」 vs Apple's 「버드」), it's used; otherwise the brain sees both versions
 - 「세 번째 영상 찍어/눌러/클릭해」 = play the 3rd video; the fast router skips a late answer instead of restarting (no cold start next time)
