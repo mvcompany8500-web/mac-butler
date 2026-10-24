@@ -1,7 +1,7 @@
 // Aside as the brain (aside.com, a browser rebuilt for agents) through its CLI: `aside "<task>"` runs one browser-agent
 // task in your Aside app (https://docs.aside.com/help/developers). Quick commands (volume, apps, timers, YouTube …) still
-// run in Mac Butler itself; what would go to Claude goes to Aside instead — good for web errands.
-// Aside acts in its own browser with its own safeguards; Mac Butler's tool box guards don't reach inside it, so every
+// run in Sasarisa itself; what would go to Claude goes to Aside instead — good for web errands.
+// Aside acts in its own browser with its own safeguards; Sasarisa's tool box guards don't reach inside it, so every
 // task starts with the same rule the other brains get: never pay, send, post or delete without asking first.
 // Set-up once: install the CLI (Aside → Settings → Developer, or its install script) and `aside login`.
 import AppKit
@@ -16,12 +16,12 @@ final class AsideBrain: Thinker {
     private var timeout: DispatchWorkItem?
     private var session: String?          // continue the same Aside session for follow-ups within 10 minutes
     private var lastUse = Date.distantPast
-    private(set) var lastCommands: [String] = []     // Aside's steps aren't Mac Butler tool calls — nothing to learn
-    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.assistantName) }
+    private(set) var lastCommands: [String] = []     // Aside's steps aren't Sasarisa tool calls — nothing to learn
+    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.displayName) }
     var busy: Bool { done != nil }
     var installed: Bool { AsideBrain.binary != nil }
 
-    /// The `aside` CLI: MACBUTLER_ASIDE_BIN (a custom install place), the usual install places, then Mac Butler's PATH.
+    /// The `aside` CLI: MACBUTLER_ASIDE_BIN (a custom install place), the usual install places, then Sasarisa's PATH.
     static var binary: String? {
         if let e = ProcessInfo.processInfo.environment["MACBUTLER_ASIDE_BIN"], FileManager.default.isExecutableFile(atPath: e) { return e }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -40,8 +40,8 @@ final class AsideBrain: Thinker {
             return
         }
         let rule = cfg.ko
-            ? "[맥 음성 비서 Mac Butler가 맡긴 일] 결제·구매·메시지 보내기·게시·지우기는 하지 말고 그 직전에 멈춰서 물어본다. 끝나면 한국어로 소리 내어 읽을 1~3문장만 답한다."
-            : "[A task from Mac Butler, a voice assistant] Never pay, buy, send a message, post or delete — stop right before and ask. When done, answer in 1–3 short sentences to be read aloud."
+            ? "[맥 음성 비서 사사리사가 맡긴 일] 결제·구매·메시지 보내기·게시·지우기는 하지 말고 그 직전에 멈춰서 물어본다. 끝나면 한국어로 소리 내어 읽을 1~3문장만 답한다."
+            : "[A task from Sasarisa, a voice assistant] Never pay, buy, send a message, post or delete — stop right before and ask. When done, answer in 1–3 short sentences to be read aloud."
         let task = rule + "\n" + Brain.turnText(cfg, command, live: live, frontApp: frontApp, context: context)
         var args = [String]()
         if let s = session, Date().timeIntervalSince(lastUse) < 600 { args += ["--session", s] }

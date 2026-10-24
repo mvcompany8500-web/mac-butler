@@ -96,7 +96,7 @@ struct SetupView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(S.t("Mac Butler 준비", "Set up Mac Butler")).font(.largeTitle.bold())
+            Text(S.t("사사리사 준비", "Set up Sasarisa")).font(.largeTitle.bold())
             Text(S.t("빨간 것만 해결하면 됩니다. 소리는 맥 밖으로 나가지 않아요.", "Fix anything red. Your audio never leaves this Mac."))
                 .foregroundStyle(.secondary)
             GroupBox {
@@ -136,7 +136,7 @@ struct SetupView: View {
                 }
             }
             HStack {
-                Text(S.t("다 되면 「\(m.cfg.wakes.first ?? "자비스")」라고 불러 보세요 — 또는 오른쪽 ⌥ 를 누른 채 말하기.", "Then say “\((m.cfg.wakes.first ?? "Jarvis").capitalized)” — or hold right ⌥ and talk."))
+                Text(S.t("다 되면 「\(m.cfg.wakes.first ?? "사사리사")」라고 불러 보세요 — 또는 오른쪽 ⌥ 를 누른 채 말하기.", "Then say “\((m.cfg.wakes.first ?? "Jarvis").capitalized)” — or hold right ⌥ and talk."))
                     .font(.callout)
                 Spacer()
                 Button(m.allRequired ? S.t("시작", "Start") : S.t("나중에", "Later")) { onDone() }.keyboardShortcut(.defaultAction)
@@ -149,6 +149,21 @@ struct SetupView: View {
 
 enum SetupWindow {
     static var window: NSWindow?
+    /// The setup window drawn off screen into a PNG (README picture, `--setup-shot`).
+    static func shot(_ path: String) {
+        _ = NSApplication.shared; NSApp.setActivationPolicy(.prohibited)
+        let cfg = Config.load(), S = Strings(ko: cfg.ko, name: cfg.displayName)
+        let host = NSHostingController(rootView: SetupView(m: SetupModel(cfg: cfg), S: S) {})
+        let w = NSWindow(contentViewController: host)
+        let size = host.view.fittingSize
+        w.setFrame(NSRect(x: -4000, y: 0, width: max(size.width, 560), height: max(size.height, 500)), display: true)
+        w.orderBack(nil)
+        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+        let v = host.view
+        guard let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+        v.cacheDisplay(in: v.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+    }
     static var flag: URL { Paths.home.appendingPathComponent(".setup-shown") }
     /// Shown on first launch, or whenever something required is missing.
     static func showIfNeeded(cfg: Config) {
@@ -157,13 +172,13 @@ enum SetupWindow {
     }
     static func show(cfg: Config) {
         if let w = window { w.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
-        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
+        let S = Strings(ko: cfg.ko, name: cfg.displayName)
         let view = SetupView(m: SetupModel(cfg: cfg), S: S) {
             FileManager.default.createFile(atPath: flag.path, contents: Data())
             window?.close()
         }
         let w = NSWindow(contentViewController: NSHostingController(rootView: view))
-        w.title = "Mac Butler"
+        w.title = "Sasarisa"
         w.styleMask = [.titled, .closable]
         w.isReleasedWhenClosed = false
         w.center()

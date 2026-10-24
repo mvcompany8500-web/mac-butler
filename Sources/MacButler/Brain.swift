@@ -16,7 +16,7 @@ final class Brain {
     private var lastUse = Date()
     private(set) var lastCommands: [String] = []     // tool steps of the last finished turn as jax lines (for learning)
     private var turnCommands: [String] = []
-    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.assistantName) }
+    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.displayName) }
     var busy: Bool { done != nil }
     var installed: Bool { cfg.claudeBinary != nil }
 
@@ -38,7 +38,7 @@ final class Brain {
         let delegateRule = cfg.freeMode
             ? (cfg.ko ? "자유 모드라 이 명령은 바로 그 세션에 들어간다 — 「○○에 맡겼습니다」처럼 짧게 말한다." : "Free mode: it goes into that session right away — say briefly that you handed it over.")
             : cfg.ko ? "이 명령은 바로 넘기지 않고 {user}의 「응」을 기다린다 — 답은 「○○에 이렇게 맡길까요?」 질문 한 문장으로 하고, 맡겼다고 말하지 않는다."
-                                  : "It is NOT sent yet — Mac Butler waits for {user} to say yes, so your answer must be one question like \"Shall I hand this to …?\" and never claim it was done."
+                                  : "It is NOT sent yet — the assistant waits for {user} to say yes, so your answer must be one question like \"Shall I hand this to …?\" and never claim it was done."
         s = s.replacingOccurrences(of: "{askRule}", with: askRule).replacingOccurrences(of: "{delegateRule}", with: delegateRule)
         s += Memory.promptBlock(ko: cfg.ko)
         let scr = NSScreen.main?.frame.size ?? .zero
@@ -46,7 +46,7 @@ final class Brain {
         return cfg.fill(s)
     }
 
-    /// What the brain may do. A voice assistant hears TVs, videos and web pages, so by default it gets only Mac Butler's
+    /// What the brain may do. A voice assistant hears TVs, videos and web pages, so by default it gets only Sasarisa's
     /// tool box (the `butler` MCP server: press/type/open/look, each one guarded) and web search. No shell at all, no file
     /// reads or writes, no fetching arbitrary URLs, no other MCP servers, and the user's own Claude settings (which may
     /// allow much more) are not loaded. Anything else is denied automatically.
@@ -106,7 +106,7 @@ final class Brain {
         case "click": return ko ? "누르는 중" : "Pressing"
         case "volume": return ko ? "소리 조절 중" : "Setting the volume"
         case "delegate": return ko ? "클로드에 맡기는 중" : "Handing to Claude"
-        default: return Strings(ko: ko, name: cfg.assistantName).working
+        default: return Strings(ko: ko, name: cfg.displayName).working
         }
     }
 

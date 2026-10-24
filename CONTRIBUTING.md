@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for helping! Mac Butler is a small, single-target Swift app — no Xcode project, no package manager.
+Thanks for helping! Sasarisa is a small, single-target Swift app — no Xcode project, no package manager.
 
 ```bash
-./build.sh                                            # build/MacButler.app
-build/MacButler.app/Contents/MacOS/MacButler --selftest # grammar tests, no mic needed
-MACBUTLER_HOME=/tmp/mj open -n build/MacButler.app      # run with a throwaway settings folder
-build/MacButler.app/Contents/Resources/bin/butler say "open chrome"   # talk to it in text
+./build.sh                                            # build/Sasarisa.app
+build/Sasarisa.app/Contents/MacOS/Sasarisa --selftest # grammar tests, no mic needed
+MACBUTLER_HOME=/tmp/mj open -n build/Sasarisa.app      # run with a throwaway settings folder
+build/Sasarisa.app/Contents/Resources/bin/butler say "open chrome"   # talk to it in text
 ```
 
 * **New quick command or language** → `Sources/MacButler/Commands.swift` (`Parser.parse`) + a case in `SelfTest.swift`.

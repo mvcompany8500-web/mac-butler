@@ -1,8 +1,8 @@
-// How much of your AI plan is left, and how much of it Mac Butler used (2026-10-24, owner: 「토큰이 얼마 있는지, 사사리사가
+// How much of your AI plan is left, and how much of it Sasarisa used (2026-10-24, owner: 「토큰이 얼마 있는지, 사사리사가
 // 얼마나 쓰는지 알아야지」). Nothing is sent anywhere — it is read from what the brains already report:
 //  · Claude Code: every stream-json run carries a `rate_limit_event` with the 5-hour and 7-day windows of your plan.
 //  · Codex: its own session logs (~/.codex/sessions) carry `rate_limits` (the weekly window, plus the 5-hour one when there is one).
-//  · Mac Butler's share: the tokens of its own brain and router runs, per day (usage.json, see `Usage`).
+//  · Sasarisa's share: the tokens of its own brain and router runs, per day (usage.json, see `Usage`).
 import Foundation
 
 enum AIUsage {
@@ -71,7 +71,7 @@ enum AIUsage {
         return nil
     }
 
-    /// Mac Butler's own use per day for the last `days` days: (day label, calls, tokens it read + wrote).
+    /// Sasarisa's own use per day for the last `days` days: (day label, calls, tokens it read + wrote).
     static func daily(_ days: Int = 7) -> [(day: String, calls: Int, tokens: Int)] {
         let all = ((try? JSONSerialization.jsonObject(with: Data(contentsOf: Usage.url))) as? [String: [String: Int]]) ?? [:]
         let key = DateFormatter(); key.dateFormat = "yyyy-MM-dd"

@@ -5,7 +5,7 @@
 set -e
 cd "${0:a:h}/.."
 [[ -f local.env ]] && source local.env
-APP_NAME=${APP_NAME:-MacButler}; BUNDLE_ID=${BUNDLE_ID:-com.macbutler.app}
+APP_NAME=${APP_NAME:-Sasarisa}; BUNDLE_ID=${BUNDLE_ID:-com.macbutler.app}
 HOME_DIR=${MACBUTLER_HOME:-$HOME/.macbutler}
 
 say_step() { print -P "%F{cyan}›%f $1"; }
@@ -24,6 +24,7 @@ say_step "building"
 mkdir -p ~/Applications
 pkill -f "$APP_NAME.app/Contents/MacOS/$APP_NAME" 2>/dev/null || true
 rm -rf ~/Applications/$APP_NAME.app && cp -R build/$APP_NAME.app ~/Applications/
+if [[ "$APP_NAME" != MacButler ]]; then pkill -f "MacButler.app/Contents/MacOS/MacButler" 2>/dev/null; rm -rf ~/Applications/MacButler.app; fi   # the app before 0.7 (Mac Butler)
 
 say_step "starting at login (LaunchAgent $BUNDLE_ID)"
 PL=~/Library/LaunchAgents/$BUNDLE_ID.plist
@@ -43,6 +44,6 @@ PLIST
 launchctl bootstrap gui/$(id -u) $PL || { sleep 2; launchctl bootstrap gui/$(id -u) $PL; }
 
 echo
-echo "✓ Installed. Look for ◉J in the menu bar."
+echo "✓ Installed. Say 「사사리사」 or “hey Sasarisa” — look for it in the menu bar."
 echo "  First run: allow Microphone, Speech Recognition, Accessibility and Screen Recording."
 echo "  Settings: $HOME_DIR/config.json   ·   Logs: $HOME_DIR/logs/butler.log"

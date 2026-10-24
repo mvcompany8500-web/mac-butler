@@ -77,7 +77,10 @@ struct Parser {
         out += cfg.wakes.filter { $0.hasPrefix("헤이 ") && $0.contains("자비스") }.map { "하이 " + $0.dropFirst(3).replacingOccurrences(of: "자비스", with: "재비스") }
         return out.sorted { $0.count > $1.count }          // longest first: "헤이 자비스" before "자비스"
     }
+    /// The assistant's name as Korean speech recognition tends to write it (see `Config.soundAlike`).
+    var nameSoundsLike: String? { cfg.ko ? (Config.hangulReading(cfg.assistantName) ?? (cfg.assistantName.unicodeScalars.allSatisfy { $0.value >= 0xAC00 && $0.value < 0xD7A4 } ? cfg.assistantName : nil)).flatMap(Config.soundAlike) : nil }
     func wakeRange(_ t: String) -> Range<String.Index>? {
+        if let p = nameSoundsLike, let r = t.range(of: "(헤이|하이|hey)?\\s*" + p + "[~∼〜]*", options: [.regularExpression, .caseInsensitive]) { return r }
         for w in wakeVariants {
             let pat = w.replacingOccurrences(of: " ", with: "").map { NSRegularExpression.escapedPattern(for: String($0)) }.joined(separator: "\\s*")
             if let r = t.range(of: pat, options: [.regularExpression, .caseInsensitive]) { return r }
@@ -173,9 +176,12 @@ struct Parser {
         if let r = s.range(of: #"\s말고[,\s]+"#, options: .regularExpression), s[r.upperBound...].count >= 2 { s = String(s[r.upperBound...]) }
         if Parser.isCompound(s), !s.contains("클로드"), !s.lowercased().contains("claude") {
             // Every part a quick command → do them in order right away; otherwise Claude takes the whole sentence.
-            if let parts = Parser.splitCommands(s), parts.count >= 2,
-               parts.allSatisfy({ p in let i = parse(p, hasYouTubeList: hasYouTubeList); if case .multi = i { return false }; if case .claude = i { return false }; return i != .none && i != .dictation }) {
-                return .multi(parts)
+            if let parts = Parser.splitCommands(s), parts.count >= 2 {
+                let kinds = parts.map { parse($0, hasYouTubeList: hasYouTubeList) }
+                let quick = kinds.filter { i in if case .multi = i { return false }; if case .claude = i { return false }; return i != .none && i != .dictation }.count
+                let mixedOK = !kinds.contains { i in if case .claude = i { return true }; if case .type = i { return true }; return i == .dictation }
+                // all quick → do them in order · some quick, some needing thought → quick ones now, the rest to the brain after
+                if quick == parts.count || (quick >= 1 && mixedOK) { return .multi(parts) }
             }
             return .none
         }
@@ -479,7 +485,9 @@ struct Parser {
                                         "검색하고": "검색해", "재생하고": "재생해", "맞추고": "맞춰", "알려주고": "알려 줘",
                                         // 「맥미니 검색하면서 베토벤 틀어」 — 「~면서」 joins two jobs too
                                         "검색하면서": "검색해", "찾으면서": "찾아", "틀면서": "틀어", "켜면서": "켜", "하면서": "해", "보면서": "봐",
-                                        "줄이면서": "줄여", "키우면서": "키워", "재생하면서": "재생해"]
+                                        "줄이면서": "줄여", "키우면서": "키워", "재생하면서": "재생해",
+                                        // 「쿠팡에 맥미니 좀 검색해 주고 …」 (10/24: everything after it became the search words)
+                                        "주고": "줘", "해주고": "해 줘", "봐주고": "봐 줘", "찾아주고": "찾아 줘", "검색해주고": "검색해 줘", "틀어주고": "틀어 줘"]
         var parts: [String] = [], cur: [String] = []
         for raw in s.split(separator: " ").map(String.init) {
             let w = raw.trimmingCharacters(in: .punctuationCharacters)
@@ -489,6 +497,12 @@ struct Parser {
             if raw.hasSuffix(",") || raw.hasSuffix(".") || raw.hasSuffix("?") || raw.hasSuffix("!") { parts.append(cur.joined(separator: " ")); cur = [] }
         }
         if !cur.isEmpty { parts.append(cur.joined(separator: " ")) }
+        parts = parts.flatMap { p -> [String] in
+            if let m = match(p, "^(유튜브|youtube)(?:에|에서|로)?\\s+(.+?)\\s+(?:좀\\s+)?((?:소리|볼륨|음량)\\s*.+)$"), !m[2].contains("틀") {
+                return ["유튜브 " + m[2].replacingOccurrences(of: " 좀", with: "") + " 틀어", m[3]]
+            }
+            return [p]
+        }
         return parts.count >= 2 ? parts : nil
     }
     /// "다음 영상으로 넘겨", "다음 곡", "next video"
@@ -532,7 +546,7 @@ struct Parser {
         if jobs.count >= 2, jobs.dropFirst().contains(where: { $0.isDisjoint(with: jobs[0]) }) { return true }
         // 「네이버에 ○○ 검색해서 △△ 알려줘」「크몽 들어가서 대화 이어가」 — find/open, then read, answer or carry on: the brain does both
         if match(s, "(검색해서|검색하고|찾아서|찾아보고|찾아 보고|들어가서|들어가 가지고|열어서|열고|보고)\\s+.*(알려|말해|정리|요약|비교|읽어|골라|추천|이어가|이어서|답장|답해|확인해|봐 줘|봐줘)") != nil { return true }
-        return match(s, "(멈추|끄|켜|열|닫|틀|누르|찾|가|보|치|하|줄이|키우|올리|내리|넘기|맞추)고\\s+\\S+.*(해|줘|봐|켜|꺼|열어|틀어|찾아|검색|보여|줄여|키워|넘겨|올려|내려)") != nil
+        return match(s, "(멈추|끄|켜|열|닫|틀|누르|찾|가|보|치|하|주|줄이|키우|올리|내리|넘기|맞추)고\\s+\\S+.*(해|줘|봐|켜|꺼|열어|틀어|찾아|검색|보여|줄여|키워|넘겨|올려|내려)") != nil
     }
     /// A sentence that asks for an action (or names a setting to change: 「볼륨은 적당하게」).
     static func actions(_ s: String) -> Set<String> {
@@ -543,7 +557,8 @@ struct Parser {
     }
     /// Another job slipped into a search: 「맥미니 검색하면서 베토벤 틀어봐」 — the search words must not carry it.
     static func carriesOtherJob(_ q: String) -> Bool {
-        isCompound(q) || ["틀어", "재생", "볼륨", "음량", "소리 ", "꺼", "켜 ", "면서", "그리고"].contains(where: q.contains)
+        isCompound(q) || ["틀어", "재생", "볼륨", "음량", "소리 ", "꺼", "켜 ", "면서", "그리고", "주고", "체크", "가는 길", "어떻게",
+                          "검색해", "찾아 ", "알려", "알아봐", "확인해"].contains(where: q.contains)
     }
     /// Removes a trailing ask: "찾아 줘", "검색해", "보여 줘", "알아봐", "좀".
     /// 「다른 영상」「다른 걸로」「딴 거」 — something else, not those words.

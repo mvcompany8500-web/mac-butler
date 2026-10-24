@@ -1,7 +1,7 @@
 // jax — press buttons / links / text fields of the frontmost app by name, without moving the mouse (Accessibility).
 //   jax list [filter]            list pressable things (role | name)
 //   jax tap "name" [n]           press the n-th (default 1) element whose name contains the text
-//   jax field "field name" "text"  focus a text field and type into it (visibly, via Mac Butler)
+//   jax field "field name" "text"  focus a text field and type into it (visibly, via Sasarisa)
 //   jax key cmd+t | enter | esc …  press a key / shortcut
 //   jax front                      frontmost app, window title, and (browsers) the address bar
 //   jax volume 0-100               set the output volume
@@ -9,13 +9,13 @@
 //   jax screenshot                 → /tmp/macbutler/screen.png (1280 px wide) for the assistant to look at
 //   jax click X Y                  press whatever is at that point (pointer snaps back)
 //   jax kind "button name"         (tests) send / pay / post / delete, or - — those buttons wait for the user's yes
-// With MACBUTLER_SAFE=1 (set by Mac Butler's brain in safe mode) nothing is pressed, typed or opened in
+// With MACBUTLER_SAFE=1 (set by Sasarisa's brain in safe mode) nothing is pressed, typed or opened in
 // protected apps: terminals, code editors, Claude, System Settings, Keychain, password managers, permission prompts.
 import AppKit
 import ApplicationServices
 
-/// Sends "<cmd>\n<text>" to the running Mac Butler over its private socket (~/.macbutler/butler.sock) and returns its
-/// one-line answer ("ok", or "yes"/"ask" for confirm), or nil when Mac Butler isn't running.
+/// Sends "<cmd>\n<text>" to the running Sasarisa over its private socket (~/.macbutler/butler.sock) and returns its
+/// one-line answer ("ok", or "yes"/"ask" for confirm), or nil when Sasarisa isn't running.
 @discardableResult func butlerSend(_ cmd: String, _ text: String) -> String? {
     let p = butlerHome + "/butler.sock"
     let s = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -84,7 +84,7 @@ func record(_ what: String) {
 }
 
 /// Buttons that can't be taken back: sending, paying, posting, deleting. In safe mode the brain can't press them on its
-/// own, whatever model it is: Mac Butler checks that the user asked for exactly that ("카톡 보내", "결제해") and
+/// own, whatever model it is: Sasarisa checks that the user asked for exactly that ("카톡 보내", "결제해") and
 /// otherwise asks out loud, then presses it itself after a yes.
 let irreversible: [(kind: String, words: [String])] = [
     ("send", ["보내기", "보내", "전송", "send"]),
@@ -107,8 +107,8 @@ func confirmIrreversible(_ kind: String, _ what: String, replay: [String]) {
     let answer = butlerSend("confirm", ([kind, b, what] + replay).joined(separator: "\u{1F}"))
     if answer == "yes" { return }
     record("held for a yes: \(what)")
-    print("waiting: \(what) is a \(kind) action, so Mac Butler is asking the user first. Answer with ONE short question " +
-          "(e.g. 「보낼까요?」 / \"Send it?\"). If they say yes, Mac Butler presses it itself — don't press it again.")
+    print("waiting: \(what) is a \(kind) action, so Sasarisa is asking the user first. Answer with ONE short question " +
+          "(e.g. 「보낼까요?」 / \"Send it?\"). If they say yes, Sasarisa presses it itself — don't press it again.")
     exit(4)
 }
 func appBundle(pid: pid_t) -> (String?, String?) { let a = NSRunningApplication(processIdentifier: pid); return (a?.bundleIdentifier, a?.localizedName) }

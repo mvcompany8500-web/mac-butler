@@ -1,5 +1,5 @@
 // GPT through the Codex CLI you're already signed in to (your ChatGPT plan) — like Claude Code, no API key.
-// Each turn is one `codex exec` with the same hands as every other brain: Mac Butler's `butler-mcp` tool box with the
+// Each turn is one `codex exec` with the same hands as every other brain: Sasarisa's `butler-mcp` tool box with the
 // safe-mode flags fixed here. Codex's own shell, file, browser, computer-use, plugin and app tools are switched off,
 // your ~/.codex/config.toml (its MCP servers, sandbox, rules) is not loaded, the sandbox is read-only and nothing is
 // saved to your Codex history (--ephemeral). Auth still comes from your Codex login.
@@ -18,7 +18,7 @@ final class CodexBrain: Thinker {
     private var recent: [(said: String, answer: String)] = []   // the last few exchanges, for follow-ups (10 minutes)
     private var lastUse = Date.distantPast
     private(set) var lastCommands: [String] = []
-    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.assistantName) }
+    init(cfg: Config) { self.cfg = cfg; self.strings = Strings(ko: cfg.ko, name: cfg.displayName) }
     var busy: Bool { done != nil }
     var installed: Bool { CodexBrain.binary != nil }
 
@@ -122,7 +122,7 @@ final class CodexBrain: Thinker {
     /// --json events: tool calls → HUD steps (and jax lines for learning), agent messages → the answer (last one wins).
     func handle(_ obj: [String: Any]) {
         let type = obj["type"] as? String ?? ""
-        if type == "turn.completed", let u = obj["usage"] as? [String: Any] {   // Mac Butler's share, same tally as Claude's
+        if type == "turn.completed", let u = obj["usage"] as? [String: Any] {   // Sasarisa's share, same tally as Claude's
             let cached = u["cached_input_tokens"] as? Int ?? 0      // Codex counts cached tokens inside input_tokens
             Usage.record(["usage": ["input_tokens": max((u["input_tokens"] as? Int ?? 0) - cached, 0), "output_tokens": u["output_tokens"] as? Int ?? 0,
                                     "cache_read_input_tokens": cached]])

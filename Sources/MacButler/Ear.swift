@@ -175,6 +175,7 @@ final class Ear {
         r.shouldReportPartialResults = true
         if recognizer.supportsOnDeviceRecognition { r.requiresOnDeviceRecognition = true }
         r.contextualStrings = hints
+        if #available(macOS 13, *) { r.addsPunctuation = true }      // 「…야?」 keeps its question mark, like Handy
         lock.lock(); request = r; segStart = max(ringEnd - 4800, ringBase); lock.unlock()   // keep 0.3 s before
         lastText = ""; lastChange = Date(); taskStart = Date()
         task = recognizer.recognitionTask(with: r) { [weak self] res, err in

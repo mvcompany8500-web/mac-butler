@@ -62,10 +62,24 @@ enum SelfTest {
         check(pk, "유튜브 베토벤 음악 틀어", .youtube("베토벤 음악"))
         check(pk, "볼륨 적당하게 해줘", .volume(set: 50, delta: 0, mute: false))
         check(pk, "쿠팡에서 무선 이어폰 찾아 줘", .web(label: "쿠팡", query: "무선 이어폰", url: "https://www.coupang.com/np/search?q="))
+        // 10/24 four jobs at once: YouTube 베토벤 · volume down · Coupang 맥미니 · a route question for the brain
+        check(pk, "유튜브에 베토벤 음악 좀 소리 작게 하고 그리고 쿠팡에 맥미니 좀 검색해 주고 강남으로 가는 길 제주도에서 비행기를 어떻게 가는지 체크해 봐",
+              .multi(["유튜브 베토벤 음악 틀어", "소리 작게 해", "쿠팡에 맥미니 좀 검색해 줘", "강남으로 가는 길 제주도에서 비행기를 어떻게 가는지 체크해 봐"]))
+        check(pk, "쿠팡에 맥미니 좀 검색해 줘", .web(label: "쿠팡", query: "맥미니", url: "https://www.coupang.com/np/search?q="))
+        check(pk, "강남으로 가는 길 제주도에서 비행기를 어떻게 가는지 체크해 봐", .none)
+        check(pk, "쿠팡에 맥미니 좀 검색해 주고 강남으로 가는 길 체크해 봐", .multi(["쿠팡에 맥미니 좀 검색해 줘", "강남으로 가는 길 체크해 봐"]))
         checkBool("hangul reading", Config.hangulReading("sasarisa") == "사사리사" && Config.hangulReading("Nova") == "노바" && Config.hangulReading("Pudding") == nil)
         var named = Config(); named.language = "ko"; named.assistantName = "sasarisa"
-        checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("샤샤리사") && named.wakes.contains("자비스"))
+        checkBool("name is a wake word", named.wakes.contains("사사리사") && named.wakes.contains("자비스"))
+        let sp = Parser(cfg: named)
+        for said in ["샤싸 리사 몇 시야", "사사니사 몇 시야", "서서 리사 몇 시야", "사사리사~ 몇 시야", "싸사리사, 몇 시야", "헤이 사사리샤 몇 시야"] {
+            checkBool("sounds like 사사리사: " + said, sp.stripWake(said) == "몇 시야")
+        }
+        checkBool("sounds like 싸싸릐싸", sp.stripWake("싸싸릐싸 몇 시야") == "몇 시야" && sp.stripWake("싸싸리싸, 몇 시야") == "몇 시야")
+        checkBool("said twice keeps ?", Whisper.saidTwice("사사리사, 지금 몇 시야? 사사리사, 지금 몇 시야?") == "사사리사, 지금 몇 시야?")
+        checkBool("not a wake: 사서 이사", sp.wakeRange("오늘 책 사서 집에 가") == nil)
         let np = Parser(cfg: named)
+        checkBool("default name 사사리사", Config().assistantName == "Sasarisa" && pk.stripWake("사사리사, 크롬 열어") == "크롬 열어" && pk.stripWake("자비스, 크롬 열어") == "크롬 열어")
         checkBool("샤샤 리사 wakes", np.stripWake("샤샤 리사 유튜브 로파이 틀어") == "유튜브 로파이 틀어")
         checkBool("whisper said twice", Whisper.saidTwice("자비스, 지금 음악 끄고, 사기 음악 틀어. 자비스, 지금 음악 끄고, 사기 음악 틀어.") == "자비스, 지금 음악 끄고, 사기 음악 틀어.")
         checkBool("whisper once stays", Whisper.saidTwice("유튜브 꺼. 쿠팡 열어.") == nil)
@@ -105,7 +119,7 @@ enum SelfTest {
         check(pe, "find usb c cable on amazon", .web(label: "Amazon", query: "usb c cable", url: "https://www.amazon.com/s?k="))
         check(pe, "that's all", .bye)
         check(pe, "daddy's home", .greet)
-        checkBool("en wake strip", pe.stripWake("Hey Jarvis, open chrome") == "open chrome")
+        checkBool("en wake strip", pe.stripWake("Hey Sasarisa, open chrome") == "open chrome")
 
         // Hands ask before send / pay / post / delete, and before handing work to a full-power Claude session
         checkBool("「카톡으로 보내 줘」 asked to send", Butler.userAskedFor("send", "엄마한테 카톡으로 보내 줘"))

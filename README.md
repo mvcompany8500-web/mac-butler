@@ -1,6 +1,8 @@
 <div align="center">
 
-# ◉ Mac Butler
+# ◉ Sasarisa
+
+**Say “Sasarisa.” Your Mac does it.** (사사리사 — formerly *Mac Butler*; settings, memory and links carry over)
 
 <img src="docs/hero.png" width="820" alt="Talk to your Mac and it just does it — YouTube, timers, rewriting text, handing work to Claude Code">
 
@@ -11,16 +13,16 @@ Small chores happen on your Mac in a second; real coding goes to Claude Code. Vo
 
 **No API key — uses your Claude plan** · **Audio never leaves your Mac** · **Asks before deleting, sending or paying**
 
-**[Project page →](https://mvcompany8500-web.github.io/mac-butler/)** (Korean)
+**[sasarisa.com](https://sasarisa.com/en/)** · [한국어](README.ko.md)
 
-[![Latest release](https://img.shields.io/github/v/release/mvcompany8500-web/mac-butler)](../../releases/latest)
-[![CI](https://github.com/mvcompany8500-web/mac-butler/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
-[![Stars](https://img.shields.io/github/stars/mvcompany8500-web/mac-butler?style=social)](../../stargazers)
+[![Latest release](https://img.shields.io/github/v/release/mvcompany8500-web/sasarisa)](../../releases/latest)
+[![CI](https://github.com/mvcompany8500-web/sasarisa/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/mvcompany8500-web/sasarisa?style=social)](../../stargazers)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)](#requirements)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 ```bash
-git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler && ./scripts/install.sh
+git clone https://github.com/mvcompany8500-web/sasarisa.git && cd sasarisa && ./scripts/install.sh
 ```
 
 [Install](#install) · [What it can do](#what-it-can-do) · [Privacy & safety](#privacy--safety) · [한국어](README.ko.md) · [Made by turtle buff ai](#made-by)
@@ -29,8 +31,8 @@ git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler &
 
 ## Why
 
-An always-listening voice assistant for macOS, Korean-first with English support. It answers to “Jarvis” by default — pick any name you like.
-Dictation apps like [Handy](https://github.com/cjpais/Handy) turn your voice into text. Mac Butler goes one step further:
+An always-listening voice assistant for macOS, Korean-first with English support. It answers to “Sasarisa” by default — pick any name you like.
+Dictation apps like [Handy](https://github.com/cjpais/Handy) turn your voice into text. Sasarisa goes one step further:
 it keeps listening for its name, understands what you want, and **does it on your Mac** — without touching the keyboard
 and without the mouse pointer jumping around. Anything it can't do on its own goes to Claude Code, which can read the
 screen, run commands and use the web.
@@ -39,7 +41,7 @@ screen, run commands and use the web.
 
 | You say | It does | Speed |
 |---|---|---|
-| “Jarvis” — the default wake word, change it in settings *(or tap right ⌥)* | chime → listening; keeps listening for 30 s, no wake word needed | instant |
+| “Sasarisa” — the default wake word, change it in settings *(or tap right ⌥)* | chime → listening; keeps listening for 30 s, no wake word needed | instant |
 | **Hold right ⌥ and talk**, release | push-to-talk like Handy — exact audio, runs the moment you let go | ~1 s |
 | “아빠 왔어” / “daddy's home” | wake-up animation + spoken greeting | instant |
 | “크롬 열어” / “open Chrome” | opens the app | < 1 s |
@@ -60,7 +62,7 @@ While it's talking — or while Claude is still working — just say the next th
 
 **It grows.** Words your Mac's live recognizer keeps missing (names, product terms) are studied and added to its vocabulary after a few times; stale learned commands and temp files are swept automatically. The menu shows what it has learned.
 
-**It gets faster the more you use it.** When Claude figures out how to do something (“pause the video” → press space), Mac Butler remembers the steps and next time does it instantly, without calling Claude. Say “no / 아니” right after and it won't learn it. The menu shows today's Claude calls and tokens.
+**It gets faster the more you use it.** When Claude figures out how to do something (“pause the video” → press space), Sasarisa remembers the steps and next time does it instantly, without calling Claude. Say “no / 아니” right after and it won't learn it. The menu shows today's Claude calls and tokens.
 
 **Any language.** Korean and English have built-in quick commands; Japanese, Chinese, Spanish, French, German, Portuguese, Italian, Vietnamese, Thai and Indonesian work through Claude, which answers in your language. It picks your Mac's language on first launch.
 
@@ -119,21 +121,21 @@ tier) or `http` (your own voice server: it gets `{"text","voice","language"}` an
 the free macOS voice reads instead.
 
 Keys go into the **macOS Keychain**, never into `config.json`: paste them in Settings, or
-`MacButler.app/Contents/MacOS/MacButler --set-key openai` (reads the key from stdin). To check a brain without the
+`Sasarisa.app/Contents/MacOS/Sasarisa --set-key openai` (reads the key from stdin). To check a brain without the
 microphone: `MACBUTLER_HOME=/tmp/mb-test MacButler --ask "지금 몇 시야?"`.
 
 ## Install
 
 ```bash
-git clone https://github.com/mvcompany8500-web/mac-butler.git
-cd mac-butler
+git clone https://github.com/mvcompany8500-web/sasarisa.git
+cd sasarisa
 ./scripts/install.sh            # deps → Whisper model → build → ~/Applications → start at login
 ```
 
 Or with Homebrew (signed & notarized by Apple):
 
 ```bash
-brew install --cask mvcompany8500-web/tap/mac-butler
+brew install --cask mvcompany8500-web/tap/sasarisa
 ```
 
 A setup window opens on first launch — it checks every permission live, links each fix, and downloads the Whisper model in-app (SHA-256 verified):
@@ -175,11 +177,11 @@ Everything lives in `~/.macbutler/`:
 {
   "language": "ko",                // "ko" or "en"
   "userName": "대표님",             // how it addresses you
-  "assistantName": "자비스",
-  "wakeWords": ["자비스", "헤이 자비스"],
+  "assistantName": "사사리사",
+  "wakeWords": ["사사리사", "헤이 사사리사"],
   "greetingText": "어서 오십시오, {user}",
   "activation": "voice",           // "voice" = wake word + hotkey · "hold" = only while holding the hotkey
-  "inputDevice": "",               // microphone UID ("" = system default) — list them: MacButler --devices
+  "inputDevice": "",               // microphone UID ("" = system default) — list them: Sasarisa --devices
   "outputDevice": "",              // speaker UID for the voice and sounds
   "hotkey": "rightOption",         // tap = wake, hold = push-to-talk: rightOption | rightCommand | none
   "customWords": ["Claude", "GitHub"], // names you say often (imported from Handy automatically)
@@ -198,7 +200,7 @@ Everything lives in `~/.macbutler/`:
 
 ## Free & Pro
 
-**Mac Butler is free and open source.** Everything that runs on your Mac, your subscription or your own API key is free, and stays free.
+**Sasarisa is free and open source.** Everything that runs on your Mac, your subscription or your own API key is free, and stays free.
 
 - **Free (all of it):** wake word, quick commands, dictation, rewriting, every brain (local: Claude Code, Codex, Ollama, LM Studio, Aside; any API key), sending to the right Claude window, multi-step jobs (search then answer, reply in a messenger), routines, free mode, grow-together learning.
 - **Pro (coming):** only what runs on our servers — call it from your phone (your Mac at home does it), sync across Macs (memory, routines, learned phrases), a routine library to share and pick up routines, early features and priority help. Not sold separately: it's part of the [TurtleMaker](https://maker.buffm.com) membership.
@@ -207,8 +209,8 @@ Everything lives in `~/.macbutler/`:
 ## Privacy & safety
 
 * **Stays on your Mac:** microphone audio, wake-word detection, Whisper transcription, logs. No telemetry — the only thing ever shared is opt-in grow-together learning (below).
-* **Leaves your Mac:** the text of commands that go to the brain you chose (Claude Code / Anthropic by default) and, if you picked a paid voice, the answers it reads aloud. A local brain (Ollama, LM Studio) keeps everything on the Mac. **GPT via Codex** uses the Codex CLI you're signed in to (your ChatGPT plan, no key) with its shell, file and browser tools off and only Mac Butler's tool box attached. With **Aside** as the brain, those commands go to your Aside app through its CLI (`aside "<task>"`; install it in Aside → Settings → Developer and run `aside login` once) and Aside's own policies apply inside its browser. Quick commands never leave the Mac.
-* **Safe by default, whatever the brain.** The brain only gets Mac Butler's tool box — no shell, no file reading or writing, no fetching URLs — and it can't press or type anything in terminals, code editors, the Claude app, System Settings, Keychain, password fields or permission prompts.
+* **Leaves your Mac:** the text of commands that go to the brain you chose (Claude Code / Anthropic by default) and, if you picked a paid voice, the answers it reads aloud. A local brain (Ollama, LM Studio) keeps everything on the Mac. **GPT via Codex** uses the Codex CLI you're signed in to (your ChatGPT plan, no key) with its shell, file and browser tools off and only Sasarisa's tool box attached. With **Aside** as the brain, those commands go to your Aside app through its CLI (`aside "<task>"`; install it in Aside → Settings → Developer and run `aside login` once) and Aside's own policies apply inside its browser. Quick commands never leave the Mac.
+* **Safe by default, whatever the brain.** The brain only gets Sasarisa's tool box — no shell, no file reading or writing, no fetching URLs — and it can't press or type anything in terminals, code editors, the Claude app, System Settings, Keychain, password fields or permission prompts.
 * **Asks before anything irreversible.** Send, pay, post and delete buttons — and Enter in messengers or web forms, line breaks typed by the brain — wait for "Shall I send it?" → yes. The one shortcut: you asked for exactly that while holding the hotkey (a TV can say "send", it can't hold the key).
 * **Asks before handing work to a Claude Code session.** Anything the brain wants to hand over waits for your spoken yes, so a TV or a web page can't start work on your computer. ("Right away" mode applies only when you ask for Claude yourself.)
 * **Free mode (Settings, off by default):** only payments ask; sending, posting, deleting and hand-offs to Claude just happen. TV or video audio can sound like a command, so pair it with headphones or the hotkey.
@@ -227,17 +229,17 @@ Everything lives in `~/.macbutler/`:
 <details>
 <summary><b>Troubleshooting</b></summary>
 
-* **Nothing happens when I say “Jarvis”** — menu → *Status*: all ✓? Check `~/.macbutler/logs/butler.log` for `heard[...]` lines.
-* **It types nothing** — Accessibility is off, or was reset after a rebuild. Remove Mac Butler from the list and add it again.
+* **Nothing happens when I say “Sasarisa”** — menu → *Status*: all ✓? Check `~/.macbutler/logs/butler.log` for `heard[...]` lines.
+* **It types nothing** — Accessibility is off, or was reset after a rebuild. Remove Sasarisa from the list and add it again.
 * **“Claude Code is not installed”** — run `claude` once in Terminal, or set `"claudePath"` in config.json.
 * **Slow** — check `uptime` / Activity Monitor; heavy builds or renders slow everything down. Whisper only loads after you call it.
-* **Test without a mic** — `~/Applications/MacButler.app/Contents/Resources/bin/butler say "크롬 열어"`
-* **Grammar self-test** — `~/Applications/MacButler.app/Contents/MacOS/MacButler --selftest`
+* **Test without a mic** — `~/Applications/Sasarisa.app/Contents/Resources/bin/butler say "크롬 열어"`
+* **Grammar self-test** — `~/Applications/Sasarisa.app/Contents/MacOS/Sasarisa --selftest`
 </details>
 
 ## Roadmap
 
-- [ ] Signed & notarized release + Homebrew tap (`brew install --cask mac-butler`)
+- [ ] Signed & notarized release + Homebrew tap (`brew install --cask sasarisa`)
 - [x] Settings window (no JSON editing)
 - [x] First-run setup window with in-app model download
 - [x] Push-to-talk (hold the hotkey)
@@ -251,8 +253,8 @@ Have an idea? [Open an issue](../../issues/new/choose).
 ## Development
 
 ```bash
-./build.sh                                  # → build/MacButler.app (no Xcode project needed)
-build/MacButler.app/Contents/MacOS/MacButler --selftest
+./build.sh                                  # → build/Sasarisa.app (no Xcode project needed)
+build/Sasarisa.app/Contents/MacOS/Sasarisa --selftest
 ./scripts/uninstall.sh [--all]
 ```
 
@@ -266,7 +268,7 @@ Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) · [Claude Code](https://docs.claude.com/en/docs/claude-code) · [cliclick](https://github.com/BlueM/cliclick) ·
 inspired by [Handy](https://github.com/cjpais/Handy).
 
-*Mac Butler is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Marvel, Disney or Anthropic. “Claude” is a trademark of Anthropic.*
+*Sasarisa is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Marvel, Disney or Anthropic. “Claude” is a trademark of Anthropic.*
 
 ---
 
@@ -274,13 +276,13 @@ inspired by [Handy](https://github.com/cjpais/Handy).
 
 **「유튜브 틀어」부터 「로그인 버그 고쳐」까지, 말하면 됩니다. 입코딩의 끝.**
 
-**맥 버틀러(Mac Butler)** — 늘 듣고 있다가 「자비스」(기본 호출어, 설정에서 바꿀 수 있음) 하고 부르면 말로 맥을 움직이는 비서입니다.
+**맥 버틀러(Sasarisa)** — 늘 듣고 있다가 “Sasarisa” (사사리사)(기본 호출어, 설정에서 바꿀 수 있음) 하고 부르면 말로 맥을 움직이는 비서입니다.
 쉬운 일은 맥이 바로 하고, 코딩 같은 중요한 일은 클로드 코드에 말로 맡깁니다. 키보드도 마우스도 안 씁니다.
 쉬운 일(앱 열기·검색·유튜브·글 입력·받아쓰기)은 1초 안에 직접 하고, 나머지는 클로드 코드가 화면을 보고 처리한 뒤 말로 답합니다.
 「클로드코드한테 ○○ 해서 보내」라고 하면 클로드 앱에 새 세션을 열어 일을 통째로 맡깁니다.
 
 ```bash
-git clone https://github.com/mvcompany8500-web/mac-butler.git && cd mac-butler && ./scripts/install.sh
+git clone https://github.com/mvcompany8500-web/sasarisa.git && cd sasarisa && ./scripts/install.sh
 ```
 
 * 메뉴 막대 **◉J** → 상태 점검에서 ✗ 를 누르면 해당 권한 설정이 열립니다.
@@ -295,4 +297,4 @@ This project is built and used daily on camera: [YouTube @turtle_buff](https://w
 
 If it's useful, a ⭐ helps others find it.
 
-AGPL-3.0 © 2026 MV Co., Ltd. (turtle buff ai) — versions up to 0.6.7 were MIT. The name "Mac Butler" and its logo are not part of the license: see [TRADEMARK.md](TRADEMARK.md) and [NOTICE.md](NOTICE.md).
+AGPL-3.0 © 2026 MV Co., Ltd. (turtle buff ai) — versions up to 0.6.7 were MIT. The name "Sasarisa" and its logo are not part of the license: see [TRADEMARK.md](TRADEMARK.md) and [NOTICE.md](NOTICE.md).

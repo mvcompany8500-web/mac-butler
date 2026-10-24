@@ -2,5 +2,5 @@
 
 ## Checklist
 - [ ] `./build.sh` builds
-- [ ] `build/MacButler.app/Contents/MacOS/MacButler --selftest` passes (add cases for new commands)
+- [ ] `build/Sasarisa.app/Contents/MacOS/Sasarisa --selftest` passes (add cases for new commands)
 - [ ] Tried it by voice (or `butler say "…"`)

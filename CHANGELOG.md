@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.6.8 — 2026-10-24
+## 0.7.0 — 2026-10-24 · Mac Butler is now **Sasarisa (사사리사)**
+- New name, one word you can say: 「사사리사」 / “Sasarisa” is the default name and wake word (heard as 사사리사·샤샤리사·싸싸리사; 「자비스」 keeps working for people who used it). Home: **sasarisa.com**
+- Your settings (`~/.macbutler`), saved keys, Pro link and learned commands carry over; the app is now `Sasarisa.app` (the old `MacButler.app` is removed by the installer)
+- Downloads: `releases/latest/download/Sasarisa.zip` (the old `MacButler.zip` link still works) · Homebrew: `brew install --cask mvcompany8500-web/tap/sasarisa`
+- Also in this release: everything listed under 0.6.8 below
+
+## 0.6.8 — 2026-10-24 (shipped as part of 0.7.0)
 - **Pick your brain, signed in on this Mac:** Codex (your ChatGPT plan) and Aside join Claude Code, Ollama and LM Studio; API-key services moved to an “API key” submenu. Everything local stays free
 - **Talk to the right Claude window:** 「클로드 ○○ 프로젝트에 …」 finds that window among many and sends a tidied message (your words, first person, slips fixed); 「…라고 전달해」 stays verbatim. **Preview before sending** (Settings): it waits in the box until you say 「응」
 - **Several jobs in one breath:** 「쿠팡에서 맥미니 검색하면서 베토벤 틀어봐. 볼륨은 적당하게」 → Coupang search · YouTube · volume 50 — searches never carry the other jobs

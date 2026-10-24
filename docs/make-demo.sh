@@ -1,11 +1,11 @@
 #!/bin/zsh
 # Rebuild docs/demo.gif from the app's real HUD (off-screen; nothing on your screen is captured).
-#   ./docs/make-demo.sh [path/to/MacButler.app]
+#   ./docs/make-demo.sh [path/to/Sasarisa.app]
 set -e
 cd "${0:a:h}/.."
-APP=${1:-build-local/MacButler.app}
+APP=${1:-build-local/Sasarisa.app}
 D=$(mktemp -d)
-"$APP/Contents/MacOS/MacButler" --demo-frames "$D"
+"$APP/Contents/MacOS/${${APP:t}:r}" --demo-frames "$D"
 # timing: title 1.6 s, then per scene: listening 0.7 s, result 1.7 s
 LIST=$D/list.txt; : > $LIST
 for f in $D/f*.png; do

@@ -31,8 +31,9 @@ final class SettingsModel: ObservableObject {
     @Published var proCode = ""
     @Published var plans: [String: AIUsage.Plan] = [:]
     @Published var daily: [(day: String, calls: Int, tokens: Int)] = []
-    /// AI plan windows (Claude from its last run, Codex from its logs) and Mac Butler's own use — read when the window opens.
+    /// AI plan windows (Claude from its last run, Codex from its logs) and Sasarisa's own use — read when the window opens.
     func refreshUsage() {
+        if SettingsWindow.shooting { return }
         DispatchQueue.global().async {
             AIUsage.refreshCodex()
             let p = AIUsage.load(), d = AIUsage.daily(7)
@@ -67,7 +68,7 @@ final class SettingsModel: ObservableObject {
          claudeModel, inputDevice, bargeIn, outputDevice, confirmDelegate, brainProvider, brainModel, brainBaseURL, brainEffort,
          ttsVoice, ttsRegion, ttsURL, growTogether, freeMode ? "1" : "0", proRemote ? "1" : "0", previewBeforeSend ? "1" : "0"].joined(separator: "\u{1F}")
     }
-    /// Something that needs a restart changed — closing the window restarts Mac Butler to apply it.
+    /// Something that needs a restart changed — closing the window restarts Sasarisa to apply it.
     @Published var needsRestart = false
     /// 미리 듣기: says a sample line with the engine and voice chosen in the window right now (before saving).
     @Published var previewing = false
@@ -85,7 +86,7 @@ final class SettingsModel: ObservableObject {
                         : "Hello\(who.isEmpty ? "" : ", " + who). I'm \(c.assistantName), and this is how I'll sound."
         previewMouth?.stop()
         let m = Mouth(cfg: c); previewMouth = m; previewing = true
-        // Mac Butler must not take its own sample line for a command (10/24 it handed 「안녕하세요 주인님…」 to the brain)
+        // Sasarisa must not take its own sample line for a command (10/24 it handed 「안녕하세요 주인님…」 to the brain)
         NotificationCenter.default.post(name: Notification.Name("MacButlerPreview"), object: true)
         m.speak(line) { [weak self] in DispatchQueue.main.async {
             self?.previewing = false
@@ -94,6 +95,7 @@ final class SettingsModel: ObservableObject {
     }
     /// Pro: membership and voice allowance, read in the background when the window opens.
     func refreshPro() {
+        if SettingsWindow.shooting { proLinked = false; pro = nil; return }      // a picture for the README: no account on it
         guard ProAccount.token != nil else { proLinked = false; pro = nil; return }
         DispatchQueue.global().async { let st = ProAccount.refresh()
             DispatchQueue.main.async { self.pro = st; self.proLinked = ProAccount.token != nil } }
@@ -366,8 +368,8 @@ struct SettingsView: View {
                     Note(AsideBrain.binary == nil
                          ? S.t("Aside 명령줄 도구가 아직 없습니다. Aside 설정 → 개발자에서 설치하고, 터미널에서 aside login 을 한 번 해 주세요.",
                                "The Aside CLI isn't installed yet. Install it in Aside → Settings → Developer, then run aside login once in Terminal.")
-                         : S.t("소리·앱 열기·타이머 같은 빠른 명령은 자비스가 하고, 나머지는 Aside 브라우저가 합니다. 결제·보내기·지우기 직전에는 멈추고 묻게 합니다.",
-                               "Quick commands (volume, apps, timers) stay in Mac Butler; the rest goes to Aside's browser, told to stop and ask before paying, sending or deleting."))
+                         : S.t("소리·앱 열기·타이머 같은 빠른 명령은 사사리사가 하고, 나머지는 Aside 브라우저가 합니다. 결제·보내기·지우기 직전에는 멈추고 묻게 합니다.",
+                               "Quick commands (volume, apps, timers) stay with Sasarisa; the rest goes to Aside's browser, told to stop and ask before paying, sending or deleting."))
                 case "ollama", "lmstudio":
                     TextField(S.t("모델", "Model"), text: $m.brainModel, prompt: Text(m.brainProvider == "ollama" ? S.t("비우면 설치된 첫 모델", "empty = first installed") : S.t("비우면 불러온 첫 모델", "empty = first loaded")))
                     Note(S.t("이 맥 안에서만 생각합니다. 인터넷으로 나가는 것이 없습니다.", "Thinks entirely on this Mac. Nothing leaves it."))
@@ -395,7 +397,7 @@ struct SettingsView: View {
                 }
             } footer: {
                 Note(m.needsRestart
-                     ? S.t("바꾼 설정은 저장됐습니다. 창을 닫으면 다시 켜서 적용합니다.", "Saved. Closing this window restarts Mac Butler to apply it.")
+                     ? S.t("바꾼 설정은 저장됐습니다. 창을 닫으면 다시 켜서 적용합니다.", "Saved. Closing this window restarts Sasarisa to apply it.")
                      : S.t("바꾸는 즉시 저장됩니다. 화면 위치는 바로 바뀝니다.", "Changes are saved as you make them. The on-screen position moves right away."))
             }
         }
@@ -434,11 +436,14 @@ struct UsageBar: View {
 
 enum SettingsWindow {
     static var window: NSWindow?
+    static var shooting = false
     /// The whole settings form drawn off screen into a PNG (design check, `--settings-shot`).
     static func shot(_ path: String) {
         _ = NSApplication.shared; NSApp.setActivationPolicy(.prohibited)
-        let cfg = Config.load(), S = Strings(ko: cfg.ko, name: cfg.assistantName)
-        let host = NSHostingController(rootView: SettingsView(m: SettingsModel(cfg), S: S, height: 2400) {})
+        shooting = true
+        let cfg = Config.load(), S = Strings(ko: cfg.ko, name: cfg.displayName)
+        let model = SettingsModel(cfg); model.proLinked = false
+        let host = NSHostingController(rootView: SettingsView(m: model, S: S, height: 2400) {})
         let w = NSWindow(contentViewController: host)
         w.setFrame(NSRect(x: -4000, y: 0, width: 580, height: 2400), display: true)
         w.orderBack(nil)
@@ -449,7 +454,7 @@ enum SettingsWindow {
         try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
     }
     static var model: SettingsModel?
-    /// Closing the window: keys typed are saved, and if something that needs a restart changed, Mac Butler restarts.
+    /// Closing the window: keys typed are saved, and if something that needs a restart changed, Sasarisa restarts.
     final class Closer: NSObject, NSWindowDelegate {
         func windowWillClose(_ n: Notification) {
             guard let m = SettingsWindow.model else { return }
@@ -461,12 +466,12 @@ enum SettingsWindow {
     static let closer = Closer()
     static func show(cfg: Config) {
         if let w = window { w.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
-        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
+        let S = Strings(ko: cfg.ko, name: cfg.displayName)
         let model = SettingsModel(cfg); self.model = model
         let view = SettingsView(m: model, S: S) { relaunch() }
         let w = NSWindow(contentViewController: NSHostingController(rootView: view))
         w.delegate = closer
-        w.title = "Mac Butler — " + S.t("설정", "Settings")
+        w.title = S.t("사사리사 — 설정", "Sasarisa — Settings")
         w.styleMask = [.titled, .closable]
         w.isReleasedWhenClosed = false
         w.center()

@@ -3,16 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mac Butler — 맥에 말하면, 바로 해 주는 AI 비서</title>
-<meta name="description" content="「자비스」라고 부르고 말하면 맥이 바로 합니다. 유튜브·쇼핑 검색·타이머·글 다듬기부터 클로드 코드에 코딩 맡기기까지. 무료·오픈소스·맥 전용.">
-<meta property="og:title" content="Mac Butler — 맥에 말하면, 바로 해 주는 AI 비서">
+<title>사사리사 — 이름을 부르면 맥이 움직이는 AI 비서 (무료·맥)</title>
+<meta name="description" content="「사사리사」 한마디면 맥이 바로 움직여요. 유튜브·쇼핑 검색·타이머·글 다듬기부터 클로드 코드에 코딩 맡기기까지 — 무료·오픈소스 맥 음성 비서.">
+<meta property="og:title" content="사사리사 — 「사사리사」 한마디면, 맥이 움직여요">
 <meta property="og:description" content="쉬운 일부터 코딩까지, 말로. 무료·오픈소스·맥 전용.">
-<meta property="og:image" content="https://mvcompany8500-web.github.io/mac-butler/og.png">
+<meta property="og:image" content="https://sasarisa.com/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%2334d399' stroke-width='3' stroke-dasharray='6 4'/%3E%3Ccircle cx='32' cy='32' r='12' fill='%2334d399'/%3E%3C/svg%3E">
-<link rel="alternate" hreflang="en" href="https://mvcompany8500-web.github.io/mac-butler/en/">
+<link rel="alternate" hreflang="en" href="https://sasarisa.com/en/">
+<link rel="canonical" href="https://sasarisa.com/">
+<link rel="alternate" hreflang="ko" href="https://sasarisa.com/">
+<link rel="alternate" hreflang="x-default" href="https://sasarisa.com/">
+<meta property="og:url" content="https://sasarisa.com/"><meta property="og:type" content="website"><meta property="og:site_name" content="사사리사 Sasarisa"><meta property="og:locale" content="ko_KR">
+<meta name="keywords" content="사사리사, Sasarisa, 맥 음성 비서, 맥 AI 비서, 음성으로 맥 제어, 클로드 코드 음성, 맥 받아쓰기, 무료 오픈소스">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "사사리사 Sasarisa", "alternateName": ["Sasarisa", "사사리사", "Mac Butler"], "operatingSystem": "macOS 14+", "applicationCategory": "UtilitiesApplication", "inLanguage": "ko", "description": "「사사리사」 한마디면 맥이 움직이는 무료 음성 비서. 유튜브·쇼핑 검색·타이머·글 다듬기부터 클로드 코드에 코딩 맡기기까지.", "url": "https://sasarisa.com/", "downloadUrl": "https://sasarisa.com/download", "softwareVersion": "0.7.0", "license": "https://www.gnu.org/licenses/agpl-3.0.html", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"}, "publisher": {"@type": "Organization", "name": "주식회사 엠브이 (MV Co., Ltd.)", "url": "https://turtle-buff.com"}, "sameAs": ["https://github.com/mvcompany8500-web/sasarisa"]}</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 :root{
@@ -210,9 +216,9 @@ footer a:hover{color:var(--blue)}
 <body>
 
 <nav id="nav"><div class="wrap">
-  <a class="logo" href="#top" aria-label="Mac Butler">
+  <a class="logo" href="#top" aria-label="사사리사">
     <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="none" stroke="#0b0d12" stroke-width="3" stroke-dasharray="7 4"/><circle cx="32" cy="32" r="11" fill="#16a34a"/></svg>
-    Mac Butler
+    사사리사
   </a>
   <div class="links">
     <a href="#features">할 수 있는 것</a>
@@ -223,10 +229,10 @@ footer a:hover{color:var(--blue)}
   </div>
   <div class="right">
     <a class="lang" href="en/" hreflang="en" lang="en">EN</a>
-    <a class="gh" href="https://github.com/mvcompany8500-web/mac-butler" aria-label="GitHub">
+    <a class="gh" href="https://github.com/mvcompany8500-web/sasarisa" aria-label="GitHub">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg><span class="ghl">GitHub</span><span class="stars" hidden></span>
     </a>
-    <a class="btn btn-dark" href="https://maker.buffm.com/dl/butler">
+    <a class="btn btn-dark" href="https://sasarisa.com/download">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>다운로드
     </a>
   </div>
@@ -238,18 +244,18 @@ footer a:hover{color:var(--blue)}
   <div class="cloud" style="width:460px;height:200px;right:-80px;top:30px"></div>
   <div class="cloud" style="width:380px;height:160px;right:22%;top:250px;opacity:.7"></div>
   <span class="badge">무료 · 오픈소스 · 맥 전용</span>
-  <h1>맥에 말하면,<br>바로 해 주는 AI&nbsp;비서.</h1>
-  <p class="lead"><span class="ln">「자비스」라고 부르고 말하면 맥이 바로&nbsp;합니다.</span><span class="ln">쉬운 일부터 코딩까지, <span class="nw">손&nbsp;대신&nbsp;말로.</span></span></p>
+  <h1><span class="nw">「사사리사」</span> 한마디면,<br>맥이 바로 움직여요.</h1>
+  <p class="lead"><span class="ln">이름을 부르고 말하면 끝. 맥이 그 일을 끝까지&nbsp;합니다.</span><span class="ln">쉬운 일부터 코딩까지, <span class="nw">손&nbsp;대신&nbsp;말로.</span></span></p>
   <div class="cta">
-    <a class="btn btn-dark btn-lg" href="https://maker.buffm.com/dl/butler">
+    <a class="btn btn-dark btn-lg" href="https://sasarisa.com/download">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>macOS용 다운로드
     </a>
-    <a class="btn btn-ghost" href="https://github.com/mvcompany8500-web/mac-butler">
+    <a class="btn btn-ghost" href="https://github.com/mvcompany8500-web/sasarisa">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>GitHub
     </a>
   </div>
-  <p class="note">또는 터미널에 한 줄: <code>brew install --cask mvcompany8500-web/tap/mac-butler</code></p>
-  <div class="shot"><img src="product-shot.png" width="1600" height="900" alt="「자비스, 유튜브 로파이 틀어」 — 사파리에서 로파이 영상이 바로 재생되고, 오른쪽 아래 카드가 알려 줌"></div>
+  <p class="note">또는 터미널에 한 줄: <code>brew install --cask mvcompany8500-web/tap/sasarisa</code></p>
+  <div class="shot"><img src="product-shot.png" width="1600" height="900" alt="「사사리사, 유튜브 로파이 틀어」 — 사파리에서 로파이 영상이 바로 재생되고, 오른쪽 아래 카드가 알려 줌"></div>
 </header>
 </div>
 
@@ -257,10 +263,11 @@ footer a:hover{color:var(--blue)}
 
 <section class="sec reveal" id="intro">
   <div class="grid2">
-    <div><span class="label">Mac Butler 소개</span></div>
+    <div><span class="label">사사리사 소개</span></div>
     <div class="prose">
       <p><b>받아쓰기 앱은 말을 글자로만 바꿉니다.</b> 그 다음 버튼을 누르고, 창을 열고, 검색하는 건 여전히 손으로 해야 하죠.</p>
-      <p><b>Mac Butler는 말하면 그 일을 끝까지 합니다.</b> 자주 하는 일은 맥 안에서 1초 안에, 생각이 필요한 일은 클로드&nbsp;코드가 화면을&nbsp;보고 처리합니다. 쓸수록 더&nbsp;빨라집니다.</p>
+      <p><b>사사리사는 말하면 그 일을 끝까지 합니다.</b> 자주 하는 일은 맥 안에서 1초 안에, 생각이 필요한 일은 클로드&nbsp;코드가 화면을&nbsp;보고 처리합니다. 쓸수록 더&nbsp;빨라집니다.</p>
+      <p><b>이름이 곧 부르는 말이에요.</b> 불꽃이 타닥 튀는 소리처럼 짧고 또렷해서, 방 안의 다른 말과 헷갈리지 않고 부르면 바로 깨어납니다. 받침이 없어 누구나 쉽게 부를&nbsp;수&nbsp;있어요.</p>
     </div>
   </div>
 </section>
@@ -290,7 +297,7 @@ footer a:hover{color:var(--blue)}
     <p class="sub">이름은 바꿀 수 있어요. 처음 부른 뒤 30초는 이름 없이 이어서 말하면 됩니다.</p>
   </div>
   <div class="wake">
-    <div class="wk"><div class="say">「자비스」<small>또는 「헤이 자비스」</small></div><p>띵 소리가 나면 말하세요. 말이 끝나면 0.9초 안에 움직입니다.</p></div>
+    <div class="wk"><div class="say">「사사리사」<small>또는 「헤이 사사리사」</small></div><p>띵 소리가 나면 말하세요. 말이 끝나면 0.9초 안에 움직입니다.</p></div>
     <div class="wk"><div class="say"><span class="kbd">오른쪽 ⌥</span> <span class="nw">누른 채 말하기</span></div><p>핸디처럼 누른 동안만 듣고, 떼면 바로 실행. 시끄러운 곳에서 가장 정확해요.</p></div>
     <div class="wk"><div class="say">「됐어」 · 「멈춰」</div><p>대답 중에도 끊을 수 있어요. 스피커로 말하는 중이어도 마이크 가까이에서 말하면 멈춥니다.</p></div>
   </div>
@@ -319,7 +326,7 @@ footer a:hover{color:var(--blue)}
     </div>
   </div>
   <div class="cards">
-    <div class="card"><div class="art a2"><div class="pillui"><b>Mac Butler</b>「보내기」를 누를까요?<br><span class="yes">응</span><span class="no">아니</span></div></div>
+    <div class="card"><div class="art a2"><div class="pillui"><b>사사리사</b>「보내기」를 누를까요?<br><span class="yes">응</span><span class="no">아니</span></div></div>
       <div class="t"><b>보내기·결제·삭제는 꼭 물어요.</b> 바로 실행 모드에서도 되돌릴 수 없는 일은 「응」을 들어야 누릅니다.</div></div>
     <div class="card"><div class="art a1"><div class="pillui"><b>맥 안에서만</b>깨우는 말 · 받아쓰기<br><span style="color:#16a34a;font-weight:600">외부 전송 없음</span></div></div>
       <div class="t"><b>목소리는 맥 밖으로 안 나가요.</b> 듣기와 받아쓰기는 맥 안에서 하고, 클로드에게 넘기는 글자만 나갑니다.</div></div>
@@ -349,9 +356,9 @@ footer a:hover{color:var(--blue)}
   </div>
   <div class="steps">
     <div class="step"><div class="num">1</div><div><h3>클로드&nbsp;코드 설치·로그인</h3><p>설치 안내대로 깔고, 터미널에서 「claude」를 한&nbsp;번 실행해 로그인합니다.</p></div></div>
-    <div class="step"><div class="num">2</div><div><h3>Mac Butler 설치</h3><p>터미널에 한 줄 — 또는 위의 「macOS용 다운로드」(애플 공증 완료).</p>
-      <div class="code"><span id="brew">brew install --cask mvcompany8500-web/tap/mac-butler</span><button type="button" onclick="copyBrew(this)">복사</button></div></div></div>
-    <div class="step"><div class="num">3</div><div><h3>처음 뜨는 준비 화면에서 빨간 칸만</h3><p>마이크·음성 인식·손쉬운 사용 허용, 정확한 받아쓰기 모델 「받기」. 메뉴 막대에 ◉ 가 보이면 끝 — 「자비스」라고 불러 보세요.</p></div></div>
+    <div class="step"><div class="num">2</div><div><h3>사사리사 설치</h3><p>터미널에 한 줄 — 또는 위의 「macOS용 다운로드」(애플 공증 완료).</p>
+      <div class="code"><span id="brew">brew install --cask mvcompany8500-web/tap/sasarisa</span><button type="button" onclick="copyBrew(this)">복사</button></div></div></div>
+    <div class="step"><div class="num">3</div><div><h3>처음 뜨는 준비 화면에서 빨간 칸만</h3><p>마이크·음성 인식·손쉬운 사용 허용, 정확한 받아쓰기 모델 「받기」. 메뉴 막대에 ◉ 가 보이면 끝 — 「사사리사」라고 불러 보세요.</p></div></div>
   </div>
   <div class="win"><div><b>윈도우는 나중에 나와요.</b> 맥에서 먼저 공개하고, 윈도우판은 듣기·받아쓰기 속도를 맥만큼 맞춘 뒤 따로 출시합니다.</div></div>
 </section>
@@ -366,7 +373,7 @@ footer a:hover{color:var(--blue)}
     <div class="wk"><div class="say">무료 <small>지금, 계속</small></div>
       <ul><li>부르기·빠른 명령·받아쓰기·글 다듬기</li><li>모든 두뇌 — <span class="nw">로컬 연결</span>, <span class="nw">API 키 연결</span></li><li>여러 클로드 창에 <span class="nw">골라 전하기</span></li><li>카톡·크몽 같은 <span class="nw">여러 단계 일</span></li><li>루틴·자유 모드·<span class="nw">다 같이 키우기</span></li></ul></div>
     <div class="wk pro"><div class="say">Pro <small>준비 중 · 멤버십에 포함</small></div>
-      <ul><li><span class="nw">폰으로 자비스 부르기</span> — 밖에서 말하면 <span class="nw">집의 맥이 실행</span></li><li>여러 맥 동기화 — <span class="nw">기억·루틴·배운 말</span></li><li>루틴 모음 — <span class="nw">받아 쓰고 나누기</span></li><li>새 기능 먼저 쓰기·<span class="nw">우선 도움</span></li></ul></div>
+      <ul><li><span class="nw">폰으로 사사리사 부르기</span> — 밖에서 말하면 <span class="nw">집의 맥이 실행</span></li><li>여러 맥 동기화 — <span class="nw">기억·루틴·배운 말</span></li><li>루틴 모음 — <span class="nw">받아 쓰고 나누기</span></li><li>새 기능 먼저 쓰기·<span class="nw">우선 도움</span></li></ul></div>
   </div>
 </section>
 
@@ -378,13 +385,13 @@ footer a:hover{color:var(--blue)}
   <div class="res">
     <a class="r" href="https://www.youtube.com/@turtle_buff"><div class="k">영상</div><h3>만드는 과정과 사용법</h3><p>유튜브 @turtle_buff에서 실제로 쓰는 모습을 보여 드려요.</p></a>
     <a class="r" href="https://turtle-buff.com"><div class="k">터틀메이커</div><h3>자동화 강의·전자책</h3><p>AI로 일 줄이는 방법을 더 알고 싶다면 터틀메이커 홈페이지로.</p></a>
-    <a class="r" href="https://github.com/mvcompany8500-web/mac-butler/issues/new/choose"><div class="k">의견·버그</div><h3>보완할 점 남기기</h3><p>안 되는 말, 바라는 기능을 남겨 주시면 다음 판에 반영합니다.</p></a>
+    <a class="r" href="https://github.com/mvcompany8500-web/sasarisa/issues/new/choose"><div class="k">의견·버그</div><h3>보완할 점 남기기</h3><p>안 되는 말, 바라는 기능을 남겨 주시면 다음 판에 반영합니다.</p></a>
   </div>
 </section>
 
 <section class="final reveal">
   <h2>오늘부터,<br>맥에 말로 시키세요.</h2>
-  <a class="btn btn-dark btn-lg" href="https://maker.buffm.com/dl/butler">
+  <a class="btn btn-dark btn-lg" href="https://sasarisa.com/download">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>macOS용 다운로드
   </a>
 </section>
@@ -392,8 +399,8 @@ footer a:hover{color:var(--blue)}
 </div>
 
 <footer><div class="wrap">
-  <div>Mac Butler · 무료 · 오픈소스(AGPL-3.0) · 만든 곳 <a href="https://turtle-buff.com">터틀메이커(turtle buff ai)</a></div>
-  <div><a href="https://github.com/mvcompany8500-web/mac-butler">GitHub</a> · <a href="en/">English</a> · <a href="https://github.com/mvcompany8500-web/mac-butler/blob/main/SECURITY.md">보안</a> · <a href="https://www.youtube.com/@turtle_buff">YouTube</a></div>
+  <div>사사리사 · 무료 · 오픈소스(AGPL-3.0) · 만든 곳 <a href="https://turtle-buff.com">터틀메이커(turtle buff ai)</a></div>
+  <div><a href="https://github.com/mvcompany8500-web/sasarisa">GitHub</a> · <a href="en/">English</a> · <a href="https://github.com/mvcompany8500-web/sasarisa/blob/main/SECURITY.md">보안</a> · <a href="https://www.youtube.com/@turtle_buff">YouTube</a></div>
 </div></footer>
 
 <script>
@@ -402,7 +409,7 @@ addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>8),{passiv
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');
   e.target.querySelectorAll('.fill').forEach(f=>f.style.width=f.dataset.w+'%');io.unobserve(e.target)}}),{threshold:.15});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
-fetch('https://api.github.com/repos/mvcompany8500-web/mac-butler').then(r=>r.json()).then(j=>{const n=j.stargazers_count;if(n>=10){const e=document.querySelector('.stars');e.textContent='★ '+(n>=1000?(n/1000).toFixed(1)+'k':n);e.hidden=false}}).catch(()=>{});
+fetch('https://api.github.com/repos/mvcompany8500-web/sasarisa').then(r=>r.json()).then(j=>{const n=j.stargazers_count;if(n>=10){const e=document.querySelector('.stars');e.textContent='★ '+(n>=1000?(n/1000).toFixed(1)+'k':n);e.hidden=false}}).catch(()=>{});
 function copyBrew(b){navigator.clipboard?.writeText(document.getElementById('brew').textContent).then(()=>{b.textContent='복사됨';setTimeout(()=>b.textContent='복사',1500)})}
 </script>
 </body>

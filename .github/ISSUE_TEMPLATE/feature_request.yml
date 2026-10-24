@@ -1,9 +1,9 @@
 name: Feature / command idea
-description: Something you'd like to say to Mac Butler
+description: Something you'd like to say to Sasarisa
 labels: [enhancement]
 body:
   - type: textarea
-    attributes: { label: What would you say?, placeholder: "“Jarvis, summarize this page into Notes”" }
+    attributes: { label: What would you say?, placeholder: "“Sasarisa, summarize this page into Notes”" }
     validations: { required: true }
   - type: textarea
     attributes: { label: What should happen? }

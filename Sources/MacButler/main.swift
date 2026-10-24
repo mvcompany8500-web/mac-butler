@@ -1,4 +1,4 @@
-// Mac Butler — an always-listening voice assistant for macOS, powered by Claude Code.
+// Sasarisa — an always-listening voice assistant for macOS, powered by Claude Code.
 // The assistant answers to "Jarvis" by default (configurable: assistantName / wakeWords).
 // Say the wake word, then talk. It types, clicks, opens things, and hands bigger jobs to Claude.
 import AppKit
@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ n: Notification) {
         cfg = Config.load()
         let cfg = self.cfg
-        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
+        let S = Strings(ko: cfg.ko, name: cfg.displayName)
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.title = "◉" + String(cfg.assistantName.prefix(1)).uppercased()
         let menu = NSMenu()
@@ -66,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ("mic", "Privacy_Microphone"), ("speech", "Privacy_SpeechRecognition"), ("ax", "Privacy_Accessibility"),
         ("screen", "Privacy_ScreenCapture"), ("claude", ""), ("whisper", "")]
     func menuWillOpen(_ menu: NSMenu) {
-        let S = Strings(ko: cfg.ko, name: cfg.assistantName)
+        let S = Strings(ko: cfg.ko, name: cfg.displayName)
         let ok: [Bool] = [
             AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
             SFSpeechRecognizer.authorizationStatus() == .authorized,
@@ -174,6 +174,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--demo-frames"), CommandLine.ar
 // `MacButler --selftest` checks the command grammar without a microphone.
 // `MacButler --settings-shot out.png` — the settings window drawn off screen, full height (to check the design).
 if let i = CommandLine.arguments.firstIndex(of: "--settings-shot"), CommandLine.arguments.count > i + 1 { SettingsWindow.shot(CommandLine.arguments[i + 1]); exit(0) }
+if let i = CommandLine.arguments.firstIndex(of: "--setup-shot"), CommandLine.arguments.count > i + 1 { SetupWindow.shot(CommandLine.arguments[i + 1]); exit(0) }
 if CommandLine.arguments.contains("--selftest") { exit(SelfTest.run() ? 0 : 1) }
 // `MacButler --parse "말"` shows how a sentence would be understood (for testing the grammar).
 if let i = CommandLine.arguments.firstIndex(of: "--parse") {
@@ -182,7 +183,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--parse") {
     exit(0)
 }
 // `MacButler --ask "말"` sends one request through the brain, no microphone — for checking a brain and its safety.
-// Point MACBUTLER_HOME at a scratch folder so its tools can't reach a Mac Butler that is running.
+// Point MACBUTLER_HOME at a scratch folder so its tools can't reach a Sasarisa that is running.
 if let i = CommandLine.arguments.firstIndex(of: "--ask"), CommandLine.arguments.count > i + 1 {
     let b = Brains.make(Config.load()); var answer: String?
     b.ask(CommandLine.arguments[i + 1], live: "", frontApp: NSWorkspace.shared.frontmostApplication?.localizedName ?? "?", context: "",

@@ -1,4 +1,4 @@
-// Talk to the running Mac Butler.   butler <say|type|delegate|settings> [text]
+// Talk to the running Sasarisa.   butler <say|type|delegate|settings> [text]
 //   say       "open chrome"            — run a command as if spoken
 //   type      "hello"                  — type into the focused field, character by character
 //   delegate  "session name|task"      — hand a task to Claude (empty session name = new session)
@@ -7,7 +7,7 @@
 // Uses a private Unix socket (owner-only); other users and sandboxed apps can't send commands.
 import Foundation
 
-/// Sends "<cmd>\n<text>" to the running Mac Butler over its private socket (~/.macbutler/butler.sock).
+/// Sends "<cmd>\n<text>" to the running Sasarisa over its private socket (~/.macbutler/butler.sock).
 func butlerSend(_ cmd: String, _ text: String) -> String? {
     let home = ProcessInfo.processInfo.environment["MACBUTLER_HOME"].map { ($0 as NSString).expandingTildeInPath } ?? (NSHomeDirectory() + "/.macbutler")
     let p = home + "/butler.sock"
@@ -29,7 +29,7 @@ func butlerSend(_ cmd: String, _ text: String) -> String? {
 
 let a = CommandLine.arguments
 guard a.count >= 2, ["say", "type", "delegate", "settings", "session", "setup"].contains(a[1]) else { print("usage: butler <say|type|delegate|settings|session|setup> [text]"); exit(1) }
-guard let answer = butlerSend(a[1], a.dropFirst(2).joined(separator: " ")) else { print("Mac Butler is not running"); exit(2) }
+guard let answer = butlerSend(a[1], a.dropFirst(2).joined(separator: " ")) else { print("Sasarisa is not running"); exit(2) }
 _ = answer
-if a[1] == "delegate", answer == "sent" { print("sent — free mode: Mac Butler typed the task into the Claude session. Say briefly that it was handed over."); exit(0) }
-if a[1] == "delegate" { print("pending — Mac Butler holds the task until the user says yes. In your answer, ASK whether to hand it over; do not say it was done.") }
+if a[1] == "delegate", answer == "sent" { print("sent — free mode: Sasarisa typed the task into the Claude session. Say briefly that it was handed over."); exit(0) }
+if a[1] == "delegate" { print("pending — Sasarisa holds the task until the user says yes. In your answer, ASK whether to hand it over; do not say it was done.") }

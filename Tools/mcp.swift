@@ -1,4 +1,4 @@
-// butler-mcp — Mac Butler's hands as an MCP server (stdio, JSON-RPC 2.0, one message per line).
+// butler-mcp — Sasarisa's hands as an MCP server (stdio, JSON-RPC 2.0, one message per line).
 // Every brain gets the same tool box: Claude Code and other agent CLIs load it as an MCP server, and the
 // app's own API brains (OpenAI, Anthropic, OpenAI-compatible) talk to it the same way. There is no shell here:
 // each tool runs one bundled tool (`jax`, `butler`) with a fixed argument list, so the safe-mode guards in

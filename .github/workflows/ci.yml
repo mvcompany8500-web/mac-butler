@@ -12,4 +12,4 @@ jobs:
       - name: Build
         run: ./build.sh
       - name: Self-test (command grammar)
-        run: MACBUTLER_HOME=$RUNNER_TEMP/mb build/MacButler.app/Contents/MacOS/MacButler --selftest
+        run: MACBUTLER_HOME=$RUNNER_TEMP/mb build/Sasarisa.app/Contents/MacOS/Sasarisa --selftest

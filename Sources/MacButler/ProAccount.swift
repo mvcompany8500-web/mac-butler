@@ -1,4 +1,4 @@
-// Mac Butler Pro (2026-10-24): what runs on TurtleMaker's servers, for TurtleMaker members — call your Mac from your
+// Sasarisa Pro (2026-10-24): what runs on TurtleMaker's servers, for TurtleMaker members — call your Mac from your
 // phone, and the natural voice. Everything that runs on your Mac stays free; nothing here is needed for it.
 //  · Linking: the Mac gets a short code, you approve it in any browser signed in to your TurtleMaker account
 //    (maker.buffm.com/butler/link), and the Mac receives a device key (Keychain only; the server keeps a hash).

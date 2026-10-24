@@ -1,11 +1,11 @@
-// 「다 같이 키우기」 (2026-10-24): what one Mac Butler learns helps everyone's — like a fleet learning together.
+// 「다 같이 키우기」 (2026-10-24): what one Sasarisa learns helps everyone's — like a fleet learning together.
 //  1. Consent, asked once: grow together (share) or grow alone (nothing leaves this Mac). Changeable in Settings.
 //  2. Shared, only with consent, once a day: the short sentences the router turned into a *safe* quick command
 //     (volume, video, closing pages, opening an app…) and the command, plus 「아니」 vetoes — with a random install id.
 //     Never: audio, conversations, screen, files, names, search words, timer labels, dictation, Claude tasks.
 //  3. The server keeps a pair only when 5+ installs on 3+ networks said it, the same sentence mostly means the same
 //     command, and few vetoed it; old votes fade after 180 days.
-//  4. Every Mac Butler downloads that pack once a day and checks each pair again before using it (safe quick command
+//  4. Every Sasarisa downloads that pack once a day and checks each pair again before using it (safe quick command
 //     only, short, no digits runs). Local learning always wins over the pack.
 import AppKit
 

@@ -1,6 +1,6 @@
 // Brains you plug in with an API key or a local model server — Anthropic's API, and anything that speaks the OpenAI
 // chat API: OpenAI, Gemini, OpenRouter, Groq, Ollama, LM Studio, or your own server (`brainProvider`).
-// Mac Butler runs the conversation itself. The hands are the same `butler-mcp` tool box Claude Code gets, started with
+// Sasarisa runs the conversation itself. The hands are the same `butler-mcp` tool box Claude Code gets, started with
 // the same fixed safe-mode flags, so every guard (protected apps, send/pay confirmation, password fields) holds
 // whatever model is thinking. There is no shell and no file access to hand out in the first place.
 import AppKit
@@ -27,10 +27,10 @@ enum Brains {
     }
 }
 
-/// API keys live in the login Keychain (service "Mac Butler", account = the provider), never in config.json.
+/// API keys live in the login Keychain (service "Sasarisa", account = the provider), never in config.json.
 /// `MacButler --set-key openai` stores one; environment variables are read as a fallback for developers.
 enum Keys {
-    static let service = "Mac Butler"
+    static let service = "Mac Butler"         // Keychain service — kept after the rename (0.7) so saved keys stay
     static func get(_ account: String) -> String? {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: account, kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
@@ -165,7 +165,7 @@ final class APIBrain: Thinker {
     func cancel(silently: Bool) {
         guard let d = done else { return }
         gen += 1; task?.cancel(); done = nil; step = nil
-        if !silently { d(Strings(ko: cfg.ko, name: cfg.assistantName).stopped) }
+        if !silently { d(Strings(ko: cfg.ko, name: cfg.displayName).stopped) }
     }
 
     func ask(_ command: String, live: String, frontApp: String, context: String, step: @escaping (String) -> Void, done: @escaping (String) -> Void) {
@@ -183,7 +183,7 @@ final class APIBrain: Thinker {
                 guard my == self.gen, let d = self.done else { return }
                 self.done = nil; self.step = nil; self.lastUse = Date(); self.lastCommands = cmds
                 let t = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-                d(t.isEmpty ? Strings(ko: self.cfg.ko, name: self.cfg.assistantName).failed : t)
+                d(t.isEmpty ? Strings(ko: self.cfg.ko, name: self.cfg.displayName).failed : t)
             }
         }
     }
@@ -335,7 +335,7 @@ final class APIBrain: Thinker {
                                    "messages": [["role": "system", "content": systemPrompt(webSearch: false)]] + history]
         var headers: [String: String] = [:]
         if let k = key { headers["Authorization"] = "Bearer \(k)" }
-        if p.id == "openrouter" { headers["X-Title"] = "Mac Butler" }
+        if p.id == "openrouter" { headers["X-Title"] = "Sasarisa" }
         guard let r = post("chat/completions", body, headers: headers),
               let msg = ((r["choices"] as? [[String: Any]])?.first)?["message"] as? [String: Any] else { return nil }
         var reply = Reply()

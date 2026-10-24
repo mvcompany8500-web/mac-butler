@@ -38,7 +38,7 @@ final class Butler {
     var openedHosts: Set<String> = []
     var openedURLs: [String] = []      // the exact pages it opened — 「창 다 꺼」 closes these, not every tab on that site
     var openedApps: Set<String> = []
-    static let neverClose: Set<String> = ["Claude", "Finder", "Terminal", "iTerm2", "Xcode", "Visual Studio Code", "Cursor", "Mac Butler", "MacButler"]   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
+    static let neverClose: Set<String> = ["Claude", "Finder", "Terminal", "iTerm2", "Xcode", "Visual Studio Code", "Cursor", "Sasarisa", "MacButler"]   // 「쿠팡에서 맥미니」 → then just 「M6 찾아」 stays on Coupang
     /// Can anything you say interrupt it? Only when its voice can't reach the mic (headphones).
     lazy var bargeAny: Bool = {
         if cfg.bargeIn == "any" { return true }
@@ -59,7 +59,7 @@ final class Butler {
 
     init(cfg: Config) {
         self.cfg = cfg
-        S = Strings(ko: cfg.ko, name: cfg.assistantName)
+        S = Strings(ko: cfg.ko, name: cfg.displayName)
         parser = Parser(cfg: cfg)
         Sound.outputUID = cfg.outputDevice
         hud.position = cfg.hudPosition
@@ -252,7 +252,7 @@ final class Butler {
         switch mode {
         case .idle:
             if parser.isGreeting(t) { greet(); return }
-            guard parser.wakeRange(t) != nil else { return }
+            guard parser.wakeRange(t) != nil else { nameByWhisper(t, audio); return }
             mode = .awake; awakeUntil = Date().addingTimeInterval(cfg.followUpSec)
             fallthrough
         case .awake:
@@ -295,6 +295,22 @@ final class Butler {
     }
 
     /// Apple's text is shown instantly; the command itself uses Whisper's more accurate text.
+    /// The live recognizer doesn't know a made-up name — 「사사리사」 came back as 「수술 있어」「서 서 있어」 (10/24). A short
+    /// utterance that starts like it (ㅅ·ㅆ·ㅈ·ㅊ) is heard again by Whisper, which is told the name; if it's there, wake.
+    func nameByWhisper(_ t: String, _ audio: [Float]) {
+        guard cfg.ko, whisper.available, audio.count > 8000, audio.count < 16000 * 5,
+              let first = Parser.squash(t).unicodeScalars.first, first.value >= 0xAC00, first.value < 0xD7A4,
+              [9, 10, 12, 14].contains((Int(first.value) - 0xAC00) / 588) else { return }
+        whisper.transcribe(audio, fallback: t) { [weak self] full in
+            guard let self, self.mode == .idle else { return }
+            guard let heard = [full, self.whisper.lastSetAside].first(where: { self.parser.wakeRange($0) != nil }) else { return }
+            log("name heard by Whisper: 「\(t)」 → 「\(heard)」")
+            Sound.named(self.cfg.chime)
+            self.mode = .awake; self.awakeUntil = Date().addingTimeInterval(self.cfg.followUpSec)
+            let rest = self.parser.stripWake(heard)
+            if rest.isEmpty { self.hud.show(self.S.conversing, self.S.speakNow) } else { self.command(heard) }
+        }
+    }
     func refine(_ audio: [Float], _ apple: String, then: @escaping (String) -> Void) {
         if !audio.isEmpty && whisper.available { hud.show(S.transcribing, apple, speed: 2) }
         let apple = dropEcho(apple)
@@ -433,10 +449,18 @@ final class Butler {
         case .forgetRoutine(let name):
             Routines.remove(name); done(S.t("루틴 지움", "Routine removed"), name)
         case .multi(let parts):
-            log("multi: \(parts)")
+            // Quick parts run one after another right away; parts that need thought go to the brain together at the end —
+            // started in between they used to cancel each other (a new command drops a brain turn that's still running).
+            let quick = parts.filter { parser.parse($0, hasYouTubeList: !ytList.isEmpty) != .none }
+            let slow = parts.filter { parser.parse($0, hasYouTubeList: !ytList.isEmpty) == .none && Parser.squash($0).count >= 4 }
+            log("multi: quick \(quick) · brain \(slow)")
             hud.show(S.t("◉ 차례로 하는 중", "◉ Doing them in order"), parts.joined(separator: " → "), heard: nil, color: amber, speed: 3)
-            for (i, p) in parts.enumerated() {
+            for (i, p) in quick.enumerated() {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 1.6) { [weak self] in self?.handle(p) }
+            }
+            if !slow.isEmpty {
+                let rest = slow.joined(separator: S.t(" 그리고 ", " and "))
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(quick.count) * 1.6 + 0.4) { [weak self] in self?.ask(rest) }
             }
         case .closeOpened:
             let n = closeOpened()
@@ -476,7 +500,7 @@ final class Butler {
             done(S.opened, spoken)
         case .none:
             if let canon = Aliases.lookup(cmd), isQuick(canon) { log("alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
-            // 「다 같이 키우기」 pack: what many people taught their Mac Butler (checked again here — safe quick commands only)
+            // 「다 같이 키우기」 pack: what many people taught their Sasarisa (checked again here — safe quick commands only)
             if let canon = GrowTogether.lookup(cmd, parser: parser), isQuick(canon) { log("shared alias: \(cmd) → \(canon)"); lastRouted = (cmd, Date()); handle(canon); return }
             Growth.miss(cmd, front: NSWorkspace.shared.frontmostApplication?.localizedName ?? "")
             if let steps = Learning.lookup(cmd) {      // learned before → instant, no Claude call
@@ -496,7 +520,7 @@ final class Butler {
         }
     }
 
-    /// What Claude should know without spending a tool call: the page in front (if a browser) and what Mac Butler opened.
+    /// What Claude should know without spending a tool call: the page in front (if a browser) and what Sasarisa opened.
     func screenContext(_ front: String) -> String {
         var lines: [String] = []
         if ["Safari", "Google Chrome"].contains(front) {
@@ -508,7 +532,7 @@ final class Butler {
             }
         }
         if !openedHosts.isEmpty || !openedApps.isEmpty {
-            lines.append(S.t("자비스가 연 것: ", "Opened by Mac Butler: ") + (openedHosts.sorted() + openedApps.sorted()).joined(separator: ", "))
+            lines.append(S.t("비서가 연 것: ", "Opened by the assistant: ") + (openedHosts.sorted() + openedApps.sorted()).joined(separator: ", "))
         }
         return lines.map { "[" + $0 + "]" }.joined(separator: "\n")
     }

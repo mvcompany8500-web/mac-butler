@@ -95,6 +95,12 @@ final class Whisper {
         let half = parts.count / 2
         let key = { (xs: ArraySlice<String>) in Parser.squash(xs.joined(separator: " ")).replacingOccurrences(of: "자비스", with: "") }
         guard key(parts[..<half]).count >= 4, key(parts[..<half]) == key(parts[half...]) else { return nil }
+        // the first half as it was written — its own 「?」「!」 kept (Handy-like punctuation)
+        var ends = 0
+        for i in t.indices where ".?!。".contains(t[i]) {
+            ends += 1
+            if ends == half { return String(t[...i]).trimmingCharacters(in: .whitespaces) }
+        }
         return parts[..<half].joined(separator: ". ") + "."
     }
     private func attempt(_ wav: Data, tries: Int, done: @escaping (String?, [(String, Double)]) -> Void) {

@@ -24,7 +24,7 @@ struct Config: Codable {
     var language = Config.systemLanguage   // "ko", "en", "ja", "zh", "es", "fr", "de", "pt", "it", "vi", "th", "id" … (default: your Mac's language)
     var activation = "voice"            // "voice": say the wake word (or tap/hold the hotkey) · "hold": only while holding the hotkey — nothing is transcribed otherwise
     var userName = ""                   // how the assistant addresses you, e.g. "대표님", "Tony"
-    var assistantName = "Jarvis"
+    var assistantName = "Sasarisa"       // 사사리사 (2026-10-24 renamed from Sasarisa / 「자비스」)
     var wakeWords: [String] = []        // empty → language default
     var greetPhrases: [String] = []     // empty → language default ("아빠 왔어", "daddy's home" …)
     var greetingText = ""               // empty → "어서 오십시오, {user}" / "Welcome home, {user}."
@@ -108,6 +108,8 @@ struct Config: Codable {
     }
     var lang: String { String(language.prefix(2)) }
     var languageName: String { Config.languages.first { $0.code == lang }?.name ?? "English" }
+    /// The name as shown and spoken: a Latin name is shown in Hangul in Korean (Sasarisa → 사사리사).
+    var displayName: String { ko ? (Config.hangulReading(assistantName) ?? assistantName) : assistantName }
     var user: String { userName.isEmpty ? (ko ? "주인님" : "sir") : userName }
     var locale: String { Config.languages.first { $0.code == lang }?.locale ?? "en-US" }
     var wakes: [String] {
@@ -120,18 +122,34 @@ struct Config: Codable {
             own = [name, (ko ? "헤이 " : "hey ") + name]
             if ko, let h = Config.hangulReading(name) {
                 // what Korean speech recognition writes for it (10/24: 「사사리사」 came back as 「샤샤 리사」)
-                // each 사 may come back as 사·샤·싸 on its own (at most 3 of them → 27 spellings)
-                var heard: [String] = [""]
-                for ch in h { heard = heard.flatMap { pre in ch == "사" && h.filter({ $0 == "사" }).count <= 3 ? ["사", "샤", "싸"].map { pre + $0 } : [pre + String(ch)] } }
-                for w in heard { own += [w, "헤이 " + w] }
+                let tense = h.replacingOccurrences(of: "사", with: "싸")       // how it's said out loud: 싸싸리싸
+                own += [h, "헤이 " + h] + (tense != h ? [tense] : [])      // sound-alikes (샤싸 리사, 사사니사 …) are matched by `Parser.nameSoundsLike`
             }
         }
         switch lang {
-        case "ko": return own + ["자비스", "헤이 자비스"]
+        case "ko": return own + ["자비스", "헤이 자비스"]      // 「자비스」 still works for people who called it that before 0.7
         case "ja": return own + ["ジャービス", "jarvis"]
         case "zh": return own + ["贾维斯", "jarvis"]
-        default: return own + ["jarvis", "hey jarvis"]
+        default: return own.isEmpty ? ["sasarisa", "hey sasarisa"] : own
         }
+    }
+    /// A pattern that matches what Korean speech recognition writes for a Hangul name: each syllable may come back with a
+    /// confusable consonant (ㅅ/ㅆ/ㅈ, ㄹ/ㄴ/ㅇ/ㄷ …) and vowel (ㅏ/ㅑ/ㅓ …), spaces and 「~」 between them (owner 10/24:
+    /// 「사사리사~ 해도 잘 안 불려, 발음 비슷한 걸 여러 개」). nil for names it can't spell out syllable by syllable.
+    static func soundAlike(_ hangul: String) -> String? {
+        let leads: [[Int]] = [[0, 1, 15], [2, 5, 11], [3, 4, 16], [5, 2, 11, 3], [6, 7], [7, 8, 17, 6], [9, 10], [11], [12, 13, 14], [14, 12], [15, 0, 1], [16, 3, 4], [17, 7, 8], [18, 11]]
+        let leadIndex = [0: 0, 1: 0, 2: 1, 3: 2, 4: 2, 5: 3, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6, 11: 7, 12: 8, 13: 8, 14: 9, 15: 10, 16: 11, 17: 12, 18: 13]
+        let vowels: [Int: [Int]] = [0: [0, 2, 4], 2: [2, 0], 4: [4, 0, 5], 5: [5, 1, 4], 1: [1, 5], 8: [8, 13], 13: [13, 8, 18], 18: [18, 20, 13], 20: [20, 19, 18]]
+        var parts: [String] = []
+        for ch in hangul.unicodeScalars {
+            let v = Int(ch.value) - 0xAC00
+            guard v >= 0, v < 11172, v % 28 == 0 else { return nil }          // open syllables only (no final consonant)
+            let l = v / 588, m = (v % 588) / 28
+            let ls = leadIndex[l].map { leads[$0] } ?? [l], ms = vowels[m] ?? [m]
+            let opts = ls.flatMap { a in ms.map { b in String(UnicodeScalar(0xAC00 + (a * 21 + b) * 28)!) } }
+            parts.append("[" + Set(opts).sorted().joined() + "]")
+        }
+        return parts.count >= 3 ? parts.joined(separator: "[\\s~,.]*") : nil
     }
     /// 「sasarisa」→「사사리사」: a Latin name made of open syllables (consonant + vowel, no final consonant) read in Hangul.
     static func hangulReading(_ name: String) -> String? {
@@ -160,7 +178,7 @@ struct Config: Codable {
         if userName.isEmpty { return ko ? "나만의 AI 비서" : "Your personal AI assistant" }
         return fill(ko ? "{user}의 개인 비서" : "Personal assistant of {user}")
     }
-    func fill(_ s: String) -> String { s.replacingOccurrences(of: "{user}", with: user).replacingOccurrences(of: "{assistant}", with: assistantName) }
+    func fill(_ s: String) -> String { s.replacingOccurrences(of: "{user}", with: user).replacingOccurrences(of: "{assistant}", with: displayName) }
 
     var whisperModelPath: String { whisperModel.isEmpty ? Paths.home.appendingPathComponent("models/ggml-large-v3-turbo-q8_0.bin").path : (whisperModel as NSString).expandingTildeInPath }
     var claudeBinary: String? { claudePath.isEmpty ? Paths.which("claude", extra: ["~/.claude/local/claude", "~/.local/bin/claude"]) : (claudePath as NSString).expandingTildeInPath }

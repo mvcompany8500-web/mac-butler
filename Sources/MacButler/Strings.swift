@@ -3,7 +3,7 @@ import Foundation
 
 struct Strings {
     let ko: Bool
-    var name = "Jarvis"
+    var name = "Sasarisa"
     func t(_ k: String, _ e: String) -> String { ko ? k : e }
 
     var listening: String { t("● 듣는 중", "● Listening") }
